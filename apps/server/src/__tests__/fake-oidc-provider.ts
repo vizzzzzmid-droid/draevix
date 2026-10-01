@@ -22,8 +22,8 @@ type TPendingAuthorization = {
   redirectUri: string;
 };
 
-const CLIENT_ID = 'sharkord-test-client';
-const CLIENT_SECRET = 'sharkord-test-secret';
+const CLIENT_ID = 'draevix-test-client';
+const CLIENT_SECRET = 'draevix-test-secret';
 
 // a 1x1 png, served from /avatar.png so the picture claim has something real to fetch
 const TINY_PNG = Buffer.from(

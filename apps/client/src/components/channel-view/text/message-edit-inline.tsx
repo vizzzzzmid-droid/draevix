@@ -4,8 +4,8 @@ import {
   type TMessage,
   isEmptyMessage,
   prepareMessageHtml
-} from '@sharkord/shared';
-import { AutoFocus } from '@sharkord/ui';
+} from '@draevix/shared';
+import { AutoFocus } from '@draevix/ui';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

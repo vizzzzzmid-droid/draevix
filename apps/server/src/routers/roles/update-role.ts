@@ -5,7 +5,7 @@ import {
   Permission,
   STORAGE_MAX_QUOTA_PER_USER,
   STORAGE_MIN_QUOTA_PER_USER
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';

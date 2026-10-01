@@ -1,4 +1,4 @@
-import { Permission } from '@sharkord/shared';
+import { Permission } from '@draevix/shared';
 import { z } from 'zod';
 import { loadMessageForWrite } from '../../helpers/load-message-for-write';
 import { setMessagePinned } from '../../helpers/message-pin';

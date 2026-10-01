@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@sharkord/shared';
+import { getErrorMessage } from '@draevix/shared';
 import chalk from 'chalk';
 import http from 'http';
 import z from 'zod';
@@ -110,7 +110,7 @@ const createHttpServer = async (port: number = config.server.port) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('X-Frame-Options', 'DENY');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-        res.setHeader('X-Sharkord-Version', SERVER_VERSION);
+        res.setHeader('X-Draevix-Version', SERVER_VERSION);
 
         const info = getWsInfo(undefined, req);
         const url = getRequestUrl(req);

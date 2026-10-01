@@ -1,5 +1,5 @@
 import { ChannelChip } from '@/components/channel-chip';
-import { parseDomCommand } from '@sharkord/shared';
+import { parseDomCommand } from '@draevix/shared';
 import { Element, type DOMNode } from 'html-react-parser';
 import { CommandOverride } from '../overrides/command';
 import { MentionOverride } from '../overrides/mention';

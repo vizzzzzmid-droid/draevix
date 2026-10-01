@@ -13,7 +13,7 @@ import { Connect } from '@/screens/connect';
 import { Disconnected } from '@/screens/disconnected';
 import { LoadingApp } from '@/screens/loading-app';
 import { ServerView } from '@/screens/server-view';
-import { DisconnectCode } from '@sharkord/shared';
+import { DisconnectCode } from '@draevix/shared';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from './hooks/use-document-title';

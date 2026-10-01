@@ -4,7 +4,7 @@ import {
   type TBeforeChannelCreatePayload,
   type TBeforeChannelCreateUpdate,
   type TChannel
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db';

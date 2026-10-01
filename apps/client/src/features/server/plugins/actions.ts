@@ -11,7 +11,7 @@ import {
   type TPluginComponentsMapBySlotId,
   type TPluginMetadata,
   type TPluginTabsMap
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { toast } from 'sonner';
 import { serverSliceActions } from '../slice';
 import { pluginVersionByIdSelector } from './selectors';

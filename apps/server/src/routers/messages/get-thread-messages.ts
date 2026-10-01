@@ -3,7 +3,7 @@ import {
   zMessagesCursor,
   type TMessage,
   type TMessagesCursor
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { and, asc, eq, gt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';

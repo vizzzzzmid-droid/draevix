@@ -1,5 +1,5 @@
 {
-  "name": "sharkord",
+  "name": "draevix",
   "version": "0.0.25",
   "private": true,
   "workspaces": [
@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "test": "bun run --filter '*' test",
-    "test:e2e": "bun run --filter '@sharkord/e2e' test:e2e",
+    "test:e2e": "bun run --filter '@draevix/e2e' test:e2e",
     "format": "bun run --filter '*' format",
     "format:check": "bun run --filter '*' format:check",
     "check-types": "bun run --filter '*' check-types",

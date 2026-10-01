@@ -13,8 +13,8 @@ import {
   getTrpcError,
   TestId,
   UserStatus
-} from '@sharkord/shared';
-import { Button } from '@sharkord/ui';
+} from '@draevix/shared';
+import { Button } from '@draevix/ui';
 import { Gavel, Plus, Trash, UserMinus } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';

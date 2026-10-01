@@ -1,4 +1,4 @@
-import { MARKETPLACE_REGISTRY_URL } from '@sharkord/shared';
+import { MARKETPLACE_REGISTRY_URL } from '@draevix/shared';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { fetchMarketplaceVersion } from '../marketplace';
 

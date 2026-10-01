@@ -1,4 +1,4 @@
-import { ServerEvents } from '@sharkord/shared';
+import { ServerEvents } from '@draevix/shared';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';

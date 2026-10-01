@@ -1,4 +1,4 @@
-import { Permission, zPluginId } from '@sharkord/shared';
+import { Permission, zPluginId } from '@draevix/shared';
 import z from 'zod';
 import { config } from '../../config';
 import { setPluginUserData } from '../../db/queries/plugin-user-data';

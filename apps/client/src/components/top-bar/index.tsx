@@ -3,8 +3,8 @@ import {
   useIsCurrentVoiceChannelSelected
 } from '@/features/server/channels/hooks';
 import { usePublicServerSettings } from '@/features/server/hooks';
-import { PluginSlot } from '@sharkord/shared';
-import { Button, Tooltip } from '@sharkord/ui';
+import { PluginSlot } from '@draevix/shared';
+import { Button, Tooltip } from '@draevix/ui';
 import { PanelRight, PanelRightClose } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

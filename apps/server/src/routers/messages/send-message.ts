@@ -11,7 +11,7 @@ import {
   PluginCapabilityType,
   STORAGE_MAX_FILES_PER_MESSAGE,
   toDomCommand
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';

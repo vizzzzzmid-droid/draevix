@@ -6,8 +6,8 @@ import {
   useVoice
 } from '@/features/server/voice/hooks';
 import { cn } from '@/lib/utils';
-import { ChannelPermission } from '@sharkord/shared';
-import { Button, Tooltip } from '@sharkord/ui';
+import { ChannelPermission } from '@draevix/shared';
+import { Button, Tooltip } from '@draevix/ui';
 import {
   HeadphoneOff,
   Headphones,

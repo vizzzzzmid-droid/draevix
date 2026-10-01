@@ -1,7 +1,7 @@
 import { PluginSlotRenderer } from '@/components/plugin-slot-renderer';
 import { useChannelById } from '@/features/server/channels/hooks';
-import { ChannelType, PluginSlot } from '@sharkord/shared';
-import { IconButton } from '@sharkord/ui';
+import { ChannelType, PluginSlot } from '@draevix/shared';
+import { IconButton } from '@draevix/ui';
 import { Hash, MessageCircleMore, Volume2, X } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
 import { PinnedMessagesPopover } from './pinned-messages-popover';

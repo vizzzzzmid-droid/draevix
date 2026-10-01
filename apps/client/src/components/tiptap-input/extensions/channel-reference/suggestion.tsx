@@ -1,4 +1,4 @@
-import type { TChannel } from '@sharkord/shared';
+import type { TChannel } from '@draevix/shared';
 import type { Editor } from '@tiptap/core';
 import { Hash } from 'lucide-react';
 import type { Ref } from 'react';

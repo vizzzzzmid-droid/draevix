@@ -1,4 +1,4 @@
-import { ActivityLogType, Permission } from '@sharkord/shared';
+import { ActivityLogType, Permission } from '@draevix/shared';
 import { count } from 'drizzle-orm';
 import { config } from '../../config';
 import { db } from '../../db';

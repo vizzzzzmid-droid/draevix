@@ -13,7 +13,7 @@ import {
   getTrpcError,
   type TExternalStream,
   type TVoiceUserState
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import type { RtpCapabilities } from 'mediasoup-client/types';
 import { toast } from 'sonner';
 import {

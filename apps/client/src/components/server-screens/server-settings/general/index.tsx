@@ -5,7 +5,7 @@ import { useAdminGeneral } from '@/features/server/admin/hooks';
 import { getFileUrl } from '@/helpers/get-file-url';
 import type { TPickedImage } from '@/hooks/use-pick-image';
 import { getTRPCClient } from '@/lib/trpc';
-import { getTrpcError } from '@sharkord/shared';
+import { getTrpcError } from '@draevix/shared';
 import {
   Button,
   Group,
@@ -13,7 +13,7 @@ import {
   LoadingCard,
   Switch,
   Textarea
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { memo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

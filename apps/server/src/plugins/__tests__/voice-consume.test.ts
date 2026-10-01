@@ -1,4 +1,4 @@
-import { StreamKind } from '@sharkord/shared';
+import { StreamKind } from '@draevix/shared';
 import {
   afterEach,
   beforeAll,

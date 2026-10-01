@@ -1,4 +1,4 @@
-import { getErrorMessage, type TPluginHookResult } from '@sharkord/shared';
+import { getErrorMessage, type TPluginHookResult } from '@draevix/shared';
 import { TRPCError } from '@trpc/server';
 import { pluginLogger } from './plugin-logger';
 

@@ -2,7 +2,7 @@ import {
   DELETED_USER_IDENTITY_AND_NAME,
   HEX_COLOR_REGEX,
   MAX_USER_NAME_LENGTH
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db';

@@ -3,7 +3,7 @@ import {
   MAX_USER_NAME_LENGTH,
   OidcError,
   sha256
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import {
   afterAll,
   beforeAll,
@@ -152,7 +152,7 @@ describe('an issuer that ends with a slash', () => {
   let pathProvider: TFakeOidcProvider;
 
   beforeAll(async () => {
-    pathProvider = await startFakeOidcProvider('/application/o/sharkord');
+    pathProvider = await startFakeOidcProvider('/application/o/draevix');
   });
 
   afterAll(async () => {
@@ -206,7 +206,7 @@ describe('/oidc/login', () => {
 
     // keyed by state so a second tab starting a login cannot invalidate the first
     expect(cookie).toContain(
-      `sharkord_oidc_state_${target.searchParams.get('state')}=1`
+      `draevix_oidc_state_${target.searchParams.get('state')}=1`
     );
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Lax');
@@ -741,7 +741,7 @@ describe('/oidc/callback', () => {
       .get();
 
     expect(created!.name).not.toBe('__deleted_user__');
-    expect(created!.name).toStartWith('SharkordUser');
+    expect(created!.name).toStartWith('DraevixUser');
   });
 
   test('should refuse a name past the length the interface allows', async () => {
@@ -851,7 +851,7 @@ describe('/oidc/callback', () => {
 
   test('should reject a state that does not match the cookie', async () => {
     const { error } = await runOidcFlow({
-      cookie: 'sharkord_oidc_state=not-the-right-state'
+      cookie: 'draevix_oidc_state=not-the-right-state'
     });
 
     expect(error).toBe(OidcError.INVALID_STATE);
@@ -915,7 +915,7 @@ describe('/oidc/callback', () => {
     const [setCookie] = response.headers.getSetCookie();
 
     expect(response.status).toBe(200);
-    expect(setCookie).toContain('sharkord_oidc_state_');
+    expect(setCookie).toContain('draevix_oidc_state_');
     expect(setCookie).toContain('Max-Age=0');
   });
 
@@ -936,7 +936,7 @@ describe('/oidc/callback', () => {
 
     const [setCookie] = response.headers.getSetCookie();
 
-    expect(setCookie).toContain('sharkord_oidc_state_');
+    expect(setCookie).toContain('draevix_oidc_state_');
     expect(setCookie).toContain('Max-Age=0');
   });
 

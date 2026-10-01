@@ -1,8 +1,8 @@
 import { setDmsOpen } from '@/features/server/actions';
 import { useDirectMessagesUnreadCount } from '@/features/server/channels/hooks';
 import { useDmsOpen } from '@/features/server/hooks';
-import { TestId } from '@sharkord/shared';
-import { cn, Tooltip } from '@sharkord/ui';
+import { TestId } from '@draevix/shared';
+import { cn, Tooltip } from '@draevix/ui';
 import { MessageCircleMore, X } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';

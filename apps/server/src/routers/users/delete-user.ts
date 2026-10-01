@@ -4,7 +4,7 @@ import {
   DisconnectCode,
   Permission,
   ServerEvents
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { and, eq, exists, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 import z from 'zod';

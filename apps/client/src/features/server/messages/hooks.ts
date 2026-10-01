@@ -4,7 +4,7 @@ import {
   DEFAULT_MESSAGES_LIMIT,
   type TJoinedMessage,
   type TMessagesCursor
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import {

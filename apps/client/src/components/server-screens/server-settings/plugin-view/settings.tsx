@@ -1,7 +1,7 @@
 import { SettingsSection } from '@/components/server-screens/settings-shell/section';
 import { useSettingsForm } from '@/components/server-screens/settings-shell/use-settings-form';
 import { getTRPCClient } from '@/lib/trpc';
-import type { TPluginSettingDefinition } from '@sharkord/shared';
+import type { TPluginSettingDefinition } from '@draevix/shared';
 import {
   Group,
   Input,
@@ -12,7 +12,7 @@ import {
   SelectValue,
   Switch,
   Textarea
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { memo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 

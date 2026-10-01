@@ -1,4 +1,4 @@
-import type { TCommandArg } from '@sharkord/shared';
+import type { TCommandArg } from '@draevix/shared';
 import z from 'zod';
 import { invariant } from '../utils/invariant';
 

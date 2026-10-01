@@ -32,7 +32,7 @@ import type {
   TPluginTabs,
   TStreamQualityLayer,
   TVoiceProducerInfo
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import {
   ChannelPermission,
   ChannelType,
@@ -42,7 +42,7 @@ import {
   PLUGIN_SDK_VERSION,
   PluginSlot,
   StreamKind
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { AppData, Producer, Router, RtpParameters } from 'mediasoup/types';
 
@@ -375,11 +375,11 @@ export interface PluginSettings<
  * are typed from it, names included:
  *
  * ```ts
- * type TSharkord = {
+ * type TDraevix = {
  *   actions: { roll: { payload: { sides: number }; response: number } };
  * };
  *
- * const onLoad = (ctx: PluginContext<TSharkord>) => { ... };
+ * const onLoad = (ctx: PluginContext<TDraevix>) => { ... };
  * ```
  *
  * The contract is optional, and so is every key in it: what you leave out
@@ -816,7 +816,7 @@ export type PluginModule<C extends TPluginContract = TPluginContract> = {
   ) => void | Promise<void>;
 };
 
-type TSharkordState = ReturnType<TPluginStore['getState']>;
+type TDraevixState = ReturnType<TPluginStore['getState']>;
 
 // re-export mediasoup types for plugin usage
 export type {
@@ -856,7 +856,7 @@ export type {
   TPluginStoreState,
   TPluginTab,
   TPluginTabs,
-  TSharkordState
+  TDraevixState
 };
 
 export * from './actions';

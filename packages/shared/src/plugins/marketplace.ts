@@ -2,10 +2,10 @@ import z from 'zod';
 import { zHttpUrl, zPluginId } from './primitives';
 
 // const MARKETPLACE_REGISTRY_URL =
-//   'https://cdn.jsdelivr.net/gh/Sharkord/plugins@latest/plugins.json';
+//   'https://cdn.jsdelivr.net/gh/Draevix/plugins@latest/plugins.json';
 
 const MARKETPLACE_REGISTRY_URL =
-  'https://raw.githubusercontent.com/Sharkord/plugins/refs/heads/main/plugins.json?raw=true';
+  'https://raw.githubusercontent.com/Draevix/plugins/refs/heads/main/plugins.json?raw=true';
 
 const zMarketplacePlugin = z.object({
   id: zPluginId,

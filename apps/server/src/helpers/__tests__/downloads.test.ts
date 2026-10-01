@@ -1,4 +1,4 @@
-import { PLUGIN_SDK_VERSION } from '@sharkord/shared';
+import { PLUGIN_SDK_VERSION } from '@draevix/shared';
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import fs from 'fs/promises';
 import os from 'os';
@@ -79,7 +79,7 @@ const url = (route: string) => `${server.url.origin}${route}`;
 const outputPath = (name: string) => path.join(outputDir, name);
 
 beforeAll(async () => {
-  outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sharkord-downloads-'));
+  outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'draevix-downloads-'));
 
   // Bun.serve recomputes content-length, so the header check needs a server that will send a
   // length the body does not match. anything oversized enough to be caught by the running

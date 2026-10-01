@@ -1,5 +1,5 @@
 {
-  "name": "@sharkord/server",
+  "name": "@draevix/server",
   "version": "0.0.25",
   "module": "src/index.ts",
   "type": "module",
@@ -42,8 +42,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@sharkord/plugin-sdk": "workspace:*",
-    "@sharkord/shared": "workspace:*",
+    "@draevix/plugin-sdk": "workspace:*",
+    "@draevix/shared": "workspace:*",
     "@trpc/server": "^11.6.0",
     "bun-sfe-autoupdater": "^0.0.4",
     "chalk": "^5.6.2",

@@ -10,7 +10,7 @@ import {
   type TLocale,
   type TPublicServerSettings,
   type TServerInfo
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { TRPCClientError } from '@trpc/client';
 import { toast } from 'sonner';
 import { appSliceActions } from '../app/slice';
@@ -307,7 +307,7 @@ window.useToken = async (token: string) => {
   }
 };
 
-window.sharkordDebug = {
-  ...window.sharkordDebug,
+window.draevixDebug = {
+  ...window.draevixDebug,
   openSoundsModal: () => openDialog(Dialog.SOUNDS)
 };

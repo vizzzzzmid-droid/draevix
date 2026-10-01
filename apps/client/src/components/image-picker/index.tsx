@@ -1,6 +1,6 @@
 import { usePickImage, type TPickedImage } from '@/hooks/use-pick-image';
 import { cn } from '@/lib/utils';
-import { Button, buttonVariants, Group } from '@sharkord/ui';
+import { Button, buttonVariants, Group } from '@draevix/ui';
 import { Upload } from 'lucide-react';
 import { memo, useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';

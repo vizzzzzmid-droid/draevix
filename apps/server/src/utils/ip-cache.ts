@@ -1,4 +1,4 @@
-import type { TIpInfo } from '@sharkord/shared';
+import type { TIpInfo } from '@draevix/shared';
 
 const IP_CACHE_TTL = 1000 * 60 * 60; // 1 hour
 const MAX_ENTRIES = 10_000;

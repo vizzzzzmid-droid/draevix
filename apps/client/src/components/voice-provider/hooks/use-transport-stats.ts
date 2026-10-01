@@ -510,13 +510,13 @@ const useTransportStats = () => {
   }, [stats]);
 
   useEffect(() => {
-    window.sharkordDebug = {
-      ...window.sharkordDebug,
+    window.draevixDebug = {
+      ...window.draevixDebug,
       printVoiceStats: printStats
     };
 
     return () => {
-      delete window.sharkordDebug?.printVoiceStats;
+      delete window.draevixDebug?.printVoiceStats;
     };
   }, [printStats]);
 

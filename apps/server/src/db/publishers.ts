@@ -3,7 +3,7 @@ import {
   getErrorMessage,
   ServerEvents,
   type TChannelUserPermissionsMap
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { count, eq } from 'drizzle-orm';
 import { db } from '.';
 import { getCapabilityAccessRules } from '../helpers/plugin-capability-access';

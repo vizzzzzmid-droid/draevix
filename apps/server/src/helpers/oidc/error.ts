@@ -1,4 +1,4 @@
-import type { OidcError } from '@sharkord/shared';
+import type { OidcError } from '@draevix/shared';
 
 class OidcCallbackError extends Error {
   constructor(

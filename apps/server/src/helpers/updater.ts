@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@sharkord/shared';
+import { getErrorMessage } from '@draevix/shared';
 import { BunUpdater } from 'bun-sfe-autoupdater';
 import { config } from '../config';
 import { logger } from '../logger';
@@ -16,8 +16,8 @@ class Updater {
 
   constructor() {
     this.bunUpdater = new BunUpdater({
-      repoOwner: 'Sharkord',
-      repoName: 'sharkord',
+      repoOwner: 'Draevix',
+      repoName: 'draevix',
       currentVersion: SERVER_VERSION
     });
 

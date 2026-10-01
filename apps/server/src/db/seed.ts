@@ -19,7 +19,7 @@ import {
   type TIRole,
   type TISettings,
   type TIUser
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { randomUUIDv7 } from 'bun';
 import chalk from 'chalk';
 import { logger } from '../logger';
@@ -47,9 +47,9 @@ const seedDatabase = async () => {
   const originalToken = IS_DEVELOPMENT ? 'dev' : randomUUIDv7();
 
   const initialSettings: TISettings = {
-    name: 'sharkord Server',
+    name: 'draevix Server',
     description:
-      'This is the default Sharkord server description. Change me in the server settings!',
+      'This is the default Draevix server description. Change me in the server settings!',
     password: '',
     onlyAskForPasswordOnFirstJoin: false,
     serverId: Bun.randomUUIDv7(),
@@ -149,11 +149,11 @@ const seedDatabase = async () => {
   const initialUsers: TIUser[] = [
     {
       identity: await sha256(randomUUIDv7()),
-      name: 'Sharkord',
+      name: 'Draevix',
       avatarId: null,
-      password: 'sharkord',
+      password: 'draevix',
       bannerId: null,
-      bio: 'Hey, I am Sharkord!',
+      bio: 'Hey, I am Draevix!',
       createdAt: firstStart
     }
   ];
@@ -161,7 +161,7 @@ const seedDatabase = async () => {
   const initialMessages: TIMessage[] = [
     {
       channelId: 1,
-      content: '<p>Welcome to sharkord!</p>',
+      content: '<p>Welcome to draevix!</p>',
       metadata: null,
       userId: 1,
       createdAt: firstStart

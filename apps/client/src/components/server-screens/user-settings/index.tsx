@@ -1,6 +1,6 @@
 import { PluginSlotRenderer } from '@/components/plugin-slot-renderer';
 import { useCan, useUserSettingsPlugins } from '@/features/server/hooks';
-import { Permission, PluginSlot } from '@sharkord/shared';
+import { Permission, PluginSlot } from '@draevix/shared';
 import {
   Bell,
   Headphones,

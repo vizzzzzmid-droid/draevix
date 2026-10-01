@@ -17,8 +17,8 @@ import {
   prepareMessageHtml,
   TestId,
   type TJoinedMessage
-} from '@sharkord/shared';
-import { Spinner } from '@sharkord/ui';
+} from '@draevix/shared';
+import { Spinner } from '@draevix/ui';
 import { ArrowDown } from 'lucide-react';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';

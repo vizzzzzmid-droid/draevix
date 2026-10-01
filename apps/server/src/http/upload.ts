@@ -1,4 +1,4 @@
-import { getErrorMessage, Permission, UploadHeaders } from '@sharkord/shared';
+import { getErrorMessage, Permission, UploadHeaders } from '@draevix/shared';
 import fs from 'fs';
 import http from 'http';
 import z from 'zod';

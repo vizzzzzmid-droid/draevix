@@ -1,4 +1,4 @@
-import { Alert, AlertDescription } from '@sharkord/ui';
+import { Alert, AlertDescription } from '@draevix/ui';
 import { AlertCircle } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

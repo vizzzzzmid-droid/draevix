@@ -21,7 +21,7 @@ import {
   VideoCodec,
   type TDeviceSettings
 } from '@/types';
-import { DEFAULT_BITRATE } from '@sharkord/shared';
+import { DEFAULT_BITRATE } from '@draevix/shared';
 import {
   Alert,
   AlertDescription,
@@ -38,7 +38,7 @@ import {
   Separator,
   Slider,
   Switch
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { filesize } from 'filesize';
 import { Info } from 'lucide-react';
 import {

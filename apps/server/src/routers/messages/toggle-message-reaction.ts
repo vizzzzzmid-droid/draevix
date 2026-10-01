@@ -3,7 +3,7 @@ import {
   EMOJI_SHORTCODE_REGEX,
   Permission,
   REACTION_EMOJI_MAX_LENGTH
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';

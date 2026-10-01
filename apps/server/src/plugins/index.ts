@@ -5,7 +5,7 @@ import type {
   PluginModule,
   TPluginHttpMethod,
   TUpgradeInfo
-} from '@sharkord/plugin-sdk';
+} from '@draevix/plugin-sdk';
 import {
   assertSdkVersionCompatibility,
   getErrorMessage,
@@ -22,7 +22,7 @@ import {
   type TPluginMetadata,
   type TPluginSettingDefinition,
   type TPluginSlotRequirements
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { watch } from 'fs';
 import fs from 'fs/promises';
 import path from 'path';

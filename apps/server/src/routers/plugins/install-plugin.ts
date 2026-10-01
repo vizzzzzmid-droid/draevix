@@ -1,4 +1,4 @@
-import { Permission, zPluginId } from '@sharkord/shared';
+import { Permission, zPluginId } from '@draevix/shared';
 import z from 'zod';
 import { config } from '../../config';
 import { installPluginVersion } from '../../helpers/install-plugin-version';

@@ -1,4 +1,4 @@
-import { isEmojiOnlyMessage, type TJoinedMessage } from '@sharkord/shared';
+import { isEmojiOnlyMessage, type TJoinedMessage } from '@draevix/shared';
 import parse, { type DOMNode } from 'html-react-parser';
 import type { ReactNode } from 'react';
 import { readFromCache, writeToCache } from './lru-cache';

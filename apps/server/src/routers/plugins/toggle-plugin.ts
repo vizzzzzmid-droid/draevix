@@ -1,4 +1,4 @@
-import { ActivityLogType, Permission, zPluginId } from '@sharkord/shared';
+import { ActivityLogType, Permission, zPluginId } from '@draevix/shared';
 import { z } from 'zod';
 import { publishCapabilityAccess } from '../../db/publishers';
 import { pluginManager } from '../../plugins';

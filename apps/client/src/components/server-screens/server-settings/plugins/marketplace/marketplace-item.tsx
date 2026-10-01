@@ -7,8 +7,8 @@ import {
   getTrpcError,
   PLUGIN_SDK_VERSION,
   type TMarketplaceEntry
-} from '@sharkord/shared';
-import { Badge, Button, Tooltip } from '@sharkord/ui';
+} from '@draevix/shared';
+import { Badge, Button, Tooltip } from '@draevix/ui';
 import { format } from 'date-fns';
 import { BadgeCheck, Calendar, Download, Package, User } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';

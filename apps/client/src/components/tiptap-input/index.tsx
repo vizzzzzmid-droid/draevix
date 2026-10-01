@@ -1,7 +1,7 @@
 import { useCustomEmojis } from '@/features/server/emojis/hooks';
 import { useReferenceableChannels } from '@/features/server/hooks';
 import { useFilteredUsers } from '@/features/server/users/hooks';
-import { TestId, type TCommandInfo } from '@sharkord/shared';
+import { TestId, type TCommandInfo } from '@draevix/shared';
 import Emoji, { gitHubEmojis } from '@tiptap/extension-emoji';
 import Link from '@tiptap/extension-link';
 import { EditorContent, useEditor } from '@tiptap/react';

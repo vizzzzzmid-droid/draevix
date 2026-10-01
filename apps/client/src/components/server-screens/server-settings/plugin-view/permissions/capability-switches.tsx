@@ -3,8 +3,8 @@ import {
   PluginCapabilityMode,
   PluginCapabilityType,
   type TPluginCapability
-} from '@sharkord/shared';
-import { Button, Label, Switch } from '@sharkord/ui';
+} from '@draevix/shared';
+import { Button, Label, Switch } from '@draevix/ui';
 import { RotateCcw } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';

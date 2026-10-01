@@ -9,8 +9,8 @@ import {
   useActiveFullscreenPluginId,
   useServerName
 } from '@/features/server/hooks';
-import { ChannelType, PluginSlot } from '@sharkord/shared';
-import { Alert, AlertDescription } from '@sharkord/ui';
+import { ChannelType, PluginSlot } from '@draevix/shared';
+import { Alert, AlertDescription } from '@draevix/ui';
 import { AlertTriangle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

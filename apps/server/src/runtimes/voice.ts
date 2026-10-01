@@ -9,7 +9,7 @@ import {
   type TVoiceMap,
   type TVoiceProducerInfo,
   type TVoiceUserState
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import type {
   AppData,
   Consumer,

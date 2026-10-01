@@ -1,4 +1,4 @@
-import { Permission } from '@sharkord/shared';
+import { Permission } from '@draevix/shared';
 import { pluginManager } from '../../plugins';
 import { protectedProcedure } from '../../utils/trpc';
 

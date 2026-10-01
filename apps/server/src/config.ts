@@ -1,4 +1,4 @@
-import { getErrorMessage } from '@sharkord/shared';
+import { getErrorMessage } from '@draevix/shared';
 import fs from 'fs/promises';
 import { parse, stringify } from 'ini';
 import z from 'zod';
@@ -256,22 +256,22 @@ if (!configExists) {
 }
 
 const envOverridesMap: Record<string, string> = {
-  'server.port': 'SHARKORD_PORT',
-  'server.debug': 'SHARKORD_DEBUG',
-  'server.autoupdate': 'SHARKORD_AUTOUPDATE',
-  'server.backupDatabase': 'SHARKORD_BACKUP_DATABASE',
-  'server.maxRequestBodyBytes': 'SHARKORD_MAX_REQUEST_BODY_BYTES',
-  'server.allowedOrigins': 'SHARKORD_ALLOWED_ORIGINS',
-  'server.trustedProxies': 'SHARKORD_TRUSTED_PROXIES',
-  'oidc.enabled': 'SHARKORD_OIDC_ENABLED',
-  'oidc.issuer': 'SHARKORD_OIDC_ISSUER',
-  'oidc.clientId': 'SHARKORD_OIDC_CLIENT_ID',
-  'oidc.clientSecret': 'SHARKORD_OIDC_CLIENT_SECRET',
-  'oidc.redirectUri': 'SHARKORD_OIDC_REDIRECT_URI',
-  'oidc.disableLocalLogin': 'SHARKORD_OIDC_DISABLE_LOCAL_LOGIN',
-  'webRtc.port': 'SHARKORD_WEBRTC_PORT',
-  'webRtc.announcedAddress': 'SHARKORD_WEBRTC_ANNOUNCED_ADDRESS',
-  'webRtc.maxBitrate': 'SHARKORD_WEBRTC_MAX_BITRATE'
+  'server.port': 'DRAEVIX_PORT',
+  'server.debug': 'DRAEVIX_DEBUG',
+  'server.autoupdate': 'DRAEVIX_AUTOUPDATE',
+  'server.backupDatabase': 'DRAEVIX_BACKUP_DATABASE',
+  'server.maxRequestBodyBytes': 'DRAEVIX_MAX_REQUEST_BODY_BYTES',
+  'server.allowedOrigins': 'DRAEVIX_ALLOWED_ORIGINS',
+  'server.trustedProxies': 'DRAEVIX_TRUSTED_PROXIES',
+  'oidc.enabled': 'DRAEVIX_OIDC_ENABLED',
+  'oidc.issuer': 'DRAEVIX_OIDC_ISSUER',
+  'oidc.clientId': 'DRAEVIX_OIDC_CLIENT_ID',
+  'oidc.clientSecret': 'DRAEVIX_OIDC_CLIENT_SECRET',
+  'oidc.redirectUri': 'DRAEVIX_OIDC_REDIRECT_URI',
+  'oidc.disableLocalLogin': 'DRAEVIX_OIDC_DISABLE_LOCAL_LOGIN',
+  'webRtc.port': 'DRAEVIX_WEBRTC_PORT',
+  'webRtc.announcedAddress': 'DRAEVIX_WEBRTC_ANNOUNCED_ADDRESS',
+  'webRtc.maxBitrate': 'DRAEVIX_WEBRTC_MAX_BITRATE'
 };
 
 // validated again after the overrides, otherwise an env var could put a value

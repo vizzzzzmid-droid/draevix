@@ -1,3 +1,3 @@
-# Sharkord Plugin SDK
+# Draevix Plugin SDK
 
-For docs, see [docs](https://sharkord.com/docs/plugins/overview).
+For docs, see [docs](https://draevix.com/docs/plugins/overview).

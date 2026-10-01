@@ -1,4 +1,4 @@
-import { Permission } from '@sharkord/shared';
+import { Permission } from '@draevix/shared';
 import { z } from 'zod';
 import { getRole } from '../../db/queries/roles';
 import { assertCanActOnUser } from '../../helpers/assert-can-act-on-user';

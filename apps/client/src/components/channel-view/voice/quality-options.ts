@@ -1,4 +1,4 @@
-import type { TStreamQuality, TStreamQualityLayer } from '@sharkord/shared';
+import type { TStreamQuality, TStreamQualityLayer } from '@draevix/shared';
 
 const getStreamQualityMetadataLabel = (
   quality: TStreamQuality,

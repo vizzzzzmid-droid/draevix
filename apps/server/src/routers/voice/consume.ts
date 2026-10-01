@@ -1,4 +1,4 @@
-import { ServerEvents, StreamKind } from '@sharkord/shared';
+import { ServerEvents, StreamKind } from '@draevix/shared';
 import { z } from 'zod';
 import { config } from '../../config';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';

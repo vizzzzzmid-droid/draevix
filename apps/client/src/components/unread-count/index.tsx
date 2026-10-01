@@ -1,5 +1,5 @@
-import { TestId } from '@sharkord/shared';
-import { cn } from '@sharkord/ui';
+import { TestId } from '@draevix/shared';
+import { cn } from '@draevix/ui';
 import { memo } from 'react';
 
 type TUnreadCountProps = {

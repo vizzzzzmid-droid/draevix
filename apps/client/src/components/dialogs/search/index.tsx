@@ -2,7 +2,7 @@ import type { TDialogBaseProps } from '@/components/dialogs/types';
 import { jumpToMessage } from '@/features/server/actions';
 import { useOnEsc } from '@/hooks/use-on-esc';
 import type { TMessageJumpToTarget } from '@/types';
-import { TestId } from '@sharkord/shared';
+import { TestId } from '@draevix/shared';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import {
   Input,
   PaginatedList,
   Spinner
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearch } from './hooks';

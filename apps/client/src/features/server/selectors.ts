@@ -5,7 +5,7 @@ import {
   PluginSlot,
   type TJoinedRole,
   type TPluginStoreState
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { createCachedSelector } from 're-reselect';
 import type { IRootState } from '../store';
 import { categoriesSelector } from './categories/selectors';

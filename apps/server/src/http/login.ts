@@ -3,7 +3,7 @@ import {
   DELETED_USER_IDENTITY_AND_NAME,
   sha256,
   type TBeforeLoginPayload
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import chalk from 'chalk';
 import { eq } from 'drizzle-orm';
 import http from 'http';
@@ -52,7 +52,7 @@ let dummyArgon2HashPromise: Promise<string> | null = null;
 const getDummyArgon2Hash = (): Promise<string> => {
   if (!dummyArgon2HashPromise) {
     dummyArgon2HashPromise = Bun.password
-      .hash('sharkord-dummy-password-for-timing')
+      .hash('draevix-dummy-password-for-timing')
       .catch((error) => {
         dummyArgon2HashPromise = null;
         throw error;

@@ -28,7 +28,7 @@ export type TPluginStoreState = {
 
 /**
  * What a plugin's client code can ask the app to do, through
- * `window.__SHARKORD_STORE__.actions`.
+ * `window.__DRAEVIX_STORE__.actions`.
  *
  * Every call takes the plugin id because a bundle has no identity of its own in
  * the page. Inside a rendered component prefer the hooks, which know which
@@ -73,7 +73,7 @@ export type TPluginHooks = {
 
 /**
  * The bridge between a plugin's client code and the app, on
- * `window.__SHARKORD_STORE__`.
+ * `window.__DRAEVIX_STORE__`.
  */
 export type TPluginStore = {
   getState: () => TPluginStoreState;

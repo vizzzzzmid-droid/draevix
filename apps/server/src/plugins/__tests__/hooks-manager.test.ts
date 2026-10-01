@@ -3,7 +3,7 @@ import {
   MessageSaveType,
   type TBeforeFileSavePayload,
   type TBeforeMessageSavePayload
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { describe, expect, test } from 'bun:test';
 import { HooksManager } from '../hooks-manager';
 

@@ -1,4 +1,4 @@
-import type { PluginCapabilityMode, TPluginCapability } from '@sharkord/shared';
+import type { PluginCapabilityMode, TPluginCapability } from '@draevix/shared';
 
 export const EVERYONE_KEY = 'everyone';
 

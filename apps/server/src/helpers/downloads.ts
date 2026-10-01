@@ -1,7 +1,7 @@
 import {
   assertSdkVersionCompatibility,
   zPluginManifest
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { randomUUIDv7 } from 'bun';
 import fs from 'fs/promises';
 import path from 'path';

@@ -7,7 +7,7 @@ import {
 } from '@/helpers/browser-logger';
 import { getTRPCClient } from '@/lib/trpc';
 import type { TRemoteUserStreamKinds } from '@/types';
-import { StreamKind } from '@sharkord/shared';
+import { StreamKind } from '@draevix/shared';
 import type { RtpCapabilities } from 'mediasoup-client/types';
 import type { RefObject } from 'react';
 import { useEffect } from 'react';

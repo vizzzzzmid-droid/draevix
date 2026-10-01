@@ -1,5 +1,5 @@
 import type { IRootState } from '@/features/store';
-import { ChannelType, type TChannel } from '@sharkord/shared';
+import { ChannelType, type TChannel } from '@draevix/shared';
 import { describe, expect, test } from 'bun:test';
 import {
   channelByIdSelector,

@@ -5,7 +5,7 @@ import { useOwnVoiceState } from '@/features/server/voice/hooks';
 import { logVoice, logVoiceError } from '@/helpers/browser-logger';
 import { playSound } from '@/helpers/sounds';
 import { getTRPCClient } from '@/lib/trpc';
-import { getTrpcError } from '@sharkord/shared';
+import { getTrpcError } from '@draevix/shared';
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

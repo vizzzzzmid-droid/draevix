@@ -4,7 +4,7 @@ import {
   PluginCapabilityType,
   type TActivityLogDetailsMap,
   type TMessageMetadata
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { sql } from 'drizzle-orm';
 import {
   index,

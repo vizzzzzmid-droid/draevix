@@ -1,4 +1,4 @@
-import type { TArtifact } from '@sharkord/shared';
+import type { TArtifact } from '@draevix/shared';
 import {
   validateReleaseMetadata,
   type TReleaseMetadata
@@ -156,10 +156,10 @@ const compile = async ({ out, target }: TTarget) => {
       target
     },
     define: {
-      'process.env.SHARKORD_ENV': '"production"',
-      'process.env.SHARKORD_BUILD_VERSION': `"${version}"`,
-      'process.env.SHARKORD_BUILD_DATE': `"${new Date().toISOString()}"`,
-      'process.env.SHARKORD_MEDIASOUP_BIN_NAME': `"${mediasoupBinary}"`,
+      'process.env.DRAEVIX_ENV': '"production"',
+      'process.env.DRAEVIX_BUILD_VERSION': `"${version}"`,
+      'process.env.DRAEVIX_BUILD_DATE': `"${new Date().toISOString()}"`,
+      'process.env.DRAEVIX_MEDIASOUP_BIN_NAME': `"${mediasoupBinary}"`,
       'process.env.CURRENT_VERSION': `"${version}"`
     }
   });

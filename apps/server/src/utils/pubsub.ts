@@ -16,7 +16,7 @@ import type {
   TPluginPushEvent,
   TPublicServerSettings,
   TVoiceUserState
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import type { Unsubscribable } from '@trpc/server/observable';
 import { observable, type Observable } from '@trpc/server/observable';
 import { EventEmitter } from 'events';

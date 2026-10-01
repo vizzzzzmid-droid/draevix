@@ -7,7 +7,7 @@ import {
   type PluginSlot,
   type TPluginReactComponent,
   type TPluginSlotProps
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { memo } from 'react';
 import { ErrorBoundary } from './error-boundary';
 import { PlugSlotDebugWrapper } from './plugin-slot-debug-wrapper';

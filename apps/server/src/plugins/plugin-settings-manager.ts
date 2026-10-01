@@ -1,10 +1,10 @@
-import type { PluginSettings } from '@sharkord/plugin-sdk';
+import type { PluginSettings } from '@draevix/plugin-sdk';
 import {
   getSettingValueError,
   isSecretSetting,
   type TPluginSettingDefinition,
   type TPluginSettingsResponse
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { pluginData } from '../db/schema';

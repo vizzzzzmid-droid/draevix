@@ -1,4 +1,4 @@
-import { ActivityLogType, getErrorMessage } from '@sharkord/shared';
+import { ActivityLogType, getErrorMessage } from '@draevix/shared';
 import fs from 'fs/promises';
 import { publishCapabilityAccess } from '../db/publishers';
 import { logger } from '../logger';

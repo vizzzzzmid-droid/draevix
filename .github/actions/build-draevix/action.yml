@@ -1,4 +1,4 @@
-name: Build Sharkord
+name: Build Draevix
 description: Install Bun dependencies and build server artifacts. Requires checkout before use.
 
 inputs:

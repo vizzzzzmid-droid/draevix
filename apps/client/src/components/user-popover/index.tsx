@@ -14,13 +14,13 @@ import {
   TestId,
   UserStatus,
   getTrpcError
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import {
   IconButton,
   Popover,
   PopoverContent,
   PopoverTrigger
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { format } from 'date-fns';
 import { MessageSquare, ShieldCheck, Trash, UserCog } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';

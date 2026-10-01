@@ -6,7 +6,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { Github, RefreshCw } from 'lucide-react';
 import { memo, type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,8 +19,6 @@ type TGlobalErrorFallbackProps = {
   error: Error;
   reset: () => void;
 };
-
-const GITHUB_ISSUES_URL = 'https://github.com/Sharkord/sharkord/issues';
 
 const copyErrorDetails = (
   error: Error,
@@ -78,15 +76,9 @@ const GlobalErrorFallback = memo(
                 {t('reloadApp')}
               </Button>
 
-              <Button asChild variant="outline" className="sm:w-auto">
-                <a
-                  href={GITHUB_ISSUES_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Github className="h-4 w-4" />
-                  {t('reportIssueOnGithub')}
-                </a>
+              <Button variant="outline" className="sm:w-auto">
+                <Github className="h-4 w-4" />
+                {t('reportIssueOnGithub')}
               </Button>
 
               <Button
@@ -129,13 +121,12 @@ const GlobalErrorFallback = memo(
 
             <div className="flex justify-center text-xs text-muted-foreground sm:justify-between">
               <span>v{VITE_APP_VERSION}</span>
-              <a
-                href={GITHUB_ISSUES_URL}
-                target="_blank"
+              <button
+                type="button"
                 className="hidden hover:text-foreground sm:inline"
               >
-                {GITHUB_ISSUES_URL}
-              </a>
+                Draevix
+              </button>
             </div>
           </CardContent>
         </Card>

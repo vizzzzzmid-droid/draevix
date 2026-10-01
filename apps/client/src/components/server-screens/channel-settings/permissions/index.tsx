@@ -3,8 +3,8 @@ import {
   useAdminChannelGeneral,
   useAdminChannelPermissions
 } from '@/features/server/admin/hooks';
-import { ChannelPermission } from '@sharkord/shared';
-import { Alert, AlertDescription, AlertTitle, LoadingCard } from '@sharkord/ui';
+import { ChannelPermission } from '@draevix/shared';
+import { Alert, AlertDescription, AlertTitle, LoadingCard } from '@draevix/ui';
 import { MessageCircleWarning, Users } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';

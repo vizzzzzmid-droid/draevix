@@ -4,8 +4,8 @@ import { useCan } from '@/features/server/hooks';
 import type { TVoiceUser } from '@/features/server/types';
 import { useIsOwnUser } from '@/features/server/users/hooks';
 import { useSpeakingState } from '@/features/server/voice/hooks';
-import { Permission } from '@sharkord/shared';
-import { cn } from '@sharkord/ui';
+import { Permission } from '@draevix/shared';
+import { cn } from '@draevix/ui';
 import {
   HeadphoneOff,
   Headphones,

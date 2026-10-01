@@ -10,8 +10,8 @@ import { openThreadSidebar } from '@/features/app/actions';
 import { useIsShiftHeld } from '@/features/app/hooks';
 import { requestConfirmation } from '@/features/dialogs/actions';
 import { getTRPCClient } from '@/lib/trpc';
-import { Permission, PluginSlot } from '@sharkord/shared';
-import { IconButton } from '@sharkord/ui';
+import { Permission, PluginSlot } from '@draevix/shared';
+import { IconButton } from '@draevix/ui';
 import {
   MessageSquareText,
   Pencil,

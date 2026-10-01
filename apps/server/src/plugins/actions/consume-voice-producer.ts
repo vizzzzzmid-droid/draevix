@@ -1,7 +1,7 @@
 import type {
   TConsumeOptions,
   TVoiceConsumerHandle
-} from '@sharkord/plugin-sdk';
+} from '@draevix/plugin-sdk';
 import { getPluginVoiceRuntime } from '../../helpers/get-plugin-voice-runtime';
 import type { ScopedLogger } from '../plugin-logger';
 

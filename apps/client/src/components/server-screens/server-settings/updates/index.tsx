@@ -7,7 +7,7 @@ import {
   Button,
   Group,
   LoadingCard
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { ArrowUpCircle, CheckCircle, Download, X } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

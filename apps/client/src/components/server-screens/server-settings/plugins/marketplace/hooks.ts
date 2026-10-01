@@ -2,7 +2,7 @@ import {
   MARKETPLACE_REGISTRY_URL,
   parseMarketplaceRegistry,
   type TMarketplaceEntry
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import type { TFunction } from 'i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 

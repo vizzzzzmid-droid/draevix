@@ -1,4 +1,4 @@
-import { ServerEvents } from '@sharkord/shared';
+import { ServerEvents } from '@draevix/shared';
 import { protectedProcedure } from '../../utils/trpc';
 
 const onCategoryCreateRoute = protectedProcedure.subscription(

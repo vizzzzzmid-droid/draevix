@@ -1,4 +1,4 @@
-import { type TParsedDomCommand } from '@sharkord/shared';
+import { type TParsedDomCommand } from '@draevix/shared';
 import {
   CheckCircle2,
   ChevronDown,

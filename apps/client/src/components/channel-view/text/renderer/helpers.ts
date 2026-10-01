@@ -1,4 +1,4 @@
-import type { TJoinedMessage } from '@sharkord/shared';
+import type { TJoinedMessage } from '@draevix/shared';
 import type {
   TFoundMedia,
   TFoundOpenGraph,

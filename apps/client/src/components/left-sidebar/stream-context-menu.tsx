@@ -6,7 +6,7 @@ import {
   ContextMenuContent,
   ContextMenuTrigger,
   Slider
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { Router, Volume2, VolumeX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';

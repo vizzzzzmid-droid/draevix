@@ -1,4 +1,4 @@
-import { Permission } from '@sharkord/shared';
+import { Permission } from '@draevix/shared';
 import { z } from 'zod';
 import { deleteCategory } from '../../helpers/categories';
 import { protectedProcedure } from '../../utils/trpc';

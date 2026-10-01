@@ -8,7 +8,7 @@ import {
   AlertTitle,
   Group,
   Input
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 

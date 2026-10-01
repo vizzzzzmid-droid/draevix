@@ -7,7 +7,7 @@ import {
 } from '@/helpers/storage';
 import { i18n } from '@/i18n';
 import type { TMessageJumpToTarget } from '@/types';
-import type { TServerInfo } from '@sharkord/shared';
+import type { TServerInfo } from '@draevix/shared';
 import { toast } from 'sonner';
 import { markChannelAsRead, setInfo } from '../server/actions';
 import { store } from '../store';

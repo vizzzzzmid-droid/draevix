@@ -1,4 +1,4 @@
-import type { TCommandInfo } from '@sharkord/shared';
+import type { TCommandInfo } from '@draevix/shared';
 import type { Ref } from 'react';
 import { SuggestionList, type TSuggestionListRef } from '../suggestion-list';
 

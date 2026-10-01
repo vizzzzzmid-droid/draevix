@@ -1,7 +1,7 @@
 import { MessageRenderer } from '@/components/channel-view/text/renderer';
 import { useDateLocale } from '@/hooks/use-date-locale';
-import type { TMessage } from '@sharkord/shared';
-import { PaginatedList } from '@sharkord/ui';
+import type { TMessage } from '@draevix/shared';
+import { PaginatedList } from '@draevix/ui';
 import { format } from 'date-fns';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

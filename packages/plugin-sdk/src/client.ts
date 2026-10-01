@@ -10,24 +10,24 @@ import type {
   TPluginStoreState,
   TPluginTabs,
   TPluginUserData
-} from '@sharkord/shared';
+} from '@draevix/shared';
 // deep import: the barrel is tree shakeable now that the package declares
 // itself side effect free, and this does not rely on the bundler honouring it
-import { PluginCapabilityType } from '@sharkord/shared/src/plugins/capabilities';
+import { PluginCapabilityType } from '@draevix/shared/src/plugins/capabilities';
 import { useSyncExternalStore } from 'react';
 import { createCallAction as bindCallAction } from './actions';
 
 declare global {
   interface Window {
     /** the host store, exposed before any plugin bundle is imported */
-    __SHARKORD_STORE__: TPluginStore;
+    __DRAEVIX_STORE__: TPluginStore;
   }
 }
 
-const store = window.__SHARKORD_STORE__;
+const store = window.__DRAEVIX_STORE__;
 
 /**
- * Sharkord's own actions: sending a message, selecting a channel, fetching one
+ * Draevix's own actions: sending a message, selecting a channel, fetching one
  * of your HTTP routes. To call your own server actions use `createCallAction`.
  */
 const actions: TPluginActions = store.actions;
@@ -37,7 +37,7 @@ const actions: TPluginActions = store.actions;
  * the plugin share:
  *
  * ```ts
- * const callAction = createCallAction<TSharkord>();
+ * const callAction = createCallAction<TDraevix>();
  * ```
  *
  * Call it once at module scope, not inside a component.
@@ -81,7 +81,7 @@ const useCanUseCommand = <C extends TPluginContract = TPluginContract>(
 ) => store.hooks.useCanUse(PluginCapabilityType.COMMAND, name);
 
 /**
- * Reads a slice of Sharkord's state and re-renders when it changes.
+ * Reads a slice of Draevix's state and re-renders when it changes.
  *
  * The selector must return a stable reference for unchanged state: reading a
  * field (`(state) => state.users`) is fine, building a new array or object on

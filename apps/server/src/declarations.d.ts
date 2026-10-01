@@ -27,13 +27,13 @@ declare global {
 
 declare module 'bun' {
   interface Env {
-    // SHARKORD_ prefixed environment variables
-    SHARKORD_PORT?: string;
-    SHARKORD_DEBUG?: string;
-    SHARKORD_AUTOUPDATE?: string;
-    SHARKORD_WEBRTC_PORT?: string;
-    SHARKORD_WEBRTC_ANNOUNCED_ADDRESS?: string;
-    SHARKORD_DATA_PATH?: string;
+    // DRAEVIX_ prefixed environment variables
+    DRAEVIX_PORT?: string;
+    DRAEVIX_DEBUG?: string;
+    DRAEVIX_AUTOUPDATE?: string;
+    DRAEVIX_WEBRTC_PORT?: string;
+    DRAEVIX_WEBRTC_ANNOUNCED_ADDRESS?: string;
+    DRAEVIX_DATA_PATH?: string;
   }
 }
 

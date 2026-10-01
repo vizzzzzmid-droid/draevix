@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { TestId } from '@sharkord/shared';
+import { TestId } from '@draevix/shared';
 import { expect, loginAs, test } from './fixtures';
 import { confirmDialog } from './helpers/dialogs';
 
@@ -155,7 +155,7 @@ test.describe('a kicked user', () => {
       ).toHaveAttribute('data-state', 'unchecked');
 
       const savedToken = await reopened.evaluate(() =>
-        localStorage.getItem('sharkord-auto-login-token')
+        localStorage.getItem('draevix-auto-login-token')
       );
 
       expect(savedToken).toBeNull();
@@ -289,7 +289,7 @@ test('disconnecting from the server menu logs out and clears the saved token', a
     await expect(page.getByTestId(TestId.CONNECT_BUTTON)).toBeVisible();
 
     const savedToken = await page.evaluate(() =>
-      localStorage.getItem('sharkord-auto-login-token')
+      localStorage.getItem('draevix-auto-login-token')
     );
 
     expect(savedToken).toBeNull();
@@ -320,7 +320,7 @@ test('a refresh resumes an auto-login session without asking again', async ({
     await expect(page.getByTestId(TestId.SERVER_VIEW)).toBeVisible();
 
     const savedToken = await page.evaluate(() =>
-      localStorage.getItem('sharkord-auto-login-token')
+      localStorage.getItem('draevix-auto-login-token')
     );
 
     expect(savedToken).not.toBeNull();

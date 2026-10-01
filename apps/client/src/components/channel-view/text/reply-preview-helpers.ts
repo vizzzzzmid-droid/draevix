@@ -1,4 +1,4 @@
-import { getPlainTextFromHtml, type TJoinedMessage } from '@sharkord/shared';
+import { getPlainTextFromHtml, type TJoinedMessage } from '@draevix/shared';
 
 const SNIPPET_MAX_LENGTH = 32;
 

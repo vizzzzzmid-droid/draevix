@@ -12,7 +12,7 @@ import {
   useBrowserNotificationsForMentions,
   useBrowserNotificationsForReplies
 } from '@/features/app/hooks';
-import { Group, Switch } from '@sharkord/ui';
+import { Group, Switch } from '@draevix/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 

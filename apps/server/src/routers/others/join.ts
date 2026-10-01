@@ -3,7 +3,7 @@ import {
   ServerEvents,
   UserStatus,
   zLocale
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';

@@ -1,4 +1,4 @@
-import { CLIENT_ENTRY_FILE } from '@sharkord/shared';
+import { CLIENT_ENTRY_FILE } from '@draevix/shared';
 import { getUrlFromServer } from './get-file-url';
 
 const getPluginBundleUrl = (pluginId: string, version: string | undefined) => {

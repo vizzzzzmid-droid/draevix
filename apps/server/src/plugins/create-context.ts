@@ -8,13 +8,13 @@ import type {
   TPluginSlotRequirements,
   UnloadPluginContext,
   UpgradePluginContext
-} from '@sharkord/plugin-sdk';
+} from '@draevix/plugin-sdk';
 import {
   ServerEvents,
   StreamKind,
   type ChannelPermission,
   type Permission
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { channelUserCan } from '../db/queries/channels';
 import { getMessage } from '../db/queries/messages';
 import {

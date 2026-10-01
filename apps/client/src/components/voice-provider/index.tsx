@@ -37,7 +37,7 @@ import {
   type ConsumerType,
   type TStreamQualityLayer,
   type TVoiceUserState
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { Device } from 'mediasoup-client';
 import type {
   ProducerOptions,

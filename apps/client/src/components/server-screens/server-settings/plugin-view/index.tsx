@@ -11,7 +11,7 @@ import {
   Permission,
   type TPluginInfo,
   type TPluginSettingDefinition
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import {
   Alert,
   AlertDescription,
@@ -21,7 +21,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { AlertCircle, Package } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';

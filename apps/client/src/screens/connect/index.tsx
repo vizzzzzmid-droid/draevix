@@ -14,7 +14,7 @@ import {
   setSessionStorageItem
 } from '@/helpers/storage';
 import { useForm } from '@/hooks/use-form';
-import { PluginSlot, TestId } from '@sharkord/shared';
+import { PluginSlot, TestId } from '@draevix/shared';
 import {
   Alert,
   AlertDescription,
@@ -29,7 +29,7 @@ import {
   Label,
   Spinner,
   Switch
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { memo, useCallback, useMemo, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -166,7 +166,7 @@ const Connect = memo(() => {
           <CardTitle className="flex flex-col items-center gap-2 text-center">
             <img
               src={logoSrc}
-              alt="Sharkord"
+              alt="Draevix"
               className="block max-h-32 max-w-full rounded-[5px]"
             />
             {info?.name && (
@@ -276,22 +276,11 @@ const Connect = memo(() => {
 
       <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground select-none">
         <span>v{VITE_APP_VERSION}</span>
-        <a
-          href="https://github.com/sharkord/sharkord"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          GitHub
-        </a>
+        <button type="button">GitHub</button>
 
-        <a
-          className="text-xs"
-          href="https://sharkord.com"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Sharkord
-        </a>
+        <button type="button" className="text-xs">
+          Draevix
+        </button>
       </div>
     </div>
   );

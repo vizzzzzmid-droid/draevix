@@ -1,4 +1,4 @@
-import { IconButton, type TIconButtonSize } from '@sharkord/ui';
+import { IconButton, type TIconButtonSize } from '@draevix/ui';
 import { Maximize, Minimize } from 'lucide-react';
 import { memo } from 'react';
 

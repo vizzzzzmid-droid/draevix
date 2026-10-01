@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
   IconButton,
   Input
-} from '@sharkord/ui';
+} from '@draevix/ui';
 import { Plus } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';

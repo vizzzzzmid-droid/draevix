@@ -1,6 +1,6 @@
 import { usePluginsEnabled } from '@/features/server/hooks';
-import type { TPluginInfo } from '@sharkord/shared';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@sharkord/ui';
+import type { TPluginInfo } from '@draevix/shared';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@draevix/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InstalledPlugins } from './installed';

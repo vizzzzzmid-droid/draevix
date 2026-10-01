@@ -1,5 +1,5 @@
 import type { TAdminUserInfo } from '@/features/server/admin/hooks';
-import type { TFile, TLogin, TMessage, TStorageData } from '@sharkord/shared';
+import type { TFile, TLogin, TMessage, TStorageData } from '@draevix/shared';
 import { createContext, useContext } from 'react';
 
 enum ModViewScreen {

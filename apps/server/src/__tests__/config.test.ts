@@ -60,54 +60,54 @@ describe('env overrides are validated', () => {
   });
 
   test('should accept a valid override', () => {
-    setEnv('SHARKORD_PORT', '8080');
+    setEnv('DRAEVIX_PORT', '8080');
 
     expect(applyOverrides().server.port).toBe(8080);
   });
 
   test('should reject a port that is not a number', () => {
-    setEnv('SHARKORD_PORT', 'not-a-port');
+    setEnv('DRAEVIX_PORT', 'not-a-port');
 
     expect(applyOverrides).toThrow();
   });
 
   test('should turn the database backup off from the env', () => {
-    setEnv('SHARKORD_BACKUP_DATABASE', 'false');
+    setEnv('DRAEVIX_BACKUP_DATABASE', 'false');
 
     expect(applyOverrides().server.backupDatabase).toBe(false);
   });
 
   test('should reject a port outside the allowed range', () => {
-    setEnv('SHARKORD_PORT', '-1');
+    setEnv('DRAEVIX_PORT', '-1');
 
     expect(applyOverrides).toThrow();
 
-    setEnv('SHARKORD_PORT', '0');
+    setEnv('DRAEVIX_PORT', '0');
 
     expect(applyOverrides).toThrow();
   });
 
   test('should reject a fractional port', () => {
-    setEnv('SHARKORD_PORT', '80.5');
+    setEnv('DRAEVIX_PORT', '80.5');
 
     expect(applyOverrides).toThrow();
   });
 
   test('should reject a structurally wrong value', () => {
     // JSON.parse succeeds here, so the value reaches the schema as an object
-    setEnv('SHARKORD_PORT', '{"nested":true}');
+    setEnv('DRAEVIX_PORT', '{"nested":true}');
 
     expect(applyOverrides).toThrow();
   });
 
   test('should reject an invalid webRtc override', () => {
-    setEnv('SHARKORD_WEBRTC_MAX_BITRATE', '0');
+    setEnv('DRAEVIX_WEBRTC_MAX_BITRATE', '0');
 
     expect(applyOverrides).toThrow();
   });
 
   test('should coerce a comma separated list into an array', () => {
-    setEnv('SHARKORD_TRUSTED_PROXIES', '10.0.0.1,10.0.0.2');
+    setEnv('DRAEVIX_TRUSTED_PROXIES', '10.0.0.1,10.0.0.2');
 
     expect(applyOverrides().server.trustedProxies).toEqual([
       '10.0.0.1',
@@ -116,7 +116,7 @@ describe('env overrides are validated', () => {
   });
 
   test('should reject a list whose entries are empty', () => {
-    setEnv('SHARKORD_ALLOWED_ORIGINS', ',');
+    setEnv('DRAEVIX_ALLOWED_ORIGINS', ',');
 
     expect(applyOverrides).toThrow();
   });
@@ -126,7 +126,7 @@ describe('env overrides are validated', () => {
   });
 
   test('should not mutate defaultConfig', () => {
-    setEnv('SHARKORD_PORT', '8080');
+    setEnv('DRAEVIX_PORT', '8080');
 
     applyOverrides();
 

@@ -22,8 +22,8 @@ import type {
   TServerInfo,
   TVoiceMap,
   TVoiceUserState
-} from '@sharkord/shared';
-import { DEFAULT_MESSAGES_LIMIT } from '@sharkord/shared';
+} from '@draevix/shared';
+import { DEFAULT_MESSAGES_LIMIT } from '@draevix/shared';
 import { mergeMessagesChronologically } from './helpers';
 import type {
   TDisconnectInfo,

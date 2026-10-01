@@ -1,5 +1,5 @@
 import { store } from '@/features/store';
-import type { TJoinedEmoji } from '@sharkord/shared';
+import type { TJoinedEmoji } from '@draevix/shared';
 import { serverSliceActions } from '../slice';
 
 export const addEmoji = (emoji: TJoinedEmoji) => {

@@ -1,4 +1,4 @@
-import { getErrorMessage, OidcError } from '@sharkord/shared';
+import { getErrorMessage, OidcError } from '@draevix/shared';
 import type http from 'http';
 import jwt from 'jsonwebtoken';
 import * as client from 'openid-client';

@@ -8,12 +8,12 @@ import type { LocalStorageKey } from '@/helpers/storage';
 import { useTypingSignal } from '@/hooks/use-typing-signal';
 import { getTRPCClient } from '@/lib/trpc';
 import type { TReplyTarget } from '@/types';
-import type { TJoinedPublicUser } from '@sharkord/shared';
+import type { TJoinedPublicUser } from '@draevix/shared';
 import {
   getTrpcError,
   prepareMessageHtml,
   type TJoinedMessage
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { memo, useCallback, useMemo, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';

@@ -1,4 +1,4 @@
-import { FileSaveType } from '@sharkord/shared';
+import { FileSaveType } from '@draevix/shared';
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { removeFile } from '../db/mutations/files';

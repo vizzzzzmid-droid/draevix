@@ -4,7 +4,7 @@ import {
   MESSAGE_MAX_LENGTH,
   Permission,
   REACTION_EMOJI_MAX_LENGTH
-} from '@sharkord/shared';
+} from '@draevix/shared';
 import { describe, expect, test } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { initTest, uploadFile } from '../../__tests__/helpers';

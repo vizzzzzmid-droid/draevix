@@ -1,4 +1,4 @@
-import type { TPluginUserData } from '@sharkord/shared';
+import type { TPluginUserData } from '@draevix/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { usePluginId } from './plugin-id-context';
 import { pluginActions } from './plugin-store';
