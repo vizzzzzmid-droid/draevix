@@ -1,21 +1,29 @@
-MIT License
+FROM oven/bun:1.3.14
 
-Copyright (c) 2025 Sharkord Team
+ARG TARGETARCH
+ENV RUNNING_IN_DOCKER=true
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+USER root
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+COPY apps/server/build/out/sharkord-linux-x64 /tmp/sharkord-linux-x64
+COPY apps/server/build/out/sharkord-linux-arm64 /tmp/sharkord-linux-arm64
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+RUN set -eux; \
+    case "$TARGETARCH" in \
+      amd64)  cp /tmp/sharkord-linux-x64 /sharkord ;; \
+      arm64)  cp /tmp/sharkord-linux-arm64 /sharkord ;; \
+      *) echo "Unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    chmod +x /sharkord; \
+    chown bun:bun /sharkord; \
+    rm -rf /tmp/sharkord-linux-*
+
+RUN mkdir -p /home/bun/.config/sharkord && \
+    chown -R bun:bun /home/bun/.config
+
+COPY docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /home/bun
+
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,30 +1,29 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
-  "workspaces": {
-    ".": {
-      "entry": [],
-      "project": []
-    },
-    "apps/server": {
-      "entry": ["src/**/__tests__/**/*.test.ts", "build/**/*.ts"],
-      "project": ["src/**/*.ts"],
-      "ignore": ["src/db/migrations/**", "data/**", "data-test/**"]
-    },
-    "apps/client": {
-      "entry": ["src/main.tsx"],
-      "project": ["src/**/*.{ts,tsx}"],
-      "ignore": ["dist/**", "public/**"]
-    },
-    "packages/shared": {
-      "entry": ["src/**/*.ts"],
-      "project": ["src/**/*.ts"]
-    },
-    "packages/ui": {
-      "entry": ["src/**/*.ts", "src/**/*.tsx"],
-      "project": ["src/**/*.ts", "src/**/*.tsx"]
-    }
-  },
-  "ignore": ["**/*.d.ts", "**/dist/**", "**/build/**", "**/node_modules/**"],
-  "ignoreDependencies": [],
-  "ignoreExportsUsedInFile": true
+  description = "Nodejs flake";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+  };
+
+  outputs =
+    {
+      self,
+      nixpkgs,
+    }:
+    let
+      pkgs = import nixpkgs {
+        system = "x86_64-linux";
+      };
+    in
+    {
+      devShells."x86_64-linux".default = pkgs.mkShell {
+        buildInputs = with pkgs; [
+          nodejs
+          docker
+          docker-compose
+          pnpm
+          bun
+        ];
+      };
+    };
 }

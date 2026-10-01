@@ -1,29 +1,55 @@
-FROM oven/bun:1.3.14
+# Development
 
-ARG TARGETARCH
-ENV RUNNING_IN_DOCKER=true
+## Requirements
 
-USER root
+- [Bun](https://bun.sh/)
+- [Tmux](https://github.com/tmux/tmux) (optional)
 
-COPY apps/server/build/out/sharkord-linux-x64 /tmp/sharkord-linux-x64
-COPY apps/server/build/out/sharkord-linux-arm64 /tmp/sharkord-linux-arm64
+## Setup
 
-RUN set -eux; \
-    case "$TARGETARCH" in \
-      amd64)  cp /tmp/sharkord-linux-x64 /sharkord ;; \
-      arm64)  cp /tmp/sharkord-linux-arm64 /sharkord ;; \
-      *) echo "Unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
-    esac; \
-    chmod +x /sharkord; \
-    chown bun:bun /sharkord; \
-    rm -rf /tmp/sharkord-linux-*
+1. Clone the repository.
+2. Run `bun install`.
+3. Start the app:
+   - With tmux: `./start.sh`
+   - Without tmux: run `bun dev` in both `apps/client` and `apps/server`
 
-RUN mkdir -p /home/bun/.config/sharkord && \
-    chown -R bun:bun /home/bun/.config
+Development data is stored in `apps/server/data`, including the database and uploaded files.
+Delete that folder if you want a clean reset.
 
-COPY docker-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+## Mock data
 
-WORKDIR /home/bun
+To start from a server that looks used rather than empty, stop the dev server and run:
 
-ENTRYPOINT ["/entrypoint.sh"]
+```bash
+cd apps/server
+bun run seed:mock
+```
+
+It **wipes `apps/server/data`** and rebuilds it: users, roles, categories, text and voice
+channels, a private channel, messages spread over weeks with replies, threads, reactions and
+pins, plus a few direct messages. Log in as `admin` with `password123`; every mock user shares
+that password, and `useToken("dev")` still claims ownership.
+
+It also creates a `#counting` channel holding 10,000 messages numbered `0` to `9999`, oldest
+first, so scrolling, pagination and jump-to-message can be checked against a message that says
+exactly where you are. Authors and timestamps alternate between runs of the same person seconds
+apart, which the client draws as one group, and switches or longer gaps, which it draws
+separately.
+
+`--size small|medium|large` changes the volume (large is 25k messages, for pagination and
+search), `--seed <number>` changes the cast, and `--counting <n>` resizes the numbered channel
+(`0` skips it). The same seed always produces the same server.
+
+## Testing
+
+To run tests, use the following command:
+
+```bash
+bun run test
+```
+
+(if you only run `bun test` it's gonna fail, you NEED to run `bun run test`)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.

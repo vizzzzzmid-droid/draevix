@@ -1,15 +1,2 @@
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@sharkord/shared": ["packages/shared/src/index.ts"]
-    },
-    "moduleResolution": "NodeNext",
-    "module": "NodeNext",
-    "target": "ESNext",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true
-  },
-  "include": ["packages/**/*", "apps/**/*", "build.ts"]
-}
+#!/usr/bin/env bash
+tmux new-session 'cd ./apps/client && bun dev' \; split-window -h 'cd ./apps/server && bun dev' \; select-pane -t 1
