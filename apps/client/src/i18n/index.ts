@@ -1,0 +1,85 @@
+import {
+  getLocalStorageItem,
+  LocalStorageKey,
+  setLocalStorageItem
+} from '@/helpers/storage';
+import type { TLocale } from '@sharkord/shared';
+import type { Locale } from 'date-fns';
+import { cs, enUS, es, fr, it, ptBR, ru, zhCN } from 'date-fns/locale';
+import i18n from 'i18next';
+import resourcesToBackend from 'i18next-resources-to-backend';
+import { initReactI18next } from 'react-i18next';
+
+export const SUPPORTED_LANGUAGES = [
+  { code: 'en', label: 'English', dateLocale: enUS }, // English should always be first
+  { code: 'cs', label: 'Čeština', dateLocale: cs },
+  { code: 'es', label: 'Español', dateLocale: es },
+  { code: 'fr', label: 'Français', dateLocale: fr },
+  { code: 'it', label: 'Italiano', dateLocale: it },
+  { code: 'ru', label: 'Русский', dateLocale: ru },
+  { code: 'zh', label: '中文', dateLocale: zhCN },
+  { code: 'pt-BR', label: 'Português (Brasil)', dateLocale: ptBR }
+] satisfies Array<{ code: TLocale; label: string; dateLocale: Locale }>;
+
+export type SupportedLanguage = TLocale;
+
+const savedLanguage = getLocalStorageItem(LocalStorageKey.LANGUAGE);
+
+const detectBrowserLanguage = (): SupportedLanguage => {
+  try {
+    const browserLangs = navigator.languages ?? [navigator.language];
+
+    for (const lang of browserLangs) {
+      const code = lang.split('-')[0];
+
+      if (SUPPORTED_LANGUAGES.some((l) => l.code === code)) {
+        return code as SupportedLanguage;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return 'en';
+};
+
+const isSavedLanguageValid =
+  savedLanguage && SUPPORTED_LANGUAGES.some((l) => l.code === savedLanguage);
+
+const initialLanguage: SupportedLanguage = isSavedLanguageValid
+  ? savedLanguage
+  : detectBrowserLanguage();
+
+export const i18nReady = i18n
+  .use(initReactI18next)
+  .use(
+    resourcesToBackend(
+      (language: string, namespace: string) =>
+        import(`./locales/${language}/${namespace}.json`)
+    )
+  )
+  .init({
+    lng: initialLanguage,
+    fallbackLng: 'en',
+    ns: [
+      'common',
+      'connect',
+      'disconnected',
+      'sidebar',
+      'topbar',
+      'dialogs',
+      'settings',
+      'permissions'
+    ],
+    defaultNS: 'common',
+    fallbackNS: 'common',
+    interpolation: {
+      escapeValue: false
+    }
+  });
+
+i18n.on('languageChanged', (lng) => {
+  setLocalStorageItem(LocalStorageKey.LANGUAGE, lng);
+});
+
+export { i18n };

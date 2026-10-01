@@ -1,0 +1,35 @@
+{
+  "name": "@sharkord/e2e",
+  "version": "0.0.25",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test:e2e": "bun run seed:e2e && bunx playwright test",
+    "test:ui": "bun run seed:e2e && bunx playwright test --ui",
+    "test:mocked": "bun run seed:e2e && RUN_MOCK=true bunx playwright test mocked.pw.ts",
+    "test:headed": "bun run seed:e2e && bunx playwright test --headed",
+    "test:flaky": "bun run seed:e2e && bunx playwright test --repeat-each=2 --retries=5",
+    "format": "prettier --write \"**/*.*.ts*\" --config ./.prettierrc.json",
+    "format:check": "prettier --check \"**/*.*.ts*\" --config ./.prettierrc.json",
+    "lint": "eslint ./tests/**/*.ts --ext ts --report-unused-disable-directives",
+    "lint:fix": "eslint ./tests/**/*.ts --ext ts --report-unused-disable-directives --fix",
+    "check-types": "tsc --noEmit",
+    "magic": "bun --bun run lint:fix && bun --bun run format && bun --bun run check-types",
+    "seed:e2e": "SHARKORD_DATA_PATH=./e2e-data bun run ./tests/setup/seed-db.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@sharkord/shared": "workspace:*",
+    "@types/bun": "latest",
+    "@types/react": "^19",
+    "drizzle-orm": "^0.44.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5",
+    "@typescript-eslint/eslint-plugin": "^8.46.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "prettier": "^3.5.3",
+    "prettier-plugin-organize-imports": "^4.1.0"
+  }
+}

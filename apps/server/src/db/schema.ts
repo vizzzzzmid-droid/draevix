@@ -1,0 +1,643 @@
+import {
+  DEFAULT_PROFILE_COLOR,
+  PluginCapabilityMode,
+  PluginCapabilityType,
+  type TActivityLogDetailsMap,
+  type TMessageMetadata
+} from '@sharkord/shared';
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+  type AnySQLiteColumn
+} from 'drizzle-orm/sqlite-core';
+
+const files = sqliteTable(
+  'files',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull().unique(),
+    originalName: text('original_name').notNull(),
+    md5: text('md5').notNull(),
+    userId: integer('user_id'),
+    pluginId: text('plugin_id'),
+    size: integer('size').notNull(),
+    mimeType: text('mime_type').notNull(),
+    extension: text('extension').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    index('files_user_idx').on(t.userId),
+    index('files_md5_idx').on(t.md5),
+    index('files_created_idx').on(t.createdAt),
+    index('files_name_idx').on(t.name)
+  ]
+);
+
+const settings = sqliteTable(
+  'settings',
+  {
+    name: text('name').notNull(),
+    description: text('description'),
+    password: text('password'),
+    onlyAskForPasswordOnFirstJoin: integer(
+      'only_ask_for_password_on_first_join',
+      {
+        mode: 'boolean'
+      }
+    ).notNull(),
+    serverId: text('server_id').notNull(),
+    secretToken: text('secret_token'),
+    logoId: integer('logo_id').references(() => files.id, {
+      onDelete: 'set null'
+    }),
+    allowNewUsers: integer('allow_new_users', { mode: 'boolean' }).notNull(),
+    directMessagesEnabled: integer('direct_messages_enabled', {
+      mode: 'boolean'
+    }).notNull(),
+    storageUploadEnabled: integer('storage_uploads_enabled', {
+      mode: 'boolean'
+    }).notNull(),
+    storageQuota: integer('storage_quota').notNull(),
+    storageUploadMaxFileSize: integer('storage_upload_max_file_size').notNull(),
+    storageMaxAvatarSize: integer('storage_max_avatar_size').notNull(),
+    storageMaxBannerSize: integer('storage_max_banner_size').notNull(),
+    storageMaxFilesPerMessage: integer(
+      'storage_max_files_per_message'
+    ).notNull(),
+    storageFileSharingInDirectMessages: integer(
+      'storage_file_sharing_in_direct_messages',
+      {
+        mode: 'boolean'
+      }
+    ).notNull(),
+    storageSpaceQuotaByUser: integer('storage_space_quota_by_user').notNull(),
+    storageOverflowAction: text('storage_overflow_action').notNull(),
+    enablePlugins: integer('enable_plugins', { mode: 'boolean' }).notNull(),
+    enableSearch: integer('enable_search', { mode: 'boolean' }).notNull(),
+    webRtcSimulcastEnabled: integer('web_rtc_simulcast_enabled', {
+      mode: 'boolean'
+    })
+      .notNull()
+      .default(false),
+    showWelcomeDialog: integer('show_welcome_dialog', {
+      mode: 'boolean'
+    })
+      .notNull()
+      .default(true),
+    storageSignedUrlsEnabled: integer('storage_signed_urls_enabled', {
+      mode: 'boolean'
+    }).notNull(),
+    storageSignedUrlsTtlSeconds: integer(
+      'storage_signed_urls_ttl_seconds'
+    ).notNull(),
+    storageImageOptimizationEnabled: integer(
+      'storage_image_optimization_enabled',
+      {
+        mode: 'boolean'
+      }
+    )
+      .notNull()
+      .default(false),
+    storageImageOptimizationQuality: integer(
+      'storage_image_optimization_quality'
+    )
+      .notNull()
+      .default(80)
+  },
+  (t) => [
+    index('settings_server_idx').on(t.serverId),
+    uniqueIndex('settings_server_unique_idx').on(t.serverId),
+    uniqueIndex('settings_single_row_idx').on(sql`(1)`)
+  ]
+);
+
+const roles = sqliteTable('roles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  color: text('color').notNull().default('#ffffff'),
+  isPersistent: integer('is_persistent', { mode: 'boolean' }).notNull(),
+  isDefault: integer('is_default', { mode: 'boolean' }).notNull(),
+  storageQuotaOverrideEnabled: integer('storage_quota_override_enabled', {
+    mode: 'boolean'
+  })
+    .notNull()
+    .default(false),
+  storageSpaceQuota: integer('storage_space_quota').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at')
+});
+
+const categories = sqliteTable(
+  'categories',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull(),
+    position: integer('position').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [index('categories_position_idx').on(t.position)]
+);
+
+const channels = sqliteTable(
+  'channels',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    type: text('type').notNull(),
+    name: text('name').notNull(),
+    topic: text('topic'),
+    private: integer('private', { mode: 'boolean' }).notNull().default(false),
+    isDm: integer('is_dm_channel', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    position: integer('position').notNull(),
+    categoryId: integer('category_id').references(() => categories.id, {
+      onDelete: 'cascade'
+    }),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    index('channels_position_idx').on(t.position),
+    index('channels_type_idx').on(t.type),
+    index('channels_category_position_idx').on(t.categoryId, t.position)
+  ]
+);
+
+const users = sqliteTable(
+  'users',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    identity: text('identity').unique().notNull(),
+    password: text('password').notNull(),
+    name: text('name').notNull(),
+    avatarId: integer('avatar_id').references(() => files.id, {
+      onDelete: 'set null'
+    }),
+    bannerId: integer('banner_id').references(() => files.id, {
+      onDelete: 'set null'
+    }),
+    bio: text('bio'),
+    banned: integer('banned', { mode: 'boolean' }).notNull().default(false),
+    banReason: text('ban_reason'),
+    bannedAt: integer('banned_at'),
+    tokenVersion: integer('token_version').notNull().default(0),
+    oidcSub: text('oidc_sub').unique(),
+    oidcIssuer: text('oidc_issuer'),
+    passwordSet: integer('password_set', { mode: 'boolean' })
+      .notNull()
+      .default(true),
+    profileColor: text('profile_color')
+      .notNull()
+      .default(DEFAULT_PROFILE_COLOR),
+    lastLoginAt: integer('last_login_at')
+      .notNull()
+      .$defaultFn(() => Date.now()),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    uniqueIndex('users_identity_idx').on(t.identity),
+    index('users_name_idx').on(t.name),
+    index('users_last_login_idx').on(t.lastLoginAt)
+  ]
+);
+
+const userRoles = sqliteTable(
+  'user_roles',
+  {
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    roleId: integer('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull()
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.roleId] }),
+    index('user_roles_role_idx').on(t.roleId)
+  ]
+);
+
+const logins = sqliteTable(
+  'logins',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    userAgent: text('user_agent'),
+    os: text('os'),
+    device: text('device'),
+    ip: text('ip'),
+    hostname: text('hostname'),
+    city: text('city'),
+    region: text('region'),
+    country: text('country'),
+    loc: text('loc'),
+    org: text('org'),
+    postal: text('postal'),
+    timezone: text('timezone'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    index('logins_ip_idx').on(t.ip),
+    index('logins_created_idx').on(t.createdAt),
+    index('logins_user_created_idx').on(t.userId, t.createdAt)
+  ]
+);
+
+const messages = sqliteTable(
+  'messages',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    content: text('content'),
+    // nullable because plugin-authored messages have no user, see plugins/actions. the
+    // cascade is delete-user's `wipe: true` branch; `wipe: false` reassigns to the deleted
+    // user placeholder first, so nothing is left to cascade
+    userId: integer('user_id').references(() => users.id, {
+      onDelete: 'cascade'
+    }),
+    pluginId: text('plugin_id'),
+    channelId: integer('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    parentMessageId: integer('parent_message_id').references(
+      (): AnySQLiteColumn => messages.id,
+      { onDelete: 'cascade' }
+    ),
+    replyToMessageId: integer('reply_to_message_id').references(
+      (): AnySQLiteColumn => messages.id,
+      { onDelete: 'set null' }
+    ),
+    editable: integer('editable', { mode: 'boolean' }).default(true),
+    metadata: text('metadata', { mode: 'json' }).$type<TMessageMetadata[]>(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at'),
+    pinned: integer('pinned', { mode: 'boolean' }).default(false),
+    pinnedAt: integer('pinned_at'),
+    pinnedBy: integer('pinned_by').references(() => users.id, {
+      onDelete: 'set null'
+    }),
+    editedAt: integer('edited_at'),
+    editedBy: integer('edited_by').references(() => users.id, {
+      onDelete: 'set null'
+    })
+  },
+  (t) => [
+    index('messages_user_idx').on(t.userId),
+    index('messages_created_idx').on(t.createdAt),
+    index('messages_channel_created_idx').on(t.channelId, t.createdAt),
+    index('messages_channel_parent_created_idx').on(
+      t.channelId,
+      t.parentMessageId,
+      t.createdAt
+    ),
+    index('messages_parent_idx').on(t.parentMessageId),
+    index('messages_reply_to_idx').on(t.replyToMessageId),
+    index('messages_parent_channel_id_idx').on(
+      t.parentMessageId,
+      t.channelId,
+      t.id
+    )
+  ]
+);
+
+const messageFiles = sqliteTable(
+  'message_files',
+  {
+    messageId: integer('message_id')
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    fileId: integer('file_id')
+      .notNull()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.fileId] }),
+    index('message_files_msg_idx').on(t.messageId),
+    index('message_files_file_idx').on(t.fileId)
+  ]
+);
+
+const rolePermissions = sqliteTable(
+  'role_permissions',
+  {
+    roleId: integer('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'cascade' }),
+    permission: text('permission').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    primaryKey({ columns: [t.roleId, t.permission] }),
+    index('role_permissions_permission_idx').on(t.permission)
+  ]
+);
+
+const emojis = sqliteTable(
+  'emojis',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull().unique(),
+    fileId: integer('file_id')
+      .notNull()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    index('emojis_user_idx').on(t.userId),
+    index('emojis_file_idx').on(t.fileId),
+    uniqueIndex('emojis_name_idx').on(t.name)
+  ]
+);
+
+const messageReactions = sqliteTable(
+  'message_reactions',
+  {
+    messageId: integer('message_id')
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').references(() => users.id, {
+      onDelete: 'cascade'
+    }),
+    pluginId: text('plugin_id'),
+    emoji: text('emoji').notNull(),
+    fileId: integer('file_id').references(() => files.id, {
+      onDelete: 'set null'
+    }),
+    createdAt: integer('created_at').notNull()
+  },
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.userId, t.emoji] }),
+    uniqueIndex('reaction_msg_emoji_plugin_unique_idx').on(
+      t.messageId,
+      t.emoji,
+      t.pluginId
+    ),
+    index('reaction_emoji_idx').on(t.emoji),
+    index('reaction_user_idx').on(t.userId),
+    index('reaction_msg_emoji_idx').on(t.messageId, t.emoji)
+  ]
+);
+
+const invites = sqliteTable(
+  'invites',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    code: text('code').notNull().unique(),
+    creatorId: integer('creator_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    roleId: integer('role_id').references(() => roles.id, {
+      onDelete: 'set null'
+    }),
+    maxUses: integer('max_uses'),
+    uses: integer('uses').notNull().default(0),
+    expiresAt: integer('expires_at'),
+    createdAt: integer('created_at').notNull()
+  },
+  (t) => [
+    uniqueIndex('invites_code_idx').on(t.code),
+    index('invites_creator_idx').on(t.creatorId),
+    index('invites_expires_idx').on(t.expiresAt)
+  ]
+);
+
+const activityLog = sqliteTable(
+  'activity_log',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id').references(() => users.id, {
+      onDelete: 'cascade'
+    }),
+    type: text('type').notNull(),
+    details: text('details', { mode: 'json' }).$type<
+      TActivityLogDetailsMap[keyof TActivityLogDetailsMap]
+    >(),
+    ip: text('ip'),
+    createdAt: integer('created_at').notNull()
+  },
+  (t) => [
+    index('activity_log_created_idx').on(t.createdAt),
+    index('activity_log_user_created_idx').on(t.userId, t.createdAt),
+    index('activity_log_type_created_idx').on(t.type, t.createdAt)
+  ]
+);
+
+const channelRolePermissions = sqliteTable(
+  'channel_role_permissions',
+  {
+    channelId: integer('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    roleId: integer('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'cascade' }),
+    permission: text('permission').notNull(),
+    allow: integer('allow', { mode: 'boolean' }).notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    primaryKey({ columns: [t.channelId, t.roleId, t.permission] }),
+    index('channel_role_permissions_role_idx').on(t.roleId),
+    index('channel_role_permissions_channel_perm_idx').on(
+      t.channelId,
+      t.permission
+    ),
+    index('channel_role_permissions_role_perm_idx').on(t.roleId, t.permission)
+  ]
+);
+
+const channelUserPermissions = sqliteTable(
+  'channel_user_permissions',
+  {
+    channelId: integer('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    permission: text('permission').notNull(),
+    allow: integer('allow', { mode: 'boolean' }).notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at')
+  },
+  (t) => [
+    primaryKey({ columns: [t.channelId, t.userId, t.permission] }),
+    index('channel_user_permissions_user_idx').on(t.userId),
+    index('channel_user_permissions_channel_perm_idx').on(
+      t.channelId,
+      t.permission
+    ),
+    index('channel_user_permissions_user_perm_idx').on(t.userId, t.permission)
+  ]
+);
+
+const channelReadStates = sqliteTable(
+  'channel_read_states',
+  {
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    channelId: integer('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    lastReadMessageId: integer('last_read_message_id'),
+    lastReadAt: integer('last_read_at').notNull()
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.channelId] }),
+    index('channel_read_states_channel_idx').on(t.channelId)
+  ]
+);
+
+const directMessages = sqliteTable(
+  'direct_messages',
+  {
+    channelId: integer('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    userOneId: integer('user_one_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    userTwoId: integer('user_two_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull()
+  },
+  (t) => [
+    primaryKey({ columns: [t.channelId] }),
+    uniqueIndex('direct_messages_pair_unique_idx').on(t.userOneId, t.userTwoId),
+    index('direct_messages_user_one_idx').on(t.userOneId),
+    index('direct_messages_user_two_idx').on(t.userTwoId)
+  ]
+);
+
+const oidcTransactions = sqliteTable(
+  'oidc_transactions',
+  {
+    state: text('state').primaryKey(),
+    nonce: text('nonce').notNull(),
+    codeVerifier: text('code_verifier').notNull(),
+    redirectUri: text('redirect_uri').notNull(),
+    expiresAt: integer('expires_at').notNull()
+  },
+  (t) => [index('oidc_transactions_expires_idx').on(t.expiresAt)]
+);
+
+const oidcHandoffs = sqliteTable(
+  'oidc_handoffs',
+  {
+    code: text('code').primaryKey(),
+    token: text('token').notNull(),
+    state: text('state').notNull(),
+    expiresAt: integer('expires_at').notNull()
+  },
+  (t) => [index('oidc_handoffs_expires_idx').on(t.expiresAt)]
+);
+
+const pluginData = sqliteTable('plugin_data', {
+  pluginId: text('plugin_id').notNull().primaryKey(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+  settings: text('settings', { mode: 'json' })
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  version: text('version')
+});
+
+const pluginUserData = sqliteTable(
+  'plugin_user_data',
+  {
+    pluginId: text('plugin_id').notNull(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    data: text('data', { mode: 'json' })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    updatedAt: integer('updated_at').notNull()
+  },
+  (t) => [
+    primaryKey({ columns: [t.pluginId, t.userId] }),
+    index('plugin_user_data_user_idx').on(t.userId)
+  ]
+);
+
+const pluginCapabilities = sqliteTable(
+  'plugin_capabilities',
+  {
+    pluginId: text('plugin_id').notNull(),
+    type: text('type').$type<PluginCapabilityType>().notNull(),
+    name: text('name').notNull(),
+    mode: text('mode')
+      .$type<PluginCapabilityMode>()
+      .notNull()
+      .default(PluginCapabilityMode.PUBLIC),
+    updatedAt: integer('updated_at').notNull()
+  },
+  (t) => [primaryKey({ columns: [t.pluginId, t.type, t.name] })]
+);
+
+const pluginCapabilityRoles = sqliteTable(
+  'plugin_capability_roles',
+  {
+    pluginId: text('plugin_id').notNull(),
+    type: text('type').notNull(),
+    name: text('name').notNull(),
+    roleId: integer('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at').notNull()
+  },
+  (t) => [
+    primaryKey({ columns: [t.pluginId, t.type, t.name, t.roleId] }),
+    index('plugin_capability_roles_role_idx').on(t.roleId)
+  ]
+);
+
+export {
+  activityLog,
+  categories,
+  channelReadStates,
+  channelRolePermissions,
+  channels,
+  channelUserPermissions,
+  directMessages,
+  emojis,
+  files,
+  invites,
+  logins,
+  messageFiles,
+  messageReactions,
+  messages,
+  oidcHandoffs,
+  oidcTransactions,
+  pluginCapabilities,
+  pluginCapabilityRoles,
+  pluginData,
+  pluginUserData,
+  rolePermissions,
+  roles,
+  settings,
+  userRoles,
+  users
+};

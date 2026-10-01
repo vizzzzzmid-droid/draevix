@@ -1,0 +1,26 @@
+{
+  "identityLabel": "Identité",
+  "identityHelp": "Un identifiant unique pour votre compte sur ce serveur. Vous pouvez utiliser ce que vous voulez, comme une adresse e-mail ou un nom d'utilisateur. Cet identifiant ne sera pas divulgué publiquement.",
+  "passwordLabel": "Mot de passe",
+  "autoLoginLabel": "Connexion automatique",
+  "insecureTitle": "Connexion non sécurisée",
+  "insecureDesc": "Vous accédez au serveur via une connexion non sécurisée (HTTP). Par défaut, les navigateurs bloquent l'accès aux périphériques multimédias tels que votre caméra et votre microphone depuis des origines non sécurisées. Cela signifie que vous ne pourrez pas utiliser les fonctions de chat vidéo ou vocal lorsque vous êtes connecté au serveur via HTTP. Si vous êtes l'administrateur du serveur, vous pouvez configurer HTTPS en suivant les instructions de la documentation.",
+  "connectBtn": "Connecter",
+  "registrationDisabled": "Les inscriptions de nouveaux utilisateurs sont actuellement désactivées. Si vous n'avez pas encore de compte, vous devez être invité par un utilisateur existant pour rejoindre ce serveur.",
+  "invitedTitle": "Vous avez été invité à rejoindre ce serveur",
+  "inviteCode": "Code d'invitation : {{code}}",
+  "connectError": "Impossible de se connecter : {{message}}",
+  "oidcBtn": "Se connecter avec SSO",
+  "oidcCompleting": "Finalisation de la connexion",
+  "oidcError": {
+    "access_denied": "Votre fournisseur d'identité a refusé la connexion.",
+    "invalid_state": "Cette demande de connexion n'a pas pu être vérifiée. Veuillez réessayer.",
+    "expired": "Cette demande de connexion a expiré. Veuillez réessayer.",
+    "rate_limited": "Trop de tentatives de connexion. Veuillez patienter un instant et réessayer.",
+    "registration_closed": "Ce serveur n'accepte pas de nouvelles inscriptions. Demandez à un administrateur de créer votre compte.",
+    "server_error": "Une erreur est survenue lors de la connexion. Veuillez réessayer."
+  },
+  "loggingInAutomatically": "Connexion automatique...",
+  "loadingApp": "Chargement de Sharkord",
+  "loadingPlugins": "Chargement des plugins"
+}

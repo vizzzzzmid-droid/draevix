@@ -1,0 +1,132 @@
+import type { TDialogBaseProps } from '@/components/dialogs/types';
+import { jumpToMessage } from '@/features/server/actions';
+import { useOnEsc } from '@/hooks/use-on-esc';
+import type { TMessageJumpToTarget } from '@/types';
+import { TestId } from '@sharkord/shared';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  PaginatedList,
+  Spinner
+} from '@sharkord/ui';
+import { memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSearch } from './hooks';
+import { SearchResultFileCard } from './search-result-file';
+import { SearchResultMessageCard } from './search-result-message';
+import type { TUnifiedSearchResult } from './types';
+
+const ITEMS_PER_PAGE = 12;
+
+type TSearchDialogProps = TDialogBaseProps;
+
+const SearchDialog = memo(({ isOpen, close }: TSearchDialogProps) => {
+  const { t } = useTranslation('dialogs');
+  useOnEsc(close);
+
+  const { query, setQuery, loading, canSearch, unifiedResults, truncated } =
+    useSearch(isOpen);
+
+  const onJump = useCallback(
+    (target: TMessageJumpToTarget) => {
+      jumpToMessage(target);
+      close();
+    },
+    [close]
+  );
+
+  return (
+    <Dialog open={isOpen}>
+      <DialogContent
+        className="h-[86vh] max-h-[94vh] lg:min-w-7xl gap-0 overflow-hidden p-0"
+        onInteractOutside={close}
+        close={close}
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <DialogHeader className="border-b border-border bg-card/70 px-5 py-4 text-left">
+            <DialogTitle className="text-base">{t('searchTitle')}</DialogTitle>
+            <DialogDescription>{t('searchDesc')}</DialogDescription>
+            <div className="mt-3">
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t('searchPlaceholder')}
+                data-testid={TestId.SEARCH_INPUT}
+                autoFocus
+                className="h-10"
+              />
+            </div>
+          </DialogHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
+            {!canSearch && !loading && (
+              <div className="flex h-full min-h-55 items-center justify-center rounded-lg bg-muted/20 px-6 text-sm text-muted-foreground">
+                {t('searchHint')}
+              </div>
+            )}
+
+            {loading && (
+              <div className="flex h-full min-h-55 items-center justify-center">
+                <Spinner size="sm" />
+              </div>
+            )}
+
+            {canSearch && !loading && (
+              <PaginatedList
+                items={unifiedResults}
+                itemsPerPage={ITEMS_PER_PAGE}
+              >
+                <PaginatedList.Empty className="flex h-full min-h-55 items-center justify-center rounded-lg bg-muted/20 px-6 text-sm text-muted-foreground">
+                  {t('noResults')}
+                </PaginatedList.Empty>
+
+                <PaginatedList.List<TUnifiedSearchResult>
+                  className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1"
+                  getItemKey={(entry) => entry.key}
+                >
+                  {(entry) => {
+                    if (entry.type === 'message') {
+                      return (
+                        <SearchResultMessageCard
+                          message={entry.item}
+                          onJump={onJump}
+                        />
+                      );
+                    }
+
+                    return (
+                      <SearchResultFileCard
+                        result={entry.item}
+                        onJump={onJump}
+                      />
+                    );
+                  }}
+                </PaginatedList.List>
+
+                <PaginatedList.Pagination
+                  alwaysShow
+                  className="flex shrink-0 items-center justify-center gap-1 border-t border-border pt-3"
+                />
+
+                {truncated && (
+                  <div
+                    data-testid={TestId.SEARCH_TRUNCATED_NOTICE}
+                    className="shrink-0 pt-2 text-center text-xs text-muted-foreground"
+                  >
+                    {t('searchTruncated')}
+                  </div>
+                )}
+              </PaginatedList>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+});
+
+export { SearchDialog };

@@ -1,0 +1,978 @@
+import { describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
+import {
+  activityLog,
+  categories,
+  channelReadStates,
+  channelRolePermissions,
+  channels,
+  channelUserPermissions,
+  directMessages,
+  emojis,
+  files,
+  invites,
+  logins,
+  messageFiles,
+  messageReactions,
+  messages,
+  rolePermissions,
+  roles,
+  userRoles,
+  users
+} from '../db/schema';
+import { tdb } from './setup';
+
+describe('database cascades', async () => {
+  test('initial data is seeded correctly', async () => {
+    const messageRows = await tdb.select().from(messages);
+    const channelRows = await tdb.select().from(channels);
+    const categoriesRows = await tdb.select().from(categories);
+    const userRows = await tdb.select().from(users);
+    const roleRows = await tdb.select().from(roles);
+
+    expect(messageRows.length).toBeGreaterThan(0);
+    expect(channelRows.length).toBeGreaterThan(0);
+    expect(categoriesRows.length).toBeGreaterThan(0);
+    expect(userRows.length).toBeGreaterThan(0);
+    expect(roleRows.length).toBeGreaterThan(0);
+  });
+
+  test('deleting a channel cascades to messages', async () => {
+    const channelsBefore = await tdb.select().from(channels);
+    const messagesBefore = await tdb.select().from(messages);
+
+    expect(messagesBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(channels).where(eq(channels.id, channelsBefore[0]!.id));
+
+    const messagesAfter = await tdb.select().from(messages);
+    expect(messagesAfter.length).toBe(1); // only the DM message from setup should remain
+  });
+
+  test('deleting a category cascades to channels and messages', async () => {
+    const categoriesBefore = await tdb.select().from(categories);
+    const channelsBefore = await tdb.select().from(channels);
+
+    const channelsInCategory = channelsBefore.filter(
+      (ch) => ch.categoryId === categoriesBefore[0]!.id
+    );
+
+    await tdb
+      .delete(categories)
+      .where(eq(categories.id, categoriesBefore[0]!.id));
+
+    const channelsAfter = await tdb.select().from(channels);
+    expect(channelsAfter.length).toBe(
+      channelsBefore.length - channelsInCategory.length
+    );
+
+    const messagesAfter = await tdb.select().from(messages);
+    expect(messagesAfter.length).toBe(1); // only the DM message from setup should remain
+  });
+
+  test('deleting a user cascades to messages, logins, invites, activity logs', async () => {
+    const usersBefore = await tdb.select().from(users);
+    const userId = usersBefore[0]!.id;
+
+    await tdb.insert(logins).values({
+      userId,
+      ip: '127.0.0.1',
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(invites).values({
+      code: 'TEST123',
+      creatorId: userId,
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(activityLog).values({
+      userId,
+      type: 'TEST',
+      createdAt: Date.now()
+    });
+
+    const loginsBefore = await tdb.select().from(logins);
+    const invitesBefore = await tdb.select().from(invites);
+    const activityLogBefore = await tdb.select().from(activityLog);
+
+    expect(loginsBefore.length).toBeGreaterThan(0);
+    expect(invitesBefore.length).toBeGreaterThan(0);
+    expect(activityLogBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(users).where(eq(users.id, userId));
+
+    const loginsAfter = await tdb.select().from(logins);
+    const invitesAfter = await tdb.select().from(invites);
+    const activityLogAfter = await tdb.select().from(activityLog);
+    const messagesAfter = await tdb.select().from(messages);
+
+    expect(loginsAfter.length).toBe(0);
+    expect(invitesAfter.length).toBe(0);
+    expect(activityLogAfter.length).toBe(0);
+    expect(messagesAfter.length).toBe(1); // only the DM message from setup should remain
+  });
+
+  test('deleting a user nulls edited_by instead of deleting the message', async () => {
+    const messageRows = await tdb.select().from(messages);
+    const target = messageRows.find((message) => message.userId !== 2);
+
+    expect(target).toBeDefined();
+
+    await tdb
+      .update(messages)
+      .set({ editedBy: 2, editedAt: Date.now() })
+      .where(eq(messages.id, target!.id));
+
+    await tdb.delete(users).where(eq(users.id, 2));
+
+    const after = await tdb
+      .select()
+      .from(messages)
+      .where(eq(messages.id, target!.id))
+      .get();
+
+    expect(after).toBeDefined();
+    expect(after!.editedBy).toBeNull();
+  });
+
+  test('deleting a user cascades to user_roles', async () => {
+    const usersBefore = await tdb.select().from(users);
+    const userId = usersBefore[0]!.id;
+
+    const userRolesBefore = await tdb
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.userId, userId));
+
+    expect(userRolesBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(users).where(eq(users.id, userId));
+
+    const userRolesAfter = await tdb
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.userId, userId));
+
+    expect(userRolesAfter.length).toBe(0);
+  });
+
+  test('deleting a role cascades to user_roles and role_permissions', async () => {
+    const rolesBefore = await tdb.select().from(roles);
+    const roleId = rolesBefore[0]!.id;
+
+    const rolePermissionsBefore = await tdb
+      .select()
+      .from(rolePermissions)
+      .where(eq(rolePermissions.roleId, roleId));
+
+    const userRolesBefore = await tdb
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.roleId, roleId));
+
+    expect(rolePermissionsBefore.length).toBeGreaterThan(0);
+    expect(userRolesBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(roles).where(eq(roles.id, roleId));
+
+    const rolePermissionsAfter = await tdb
+      .select()
+      .from(rolePermissions)
+      .where(eq(rolePermissions.roleId, roleId));
+
+    const userRolesAfter = await tdb
+      .select()
+      .from(userRoles)
+      .where(eq(userRoles.roleId, roleId));
+
+    expect(rolePermissionsAfter.length).toBe(0);
+    expect(userRolesAfter.length).toBe(0);
+  });
+
+  test('deleting a role cascades to channel_role_permissions', async () => {
+    const rolesBefore = await tdb.select().from(roles);
+    const channelsBefore = await tdb.select().from(channels);
+    const roleId = rolesBefore[0]!.id;
+    const channelId = channelsBefore[0]!.id;
+
+    await tdb.insert(channelRolePermissions).values({
+      channelId,
+      roleId,
+      permission: 'TEST_PERMISSION',
+      allow: true,
+      createdAt: Date.now()
+    });
+
+    const channelRolePermsBefore = await tdb
+      .select()
+      .from(channelRolePermissions)
+      .where(eq(channelRolePermissions.roleId, roleId));
+
+    expect(channelRolePermsBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(roles).where(eq(roles.id, roleId));
+
+    const channelRolePermsAfter = await tdb
+      .select()
+      .from(channelRolePermissions)
+      .where(eq(channelRolePermissions.roleId, roleId));
+
+    expect(channelRolePermsAfter.length).toBe(0);
+  });
+
+  test('deleting a channel cascades to channel_role_permissions and channel_user_permissions', async () => {
+    const channelsBefore = await tdb.select().from(channels);
+    const rolesBefore = await tdb.select().from(roles);
+    const usersBefore = await tdb.select().from(users);
+    const channelId = channelsBefore[0]!.id;
+
+    await tdb.insert(channelRolePermissions).values({
+      channelId,
+      roleId: rolesBefore[0]!.id,
+      permission: 'TEST_PERMISSION',
+      allow: true,
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(channelUserPermissions).values({
+      channelId,
+      userId: usersBefore[0]!.id,
+      permission: 'TEST_PERMISSION',
+      allow: true,
+      createdAt: Date.now()
+    });
+
+    const channelRolePermsBefore = await tdb
+      .select()
+      .from(channelRolePermissions)
+      .where(eq(channelRolePermissions.channelId, channelId));
+
+    const channelUserPermsBefore = await tdb
+      .select()
+      .from(channelUserPermissions)
+      .where(eq(channelUserPermissions.channelId, channelId));
+
+    expect(channelRolePermsBefore.length).toBeGreaterThan(0);
+    expect(channelUserPermsBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(channels).where(eq(channels.id, channelId));
+
+    const channelRolePermsAfter = await tdb
+      .select()
+      .from(channelRolePermissions)
+      .where(eq(channelRolePermissions.channelId, channelId));
+
+    const channelUserPermsAfter = await tdb
+      .select()
+      .from(channelUserPermissions)
+      .where(eq(channelUserPermissions.channelId, channelId));
+
+    expect(channelRolePermsAfter.length).toBe(0);
+    expect(channelUserPermsAfter.length).toBe(0);
+  });
+
+  test('deleting a channel cascades to channel_read_states', async () => {
+    const channelsBefore = await tdb.select().from(channels);
+    const usersBefore = await tdb.select().from(users);
+    const channelId = channelsBefore[0]!.id;
+    const userId = usersBefore[0]!.id;
+
+    await tdb.insert(channelReadStates).values({
+      channelId,
+      userId,
+      lastReadAt: Date.now()
+    });
+
+    const readStatesBefore = await tdb
+      .select()
+      .from(channelReadStates)
+      .where(eq(channelReadStates.channelId, channelId));
+
+    expect(readStatesBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(channels).where(eq(channels.id, channelId));
+
+    const readStatesAfter = await tdb
+      .select()
+      .from(channelReadStates)
+      .where(eq(channelReadStates.channelId, channelId));
+
+    expect(readStatesAfter.length).toBe(0);
+  });
+
+  test('deleting a message leaves every other reader caught up', async () => {
+    // the marker used to be a foreign key with onDelete 'set null', so deleting the one
+    // message a channel's readers all pointed at reset it to unread for every one of them.
+    // ids are monotonic, so the marker stays meaningful once the message is gone
+    const [readerOne, readerTwo] = await tdb.select().from(users);
+    const channelId = 1;
+
+    const newestMessage = await tdb
+      .insert(messages)
+      .values({
+        userId: readerOne!.id,
+        channelId,
+        content: 'the message every marker points at',
+        metadata: null,
+        createdAt: Date.now()
+      })
+      .returning()
+      .get();
+
+    await tdb.insert(channelReadStates).values([
+      {
+        channelId,
+        userId: readerOne!.id,
+        lastReadMessageId: newestMessage.id,
+        lastReadAt: Date.now()
+      },
+      {
+        channelId,
+        userId: readerTwo!.id,
+        lastReadMessageId: newestMessage.id,
+        lastReadAt: Date.now()
+      }
+    ]);
+
+    await tdb.delete(messages).where(eq(messages.id, newestMessage.id));
+
+    const markersAfter = await tdb
+      .select()
+      .from(channelReadStates)
+      .where(eq(channelReadStates.channelId, channelId));
+
+    expect(markersAfter.length).toBe(2);
+    markersAfter.forEach((marker) =>
+      expect(marker.lastReadMessageId).toBe(newestMessage.id)
+    );
+  });
+
+  test('deleting a user cascades to channel_read_states and channel_user_permissions', async () => {
+    const usersBefore = await tdb.select().from(users);
+    const channelsBefore = await tdb.select().from(channels);
+    const userId = usersBefore[0]!.id;
+
+    await tdb.insert(channelReadStates).values({
+      channelId: channelsBefore[0]!.id,
+      userId,
+      lastReadAt: Date.now()
+    });
+
+    await tdb.insert(channelUserPermissions).values({
+      channelId: channelsBefore[0]!.id,
+      userId,
+      permission: 'TEST_PERMISSION',
+      allow: true,
+      createdAt: Date.now()
+    });
+
+    const readStatesBefore = await tdb
+      .select()
+      .from(channelReadStates)
+      .where(eq(channelReadStates.userId, userId));
+
+    const channelUserPermsBefore = await tdb
+      .select()
+      .from(channelUserPermissions)
+      .where(eq(channelUserPermissions.userId, userId));
+
+    expect(readStatesBefore.length).toBeGreaterThan(0);
+    expect(channelUserPermsBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(users).where(eq(users.id, userId));
+
+    const readStatesAfter = await tdb
+      .select()
+      .from(channelReadStates)
+      .where(eq(channelReadStates.userId, userId));
+
+    const channelUserPermsAfter = await tdb
+      .select()
+      .from(channelUserPermissions)
+      .where(eq(channelUserPermissions.userId, userId));
+
+    expect(readStatesAfter.length).toBe(0);
+    expect(channelUserPermsAfter.length).toBe(0);
+  });
+
+  test('deleting a message cascades to its thread replies', async () => {
+    const [channel] = await tdb.select().from(channels);
+    const [user] = await tdb.select().from(users);
+
+    const [parent] = await tdb
+      .insert(messages)
+      .values({
+        channelId: channel!.id,
+        userId: user!.id,
+        content: 'parent',
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(messages).values([
+      {
+        channelId: channel!.id,
+        userId: user!.id,
+        content: 'reply one',
+        parentMessageId: parent!.id,
+        createdAt: Date.now()
+      },
+      {
+        channelId: channel!.id,
+        userId: user!.id,
+        content: 'reply two',
+        parentMessageId: parent!.id,
+        createdAt: Date.now()
+      }
+    ]);
+
+    await tdb.delete(messages).where(eq(messages.id, parent!.id));
+
+    const orphans = await tdb
+      .select()
+      .from(messages)
+      .where(eq(messages.parentMessageId, parent!.id));
+
+    expect(orphans.length).toBe(0);
+  });
+
+  test('deleting a message nulls inline replies pointing at it', async () => {
+    const [channel] = await tdb.select().from(channels);
+    const [user] = await tdb.select().from(users);
+
+    const [target] = await tdb
+      .insert(messages)
+      .values({
+        channelId: channel!.id,
+        userId: user!.id,
+        content: 'target',
+        createdAt: Date.now()
+      })
+      .returning();
+
+    const [replier] = await tdb
+      .insert(messages)
+      .values({
+        channelId: channel!.id,
+        userId: user!.id,
+        content: 'replying to it',
+        replyToMessageId: target!.id,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.delete(messages).where(eq(messages.id, target!.id));
+
+    const reloaded = await tdb
+      .select()
+      .from(messages)
+      .where(eq(messages.id, replier!.id))
+      .get();
+
+    // the replying message survives, it just loses the dangling pointer
+    expect(reloaded).toBeDefined();
+    expect(reloaded?.replyToMessageId).toBeNull();
+  });
+
+  test('deleting a channel removes thread replies with their parents', async () => {
+    const [user] = await tdb.select().from(users);
+
+    const [channel] = await tdb
+      .insert(channels)
+      .values({
+        name: 'thread-cascade',
+        type: 'TEXT',
+        position: 99,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    const [parent] = await tdb
+      .insert(messages)
+      .values({
+        channelId: channel!.id,
+        userId: user!.id,
+        content: 'parent',
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(messages).values({
+      channelId: channel!.id,
+      userId: user!.id,
+      content: 'reply',
+      parentMessageId: parent!.id,
+      createdAt: Date.now()
+    });
+
+    await tdb.delete(channels).where(eq(channels.id, channel!.id));
+
+    const remaining = await tdb
+      .select()
+      .from(messages)
+      .where(eq(messages.channelId, channel!.id));
+
+    expect(remaining.length).toBe(0);
+  });
+
+  test('deleting a message cascades to message_files and message_reactions', async () => {
+    const messagesBefore = await tdb.select().from(messages);
+    const usersBefore = await tdb.select().from(users);
+    const messageId = messagesBefore[0]!.id;
+
+    const [file] = await tdb
+      .insert(files)
+      .values({
+        name: 'test.txt',
+        originalName: 'test.txt',
+        md5: 'test123',
+        userId: usersBefore[0]!.id,
+        size: 100,
+        mimeType: 'text/plain',
+        extension: 'txt',
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(messageFiles).values({
+      messageId,
+      fileId: file!.id,
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(messageReactions).values({
+      messageId,
+      userId: usersBefore[0]!.id,
+      emoji: '👍',
+      createdAt: Date.now()
+    });
+
+    const messageFilesBefore = await tdb
+      .select()
+      .from(messageFiles)
+      .where(eq(messageFiles.messageId, messageId));
+
+    const messageReactionsBefore = await tdb
+      .select()
+      .from(messageReactions)
+      .where(eq(messageReactions.messageId, messageId));
+
+    expect(messageFilesBefore.length).toBeGreaterThan(0);
+    expect(messageReactionsBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(messages).where(eq(messages.id, messageId));
+
+    const messageFilesAfter = await tdb
+      .select()
+      .from(messageFiles)
+      .where(eq(messageFiles.messageId, messageId));
+
+    const messageReactionsAfter = await tdb
+      .select()
+      .from(messageReactions)
+      .where(eq(messageReactions.messageId, messageId));
+
+    expect(messageFilesAfter.length).toBe(0);
+    expect(messageReactionsAfter.length).toBe(0);
+  });
+
+  test('deleting a file cascades to message_files and emojis', async () => {
+    const usersBefore = await tdb.select().from(users);
+    const messagesBefore = await tdb.select().from(messages);
+
+    const [file] = await tdb
+      .insert(files)
+      .values({
+        name: 'test2.txt',
+        originalName: 'test2.txt',
+        md5: 'test456',
+        userId: usersBefore[0]!.id,
+        size: 100,
+        mimeType: 'text/plain',
+        extension: 'txt',
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(messageFiles).values({
+      messageId: messagesBefore[0]!.id,
+      fileId: file!.id,
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(emojis).values({
+      name: 'test_emoji',
+      fileId: file!.id,
+      userId: usersBefore[0]!.id,
+      createdAt: Date.now()
+    });
+
+    const messageFilesBefore = await tdb
+      .select()
+      .from(messageFiles)
+      .where(eq(messageFiles.fileId, file!.id));
+
+    const emojisBefore = await tdb
+      .select()
+      .from(emojis)
+      .where(eq(emojis.fileId, file!.id));
+
+    expect(messageFilesBefore.length).toBeGreaterThan(0);
+    expect(emojisBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(files).where(eq(files.id, file!.id));
+
+    const messageFilesAfter = await tdb
+      .select()
+      .from(messageFiles)
+      .where(eq(messageFiles.fileId, file!.id));
+
+    const emojisAfter = await tdb
+      .select()
+      .from(emojis)
+      .where(eq(emojis.fileId, file!.id));
+
+    expect(messageFilesAfter.length).toBe(0);
+    expect(emojisAfter.length).toBe(0);
+  });
+
+  test('deleting a user cascades to emojis and message_reactions', async () => {
+    const usersBefore = await tdb.select().from(users);
+    const messagesBefore = await tdb.select().from(messages);
+    const userId = usersBefore[0]!.id;
+
+    const [file] = await tdb
+      .insert(files)
+      .values({
+        name: 'emoji.png',
+        originalName: 'emoji.png',
+        md5: 'emoji123',
+        userId,
+        size: 100,
+        mimeType: 'image/png',
+        extension: 'png',
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(emojis).values({
+      name: 'user_emoji',
+      fileId: file!.id,
+      userId,
+      createdAt: Date.now()
+    });
+
+    await tdb.insert(messageReactions).values({
+      messageId: messagesBefore[0]!.id,
+      userId,
+      emoji: '🔥',
+      createdAt: Date.now()
+    });
+
+    const emojisBefore = await tdb
+      .select()
+      .from(emojis)
+      .where(eq(emojis.userId, userId));
+
+    const messageReactionsBefore = await tdb
+      .select()
+      .from(messageReactions)
+      .where(eq(messageReactions.userId, userId));
+
+    expect(emojisBefore.length).toBeGreaterThan(0);
+    expect(messageReactionsBefore.length).toBeGreaterThan(0);
+
+    await tdb.delete(users).where(eq(users.id, userId));
+
+    const emojisAfter = await tdb
+      .select()
+      .from(emojis)
+      .where(eq(emojis.userId, userId));
+
+    const messageReactionsAfter = await tdb
+      .select()
+      .from(messageReactions)
+      .where(eq(messageReactions.userId, userId));
+
+    expect(emojisAfter.length).toBe(0);
+    expect(messageReactionsAfter.length).toBe(0);
+  });
+
+  test('deleting a channel cascades to direct_messages', async () => {
+    const usersBefore = await tdb.select().from(users);
+    const categoriesBefore = await tdb.select().from(categories);
+
+    let userOneId = usersBefore[0]?.id;
+    let userTwoId = usersBefore[1]?.id;
+
+    if (!userOneId) {
+      const [u1] = await tdb
+        .insert(users)
+        .values({
+          name: 'DM User One',
+          identity: 'dmuser1',
+          password: 'hash',
+          avatarId: null,
+          bannerId: null,
+          bio: null,
+          createdAt: Date.now()
+        })
+        .returning();
+      userOneId = u1!.id;
+    }
+
+    if (!userTwoId) {
+      const [u2] = await tdb
+        .insert(users)
+        .values({
+          name: 'DM User Two',
+          identity: 'dmuser2',
+          password: 'hash',
+          avatarId: null,
+          bannerId: null,
+          bio: null,
+          createdAt: Date.now()
+        })
+        .returning();
+      userTwoId = u2!.id;
+    }
+
+    let categoryId = categoriesBefore[0]?.id;
+
+    if (!categoryId) {
+      const [cat] = await tdb
+        .insert(categories)
+        .values({ name: 'DM Category', position: 1, createdAt: Date.now() })
+        .returning();
+      categoryId = cat!.id;
+    }
+
+    const [dmChannel] = await tdb
+      .insert(channels)
+      .values({
+        type: 'TEXT',
+        name: 'dm-channel',
+        position: 0,
+        categoryId,
+        isDm: true,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(directMessages).values({
+      channelId: dmChannel!.id,
+      userOneId,
+      userTwoId,
+      createdAt: Date.now()
+    });
+
+    const dmsBefore = await tdb
+      .select()
+      .from(directMessages)
+      .where(eq(directMessages.channelId, dmChannel!.id));
+
+    expect(dmsBefore.length).toBe(1);
+
+    await tdb.delete(channels).where(eq(channels.id, dmChannel!.id));
+
+    const dmsAfter = await tdb
+      .select()
+      .from(directMessages)
+      .where(eq(directMessages.channelId, dmChannel!.id));
+
+    expect(dmsAfter.length).toBe(0);
+  });
+
+  test('deleting userOne cascades to direct_messages', async () => {
+    const categoriesBefore = await tdb.select().from(categories);
+
+    const [userOne] = await tdb
+      .insert(users)
+      .values({
+        name: 'DM Cascade UserOne',
+        identity: 'dmcascadeuserone',
+        password: 'hash',
+        avatarId: null,
+        bannerId: null,
+        bio: null,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    const [userTwo] = await tdb
+      .insert(users)
+      .values({
+        name: 'DM Cascade UserTwo',
+        identity: 'dmcascadeusertwo',
+        password: 'hash',
+        avatarId: null,
+        bannerId: null,
+        bio: null,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    let categoryId = categoriesBefore[0]?.id;
+
+    if (!categoryId) {
+      const [cat] = await tdb
+        .insert(categories)
+        .values({ name: 'DM Category 2', position: 1, createdAt: Date.now() })
+        .returning();
+      categoryId = cat!.id;
+    }
+
+    const [dmChannel] = await tdb
+      .insert(channels)
+      .values({
+        type: 'TEXT',
+        name: 'dm-channel-u1',
+        position: 0,
+        categoryId,
+        isDm: true,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(directMessages).values({
+      channelId: dmChannel!.id,
+      userOneId: userOne!.id,
+      userTwoId: userTwo!.id,
+      createdAt: Date.now()
+    });
+
+    const dmsBefore = await tdb
+      .select()
+      .from(directMessages)
+      .where(eq(directMessages.channelId, dmChannel!.id));
+
+    expect(dmsBefore.length).toBe(1);
+
+    await tdb.delete(users).where(eq(users.id, userOne!.id));
+
+    const dmsAfter = await tdb
+      .select()
+      .from(directMessages)
+      .where(eq(directMessages.channelId, dmChannel!.id));
+
+    expect(dmsAfter.length).toBe(0);
+  });
+
+  test('deleting userTwo cascades to direct_messages', async () => {
+    const categoriesBefore = await tdb.select().from(categories);
+
+    const [userOne] = await tdb
+      .insert(users)
+      .values({
+        name: 'DM Cascade2 UserOne',
+        identity: 'dmcascade2userone',
+        password: 'hash',
+        avatarId: null,
+        bannerId: null,
+        bio: null,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    const [userTwo] = await tdb
+      .insert(users)
+      .values({
+        name: 'DM Cascade2 UserTwo',
+        identity: 'dmcascade2usertwo',
+        password: 'hash',
+        avatarId: null,
+        bannerId: null,
+        bio: null,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    let categoryId = categoriesBefore[0]?.id;
+
+    if (!categoryId) {
+      const [cat] = await tdb
+        .insert(categories)
+        .values({ name: 'DM Category 3', position: 1, createdAt: Date.now() })
+        .returning();
+      categoryId = cat!.id;
+    }
+
+    const [dmChannel] = await tdb
+      .insert(channels)
+      .values({
+        type: 'TEXT',
+        name: 'dm-channel-u2',
+        position: 0,
+        categoryId,
+        isDm: true,
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(directMessages).values({
+      channelId: dmChannel!.id,
+      userOneId: userOne!.id,
+      userTwoId: userTwo!.id,
+      createdAt: Date.now()
+    });
+
+    const dmsBefore = await tdb
+      .select()
+      .from(directMessages)
+      .where(eq(directMessages.channelId, dmChannel!.id));
+
+    expect(dmsBefore.length).toBe(1);
+
+    await tdb.delete(users).where(eq(users.id, userTwo!.id));
+
+    const dmsAfter = await tdb
+      .select()
+      .from(directMessages)
+      .where(eq(directMessages.channelId, dmChannel!.id));
+
+    expect(dmsAfter.length).toBe(0);
+  });
+
+  test('should remove message_files rows when the file is deleted', async () => {
+    const [file] = await tdb
+      .insert(files)
+      .values({
+        name: 'cascade-file.bin',
+        originalName: 'cascade-file.bin',
+        md5: 'cascade-md5',
+        userId: 1,
+        size: 1,
+        mimeType: 'application/octet-stream',
+        extension: '.bin',
+        createdAt: Date.now()
+      })
+      .returning();
+
+    await tdb.insert(messageFiles).values({
+      messageId: 1,
+      fileId: file!.id,
+      createdAt: Date.now()
+    });
+
+    expect(
+      (
+        await tdb
+          .select()
+          .from(messageFiles)
+          .where(eq(messageFiles.fileId, file!.id))
+      ).length
+    ).toBe(1);
+
+    await tdb.delete(files).where(eq(files.id, file!.id));
+
+    expect(
+      (
+        await tdb
+          .select()
+          .from(messageFiles)
+          .where(eq(messageFiles.fileId, file!.id))
+      ).length
+    ).toBe(0);
+  });
+});
