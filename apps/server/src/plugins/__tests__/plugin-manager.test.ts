@@ -1765,30 +1765,36 @@ export { onLoad, onUnload };
     test('should allow plugins to modify file contents before saving', async () => {
       await pluginManager.load('plugin-before-file-save');
 
-      const fileName = `plugin-hook-${Date.now()}.txt`;
-      const sourcePath = path.join(UPLOADS_PATH, fileName);
-      await fs.writeFile(sourcePath, 'original content');
-      const stats = await fs.stat(sourcePath);
+      try {
+        const fileName = `plugin-hook-${Date.now()}.txt`;
+        const sourcePath = path.join(UPLOADS_PATH, fileName);
+        await fs.writeFile(sourcePath, 'original content');
+        const stats = await fs.stat(sourcePath);
 
-      const tempFile = await fileManager.addTemporaryFile({
-        filePath: sourcePath,
-        size: stats.size,
-        originalName: fileName,
-        userId: 1
-      });
+        const tempFile = await fileManager.addTemporaryFile({
+          filePath: sourcePath,
+          size: stats.size,
+          originalName: fileName,
+          userId: 1
+        });
 
-      const saved = await fileManager.saveFile(
-        tempFile.id,
-        1,
-        FileSaveType.MESSAGE
-      );
+        const saved = await fileManager.saveFile(
+          tempFile.id,
+          1,
+          FileSaveType.MESSAGE
+        );
 
-      const savedPath = path.join(PUBLIC_PATH, saved.name);
-      const savedContent = await fs.readFile(savedPath, 'utf-8');
+        const savedPath = path.join(PUBLIC_PATH, saved.name);
+        const savedContent = await fs.readFile(savedPath, 'utf-8');
 
-      expect(savedContent).toBe('original content\nmodified by plugin');
+        expect(savedContent).toBe('original content\nmodified by plugin');
 
-      await fs.unlink(savedPath);
+        await fs.unlink(savedPath);
+      } finally {
+        // the hook rewrites every file it sees, so leaving the plugin loaded
+        // would corrupt file assertions in test files running after this one
+        await pluginManager.unload('plugin-before-file-save');
+      }
     });
   });
 

@@ -3420,16 +3420,22 @@ describe('plugin commands in messages', () => {
 
     await pluginManager.loadPlugins();
 
-    // the <script> is stripped by sanitizeMessageHtml, so a parser reading the
-    // raw input would see different text than what gets stored and displayed
-    const messageId = await caller.messages.send({
-      channelId: 1,
-      content: '<p>/test-command hello<script>ignored</script></p>',
-      files: []
-    });
+    try {
+      // the <script> is stripped by sanitizeMessageHtml, so a parser reading the
+      // raw input would see different text than what gets stored and displayed
+      const messageId = await caller.messages.send({
+        channelId: 1,
+        content: '<p>/test-command hello<script>ignored</script></p>',
+        files: []
+      });
 
-    const message = await caller.messages.getOne({ messageId });
+      const message = await caller.messages.getOne({ messageId });
 
-    expect(message.content).not.toContain('script');
+      expect(message.content).not.toContain('script');
+    } finally {
+      // loadPlugins enables every mock plugin including the file hooks, so leaving
+      // them loaded would rewrite files saved by test files running after this one
+      await pluginManager.unloadPlugins();
+    }
   });
 });

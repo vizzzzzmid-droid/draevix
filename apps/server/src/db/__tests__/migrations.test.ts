@@ -99,8 +99,21 @@ const buildBrokenTailFolder = () => {
   return folder;
 };
 
-afterAll(() => {
-  fs.rmSync(workDir, { recursive: true, force: true });
+afterAll(async () => {
+  // windows releases closed sqlite handles lazily, so the newest files can stay
+  // locked for a while after every close ran. keep retrying instead of failing
+  // the whole file over test cleanup
+  for (let attempt = 0; ; attempt++) {
+    try {
+      fs.rmSync(workDir, { recursive: true, force: true });
+
+      return;
+    } catch (error) {
+      if (attempt >= 50) throw error;
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
 });
 
 describe('migrations', () => {

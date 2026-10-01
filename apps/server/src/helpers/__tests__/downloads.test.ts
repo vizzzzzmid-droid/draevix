@@ -39,6 +39,15 @@ const manifest = (id: string, sdkVersion = PLUGIN_SDK_VERSION) =>
     version: '1.0.0'
   });
 
+// windows only grants symlink creation to admins and developer mode, so probe
+// it up front: without the privilege the symlink fixture cannot even be built here
+const symlinkProbe = path.join(os.tmpdir(), `symlink-probe-${process.pid}`);
+
+const canCreateSymlinks = await fs
+  .symlink('probe-target', symlinkProbe)
+  .then(() => fs.rm(symlinkProbe, { force: true }).then(() => true))
+  .catch(() => false);
+
 const pluginArchive = (
   id: string,
   extra: Record<string, string> = {},
@@ -218,19 +227,25 @@ describe('downloadPlugin', () => {
 
   // Bun.Archive builds regular files only, so the link has to be made on disk:
   // it is what an extracted archive carrying one would leave behind
-  test('should refuse an extracted archive that carries a symlink', async () => {
-    const extracted = await fs.mkdtemp(path.join(os.tmpdir(), 'symlink-'));
+  test.skipIf(!canCreateSymlinks)(
+    'should refuse an extracted archive that carries a symlink',
+    async () => {
+      const extracted = await fs.mkdtemp(path.join(os.tmpdir(), 'symlink-'));
 
-    await fs.mkdir(path.join(extracted, 'plugin-linky'));
-    await fs.writeFile(path.join(extracted, 'plugin-linky/a.txt'), 'x');
-    await fs.symlink('/etc/passwd', path.join(extracted, 'plugin-linky/link'));
+      await fs.mkdir(path.join(extracted, 'plugin-linky'));
+      await fs.writeFile(path.join(extracted, 'plugin-linky/a.txt'), 'x');
+      await fs.symlink(
+        '/etc/passwd',
+        path.join(extracted, 'plugin-linky/link')
+      );
 
-    await expect(assertNoLinks(extracted)).rejects.toThrow(
-      'Plugins cannot ship links'
-    );
+      await expect(assertNoLinks(extracted)).rejects.toThrow(
+        'Plugins cannot ship links'
+      );
 
-    await fs.rm(extracted, { recursive: true, force: true });
-  });
+      await fs.rm(extracted, { recursive: true, force: true });
+    }
+  );
 
   // a plugin the server could never load must not reach the plugins directory
   test('should refuse an archive built for a different sdk version', async () => {
