@@ -8,11 +8,13 @@ const getSettingsRoute = protectedProcedure.query(async ({ ctx }) => {
 
   const settings = await getSettings();
 
-  // the join password is returned so the settings form can show what is actually set and let
-  // it be cleared. it is stored in plaintext by design and this route needs MANAGE_SETTINGS,
-  // so it only ever reaches an admin. the secret token is not the same thing: it is the
-  // ownership credential and the jwt signing key, and stays stripped
-  return clearFields(settings, ['secretToken']);
+  // the join password is never sent back: it rests hashed in the database and the form
+  // only needs to know whether one is set. the secret token is not the same thing: it
+  // is the ownership credential and the jwt signing key, and stays stripped
+  return {
+    ...clearFields(settings, ['secretToken', 'password']),
+    hasPassword: !!settings.password
+  };
 });
 
 export { getSettingsRoute };

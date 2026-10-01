@@ -175,6 +175,45 @@ describe('/upload', () => {
     );
   });
 
+  test('should answer an oversized upload without waiting for its body', async () => {
+    // the declared size already exceeds the default cap, so the rejection must come
+    // from the headers alone. under drain-first behavior this never resolves, because
+    // the promised gigabytes are never sent
+    const { port } = new URL(testsBaseUrl);
+
+    const raw = await new Promise<string>((resolve, reject) => {
+      const socket = net.connect(Number(port), 'localhost');
+      let response = '';
+
+      socket.on('data', (chunk) => {
+        response += chunk.toString();
+
+        if (response.includes('413')) {
+          socket.destroy();
+          resolve(response);
+        }
+      });
+      socket.on('error', reject);
+      socket.on('close', () => resolve(response));
+
+      socket.write(
+        [
+          'POST /upload HTTP/1.1',
+          'Host: localhost',
+          'Connection: close',
+          'Content-Type: application/octet-stream',
+          `Content-Length: ${10 * 1024 * 1024 * 1024}`,
+          `${UploadHeaders.ORIGINAL_NAME}: never-sent.bin`,
+          `${UploadHeaders.TOKEN}: ${token}`,
+          '',
+          'a trickle of bytes, the promised gigabytes never follow'
+        ].join('\r\n')
+      );
+    });
+
+    expect(raw).toContain('413');
+  });
+
   test('should handle files with special characters in name', async () => {
     const specialContent = 'File with special name';
     const blob = new Blob([specialContent], { type: 'text/plain' });

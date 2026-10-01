@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '../../config';
 import { db } from '../../db';
+import { updateSettings } from '../../db/mutations/server';
 import {
   getAllChannelUserPermissions,
   getChannelsForUser,
@@ -67,12 +68,25 @@ const joinServerRoute = rateLimitedProcedure(publicProcedure, {
       }
     );
 
-    // constant time, so the response cannot be used to learn the password a character at a
-    // time. the column is still plaintext, which is the open half of 4.8
-    const passwordMatches =
-      !!settings.password &&
-      !!input.password &&
-      safeCompare(input.password, settings.password);
+    // the column holds an argon2 hash for passwords set after hashing landed. rows
+    // from before that still carry the plaintext value and are upgraded to a hash the
+    // first time they are used successfully, the same way legacy user passwords are
+    const storedPassword = settings.password;
+    let passwordMatches = false;
+
+    if (storedPassword && input.password) {
+      if (storedPassword.startsWith('$argon2')) {
+        passwordMatches = await Bun.password.verify(
+          input.password,
+          storedPassword
+        );
+      } else if (safeCompare(input.password, storedPassword)) {
+        passwordMatches = true;
+        await updateSettings({
+          password: await Bun.password.hash(input.password)
+        });
+      }
+    }
 
     invariant(shouldAskForPassword ? passwordMatches : true, {
       code: 'FORBIDDEN',

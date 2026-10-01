@@ -31,7 +31,10 @@ export type TAdminUserInfo = TRouterOutputs['users']['getInfo']['user'];
 export const useAdminGeneral = () => {
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<
-    Omit<TJoinedSettings, 'secretToken'> | undefined
+    | (Omit<TJoinedSettings, 'secretToken' | 'password'> & {
+        hasPassword: boolean;
+      })
+    | undefined
   >(undefined);
 
   const fetchSettings = useCallback(async () => {

@@ -27,6 +27,18 @@ const uploadRateLimiter = createRateLimiter({
   windowMs: config.rateLimiters.upload.windowMs
 });
 
+// answer now and drop the body: draining a rejected stream first lets a sender
+// hold the connection open with an endless body
+const rejectUpload = (
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  statusCode: number,
+  message: string
+) => {
+  sendJsonError(res, statusCode, message);
+  req.destroy();
+};
+
 const uploadFileRouteHandler = async (
   req: http.IncomingMessage,
   res: http.ServerResponse
@@ -42,7 +54,8 @@ const uploadFileRouteHandler = async (
   );
 
   if (!allowed) {
-    req.resume();
+    // the 429 is already answered inside enforceHttpRateLimit, just drop the body
+    req.destroy();
 
     return;
   }
@@ -58,45 +71,37 @@ const uploadFileRouteHandler = async (
   const originalName = sanitizeFileName(rawOriginalName);
 
   if (!originalName) {
-    req.resume();
-    sendJsonError(res, 400, 'Invalid file name');
+    rejectUpload(req, res, 400, 'Invalid file name');
     return;
   }
 
   const user = await getUserByToken(token);
 
   if (!user) {
-    req.resume();
-    sendJsonError(res, 401, 'Unauthorized');
+    rejectUpload(req, res, 401, 'Unauthorized');
     return;
   }
 
   if (!(await userCan(user.id, Permission.UPLOAD_FILES))) {
-    req.resume();
-    sendJsonError(res, 403, 'You do not have permission to upload files');
+    rejectUpload(req, res, 403, 'You do not have permission to upload files');
     return;
   }
 
   const settings = await getSettings();
 
   if (contentLength > settings.storageUploadMaxFileSize) {
-    req.resume();
-    req.on('end', () => {
-      sendJsonError(
-        res,
-        413,
-        `File ${originalName} exceeds the maximum allowed size`
-      );
-    });
+    rejectUpload(
+      req,
+      res,
+      413,
+      `File ${originalName} exceeds the maximum allowed size`
+    );
 
     return;
   }
 
   if (!settings.storageUploadEnabled) {
-    req.resume();
-    req.on('end', () => {
-      sendJsonError(res, 403, 'File uploads are disabled on this server');
-    });
+    rejectUpload(req, res, 403, 'File uploads are disabled on this server');
 
     return;
   }

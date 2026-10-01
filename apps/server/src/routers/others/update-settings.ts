@@ -83,7 +83,15 @@ const updateSettingsRoute = protectedProcedure
 
     const { enablePlugins: oldEnablePlugins } = await getSettings();
 
-    await updateSettings(input);
+    const hashedInput = { ...input };
+
+    // the join password rests in the database, so it is stored hashed like user
+    // passwords. null clears it and undefined leaves whatever is set alone
+    if (hashedInput.password !== undefined && hashedInput.password !== null) {
+      hashedInput.password = await Bun.password.hash(hashedInput.password);
+    }
+
+    await updateSettings(hashedInput);
 
     if (
       input.enablePlugins !== undefined &&

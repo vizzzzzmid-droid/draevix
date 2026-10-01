@@ -5,9 +5,18 @@ import { useAdminGeneral } from '@/features/server/admin/hooks';
 import { getFileUrl } from '@/helpers/get-file-url';
 import type { TPickedImage } from '@/hooks/use-pick-image';
 import { getTRPCClient } from '@/lib/trpc';
-import { Group, Input, LoadingCard, Switch, Textarea } from '@sharkord/ui';
+import { getTrpcError } from '@sharkord/shared';
+import {
+  Button,
+  Group,
+  Input,
+  LoadingCard,
+  Switch,
+  Textarea
+} from '@sharkord/ui';
 import { memo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 type TServerGeneralValues = {
   name: string;
@@ -39,7 +48,7 @@ const INITIAL_VALUES: TServerGeneralValues = {
 
 const General = memo(() => {
   const { t } = useTranslation('settings');
-  const { settings, loading } = useAdminGeneral();
+  const { settings, loading, refetch } = useAdminGeneral();
 
   const onSave = useCallback(async (values: TServerGeneralValues) => {
     const trpc = getTRPCClient();
@@ -47,7 +56,8 @@ const General = memo(() => {
     await trpc.others.updateSettings.mutate({
       name: values.name,
       description: values.description,
-      password: values.password || null,
+      // an empty field leaves whatever is set alone, clearing goes through remove
+      ...(values.password === '' ? {} : { password: values.password }),
       onlyAskForPasswordOnFirstJoin: values.onlyAskForPasswordOnFirstJoin,
       allowNewUsers: values.allowNewUsers,
       directMessagesEnabled: values.directMessagesEnabled,
@@ -69,13 +79,28 @@ const General = memo(() => {
     errorMessage: t('failedUpdateSettings')
   });
 
+  const hasServerPassword = settings?.hasPassword ?? false;
+
+  const handleRemovePassword = useCallback(async () => {
+    const trpc = getTRPCClient();
+
+    try {
+      await trpc.others.updateSettings.mutate({ password: null });
+      onChange('password', '');
+      await refetch();
+      toast.success(t('settingsUpdated'));
+    } catch (error) {
+      toast.error(getTrpcError(error, t('failedUpdateSettings')));
+    }
+  }, [onChange, refetch, t]);
+
   useEffect(() => {
     if (!settings) return;
 
     reset({
       name: settings.name,
       description: settings.description ?? '',
-      password: settings.password ?? '',
+      password: '',
       onlyAskForPasswordOnFirstJoin:
         settings.onlyAskForPasswordOnFirstJoin ?? false,
       allowNewUsers: settings.allowNewUsers ?? false,
@@ -142,10 +167,17 @@ const General = memo(() => {
       </Group>
 
       <Group label={t('serverPasswordLabel')}>
-        <Input
-          placeholder={t('serverPasswordPlaceholder')}
-          {...r('password', 'password')}
-        />
+        <div className="flex gap-2">
+          <Input
+            placeholder={t('serverPasswordPlaceholder')}
+            {...r('password', 'password')}
+          />
+          {hasServerPassword && (
+            <Button size="sm" variant="outline" onClick={handleRemovePassword}>
+              {t('removeServerPassword')}
+            </Button>
+          )}
+        </div>
       </Group>
 
       <Group

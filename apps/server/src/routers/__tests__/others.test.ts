@@ -15,7 +15,7 @@ import {
 import { TEST_SECRET_TOKEN } from '../../__tests__/seed';
 import { tdb } from '../../__tests__/setup';
 import { getSettings } from '../../db/queries/server';
-import { activityLog, rolePermissions } from '../../db/schema';
+import { activityLog, rolePermissions, settings } from '../../db/schema';
 import { pluginManager } from '../../plugins';
 import { drainLoginsQueue } from '../../queues/logins';
 
@@ -307,18 +307,18 @@ describe('others router', () => {
     });
   });
 
-  test('should let an admin read the join password back and clear it', async () => {
+  test('should never return the join password value and clear it by null', async () => {
     const { caller } = await initTest(1);
 
     await caller.others.updateSettings({ password: 'testpassword' });
 
-    const settings = await caller.others.getSettings();
+    const adminSettings = await caller.others.getSettings();
 
-    // the form shows what is actually set, which is what makes emptying it meaningful
-    expect(settings.password).toBe('testpassword');
+    expect('password' in adminSettings).toBe(false);
+    expect(adminSettings.hasPassword).toBe(true);
 
     // the ownership credential is a different thing and stays hidden
-    expect('secretToken' in settings).toBe(false);
+    expect('secretToken' in adminSettings).toBe(false);
 
     await caller.others.updateSettings({ password: null });
 
@@ -326,6 +326,59 @@ describe('others router', () => {
     const { hasPassword } = await joiner.others.handshake();
 
     expect(hasPassword).toBe(false);
+  });
+
+  test('should store the join password hashed and join against the hash', async () => {
+    const { caller } = await initTest(1);
+
+    await caller.others.updateSettings({
+      password: 'testpassword',
+      onlyAskForPasswordOnFirstJoin: false
+    });
+
+    const row = await tdb.select().from(settings).get();
+
+    expect(row?.password).toBeDefined();
+    expect(row?.password).not.toBe('testpassword');
+    expect(row?.password?.startsWith('$argon2')).toBe(true);
+
+    const { caller: secondUserCaller } = await getCaller(2);
+    const { handshakeHash } = await secondUserCaller.others.handshake();
+
+    await expect(
+      secondUserCaller.others.joinServer({ handshakeHash, password: 'wrong' })
+    ).rejects.toThrow('Invalid password');
+
+    const joined = await secondUserCaller.others.joinServer({
+      handshakeHash,
+      password: 'testpassword'
+    });
+
+    expect(joined.ownUserId).toBe(2);
+  });
+
+  test('should upgrade a legacy plaintext join password to a hash on use', async () => {
+    await initTest(1);
+
+    await tdb
+      .update(settings)
+      .set({ password: 'testpassword', onlyAskForPasswordOnFirstJoin: false })
+      .execute();
+
+    const { caller: secondUserCaller } = await getCaller(2);
+    const { handshakeHash } = await secondUserCaller.others.handshake();
+
+    const joined = await secondUserCaller.others.joinServer({
+      handshakeHash,
+      password: 'testpassword'
+    });
+
+    expect(joined.ownUserId).toBe(2);
+
+    const row = await tdb.select().from(settings).get();
+
+    expect(row?.password).not.toBe('testpassword');
+    expect(row?.password?.startsWith('$argon2')).toBe(true);
   });
 
   test('should keep the server password when saving unrelated settings', async () => {
