@@ -4,7 +4,7 @@
   "version": "0.0.25",
   "identifier": "bond.draevix.desktop",
   "build": {
-    "frontendDist": "../client/dist",
+    "frontendDist": "../../client/dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
