@@ -1,24 +1,55 @@
+import { getLocalStorageItem, LocalStorageKey } from '@/helpers/storage';
 import type { TFile } from '@draevix/shared';
 
-const getHostFromServer = () => {
-  if (import.meta.env.MODE === 'development') {
-    return 'localhost:4991';
-  }
+const DEFAULT_SERVER_ADDRESS = 'official.draevix.bond';
 
-  return window.location.host;
+type TServerAddress = {
+  host: string;
+  secure: boolean;
 };
 
-const getUrlFromServer = () => {
-  if (import.meta.env.MODE === 'development') {
-    return 'http://localhost:4991';
+const isTauri = () => typeof window !== 'undefined' && '__TAURI__' in window;
+
+const normalizeServerAddress = (raw: string): TServerAddress => {
+  const trimmed = raw.trim().replace(/\/+$/, '');
+
+  if (trimmed.startsWith('http://')) {
+    return { host: trimmed.slice('http://'.length), secure: false };
   }
 
-  const host = window.location.host;
-  const currentProtocol = window.location.protocol;
+  if (trimmed.startsWith('https://')) {
+    return { host: trimmed.slice('https://'.length), secure: true };
+  }
 
-  const finalUrl = `${currentProtocol}//${host}`;
+  return { host: trimmed, secure: true };
+};
 
-  return finalUrl;
+const getServerAddress = (): TServerAddress => {
+  if (import.meta.env.MODE === 'development') {
+    return { host: 'localhost:4991', secure: false };
+  }
+
+  if (isTauri()) {
+    return normalizeServerAddress(
+      getLocalStorageItem(LocalStorageKey.SERVER_ADDRESS) ||
+        DEFAULT_SERVER_ADDRESS
+    );
+  }
+
+  return {
+    host: window.location.host,
+    secure: window.location.protocol === 'https:'
+  };
+};
+
+const getHostFromServer = () => getServerAddress().host;
+
+const getServerWsProtocol = () => (getServerAddress().secure ? 'wss' : 'ws');
+
+const getUrlFromServer = () => {
+  const { host, secure } = getServerAddress();
+
+  return `${secure ? 'https' : 'http'}://${host}`;
 };
 
 const getFileUrl = (file: TFile | undefined | null) => {
@@ -39,4 +70,12 @@ const getFileUrl = (file: TFile | undefined | null) => {
   return encodeURI(baseUrl);
 };
 
-export { getFileUrl, getHostFromServer, getUrlFromServer };
+export {
+  DEFAULT_SERVER_ADDRESS,
+  getFileUrl,
+  getHostFromServer,
+  getServerWsProtocol,
+  getUrlFromServer,
+  isTauri,
+  normalizeServerAddress
+};

@@ -1,5 +1,8 @@
 {
   "identityLabel": "Логин",
+  "serverAddressLabel": "Адрес сервера",
+  "serverAddressPlaceholder": "official.draevix.bond",
+  "serverAddressRequired": "Введите адрес сервера",
   "identityHelp": "Уникальный идентификатор вашей учетной записи на этом сервере. Вы можете использовать любой адрес электронной почты или имя пользователя. Эта информация не будет доступна публично.",
   "passwordLabel": "Пароль",
   "autoLoginLabel": "Входить автоматически",

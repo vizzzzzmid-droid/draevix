@@ -50,6 +50,14 @@ docker run \
   draevix/draevix:latest
 ```
 
+#### Desktop app
+
+There is also a native desktop client (Tauri, Windows and Linux) that wraps the
+same web interface and lets you pick which server to connect to. Installers are
+built by the `desktop` GitHub workflow, either manually or from a `desktop-v*`
+tag. To build locally, install the Rust toolchain and run `bun --filter
+@draevix/desktop build` from the repo root.
+
 > [!WARNING]
 > Upon first launch, Draevix creates a secret token and prints it to the console. It is both the credential that grants owner access and the key your server signs every session and file URL with, so anyone who obtains it can take ownership **and** impersonate any account. Keep it out of logs, screenshots and issue reports, store it securely, and do not lose it.
 

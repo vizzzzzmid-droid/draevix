@@ -2,7 +2,12 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { PluginSlotRenderer } from '@/components/plugin-slot-renderer';
 import { connect } from '@/features/server/actions';
 import { useInfo } from '@/features/server/hooks';
-import { getFileUrl, getUrlFromServer } from '@/helpers/get-file-url';
+import {
+  DEFAULT_SERVER_ADDRESS,
+  getFileUrl,
+  getUrlFromServer,
+  isTauri
+} from '@/helpers/get-file-url';
 import {
   getLocalStorageItem,
   getLocalStorageItemBool,
@@ -41,10 +46,14 @@ const Connect = memo(() => {
     identity: string;
     password: string;
     autoLogin: boolean;
+    serverAddress: string;
   }>({
     identity: getLocalStorageItem(LocalStorageKey.IDENTITY) || '',
     password: '',
-    autoLogin: getLocalStorageItemBool(LocalStorageKey.AUTO_LOGIN)
+    autoLogin: getLocalStorageItemBool(LocalStorageKey.AUTO_LOGIN),
+    serverAddress:
+      getLocalStorageItem(LocalStorageKey.SERVER_ADDRESS) ||
+      DEFAULT_SERVER_ADDRESS
   });
 
   const [loading, setLoading] = useState(false);
@@ -75,6 +84,19 @@ const Connect = memo(() => {
   const oidc = useOidcLogin({ onToken: startSession });
 
   const onConnectClick = useCallback(async () => {
+    if (isTauri() && values.serverAddress.trim() === '') {
+      setErrors({ serverAddress: t('serverAddressRequired') });
+
+      return;
+    }
+
+    if (isTauri()) {
+      setLocalStorageItem(
+        LocalStorageKey.SERVER_ADDRESS,
+        values.serverAddress.trim()
+      );
+    }
+
     setLoading(true);
 
     try {
@@ -114,6 +136,7 @@ const Connect = memo(() => {
   }, [
     values.identity,
     values.password,
+    values.serverAddress,
     setErrors,
     inviteCode,
     startSession,
@@ -190,6 +213,15 @@ const Connect = memo(() => {
               onSubmit={onFormSubmit}
               data-testid={TestId.CONNECT_FORM}
             >
+              {isTauri() && (
+                <Group label={t('serverAddressLabel')}>
+                  <Input
+                    {...r('serverAddress')}
+                    placeholder={t('serverAddressPlaceholder')}
+                    autoComplete="url"
+                  />
+                </Group>
+              )}
               <Group label={t('identityLabel')} help={t('identityHelp')}>
                 <Input
                   {...r('identity')}

@@ -8,6 +8,7 @@ import {
   setDisconnectInfo
 } from '@/features/server/actions';
 import { SoundType } from '@/features/server/types';
+import { getServerWsProtocol } from '@/helpers/get-file-url';
 import { suppressOidcAutoRedirect } from '@/helpers/oidc';
 import { playSound } from '@/helpers/sounds';
 import {
@@ -42,7 +43,7 @@ const isTerminalClose = (code: number) =>
   code === DisconnectCode.KICKED || code === DisconnectCode.BANNED;
 
 const initializeTRPC = (host: string) => {
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const protocol = getServerWsProtocol();
 
   wsClient = createWSClient({
     url: `${protocol}://${host}`,

@@ -1,5 +1,8 @@
 {
   "identityLabel": "Identité",
+  "serverAddressLabel": "Adresse du serveur",
+  "serverAddressPlaceholder": "official.draevix.bond",
+  "serverAddressRequired": "Saisissez l'adresse du serveur",
   "identityHelp": "Un identifiant unique pour votre compte sur ce serveur. Vous pouvez utiliser ce que vous voulez, comme une adresse e-mail ou un nom d'utilisateur. Cet identifiant ne sera pas divulgué publiquement.",
   "passwordLabel": "Mot de passe",
   "autoLoginLabel": "Connexion automatique",

@@ -29,6 +29,7 @@ export enum LocalStorageKey {
   THREAD_INPUT_HEIGHT_VH = 'draevix-thread-input-height-vh',
   BROWSER_NOTIFICATIONS_FOR_REPLIES = 'draevix-browser-notifications-for-replies',
   LANGUAGE = 'draevix-language',
+  SERVER_ADDRESS = 'draevix-server-address',
   PLUGIN_SLOT_DEBUG = 'draevix-plugin-slot-debug',
   HIDE_OWN_SCREEN_SHARE = 'draevix-hide-own-screen-share',
   ALWAYS_SHOW_VOICE_CONTROLS = 'draevix-always-show-voice-controls'
