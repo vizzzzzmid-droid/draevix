@@ -8,7 +8,15 @@ type TServerAddress = {
   secure: boolean;
 };
 
-const isTauri = () => typeof window !== 'undefined' && '__TAURI__' in window;
+const isTauri = () => {
+  if (typeof window === 'undefined') return false;
+
+  return (
+    '__TAURI__' in window ||
+    '__TAURI_INTERNALS__' in window ||
+    window.location.hostname === 'tauri.localhost'
+  );
+};
 
 const normalizeServerAddress = (raw: string): TServerAddress => {
   const trimmed = raw.trim().replace(/\/+$/, '');

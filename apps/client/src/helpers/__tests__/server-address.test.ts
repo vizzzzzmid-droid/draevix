@@ -85,6 +85,29 @@ describe('server address in tauri', () => {
     expect(getServerWsProtocol()).toBe('wss');
   });
 
+  test('should detect tauri through the internals global', () => {
+    setWindow({
+      __TAURI_INTERNALS__: true,
+      location: { host: 'tauri.localhost', protocol: 'http:' }
+    });
+    setLocalStorage({});
+
+    expect(getHostFromServer()).toBe('official.draevix.bond');
+  });
+
+  test('should detect tauri through the loopback hostname', () => {
+    setWindow({
+      location: {
+        host: 'tauri.localhost',
+        hostname: 'tauri.localhost',
+        protocol: 'http:'
+      }
+    });
+    setLocalStorage({});
+
+    expect(getHostFromServer()).toBe('official.draevix.bond');
+  });
+
   test('should use the stored address when one is set', () => {
     setWindow({ __TAURI__: true });
     setLocalStorage({
