@@ -20,6 +20,7 @@ describe('/info', () => {
     expect(data.name).toBe('Test Server');
     expect(data.description).toBe('Test server description');
     expect(data.allowNewUsers).toBe(true);
+    expect(data.onlineCount).toBe(0);
   });
 
   test('should not publish the server version pre-auth', async () => {

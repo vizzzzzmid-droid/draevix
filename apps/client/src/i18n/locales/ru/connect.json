@@ -1,5 +1,8 @@
 {
   "identityLabel": "Логин",
+  "communityServersTitle": "Выберите сервер",
+  "communityServersPrev": "Предыдущие серверы",
+  "communityServersNext": "Следующие серверы",
   "serverAddressLabel": "Адрес сервера",
   "serverAddressPlaceholder": "official.draevix.bond",
   "serverAddressRequired": "Введите адрес сервера",

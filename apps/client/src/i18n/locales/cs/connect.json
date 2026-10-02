@@ -1,5 +1,8 @@
 {
   "identityLabel": "Identita",
+  "communityServersTitle": "Vyberte server",
+  "communityServersPrev": "Předchozí servery",
+  "communityServersNext": "Další servery",
   "serverAddressLabel": "Adresa serveru",
   "serverAddressPlaceholder": "official.draevix.bond",
   "serverAddressRequired": "Zadejte adresu serveru",

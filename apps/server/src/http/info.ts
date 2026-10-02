@@ -2,6 +2,7 @@ import type { TServerInfo } from '@draevix/shared';
 import http from 'http';
 import { getSettings } from '../db/queries/server';
 import { getOidcServerInfo } from '../helpers/oidc/settings';
+import { getOnlineUserIds } from '../utils/wss';
 
 const infoRouteHandler = async (
   req: http.IncomingMessage,
@@ -15,6 +16,7 @@ const infoRouteHandler = async (
     description: settings.description,
     logo: settings.logo,
     allowNewUsers: settings.allowNewUsers,
+    onlineCount: getOnlineUserIds().length,
     ...getOidcServerInfo()
   };
 

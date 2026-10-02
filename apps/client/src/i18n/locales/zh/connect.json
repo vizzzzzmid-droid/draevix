@@ -1,5 +1,8 @@
 {
   "identityLabel": "身份标识",
+  "communityServersTitle": "选择服务器",
+  "communityServersPrev": "上一页服务器",
+  "communityServersNext": "下一页服务器",
   "serverAddressLabel": "服务器地址",
   "serverAddressPlaceholder": "official.draevix.bond",
   "serverAddressRequired": "请输入服务器地址",

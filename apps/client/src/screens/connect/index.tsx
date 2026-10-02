@@ -38,7 +38,9 @@ import {
 import { memo, useCallback, useMemo, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useCommunityServers } from './hooks/use-community-servers';
 import { useOidcLogin } from './hooks/use-oidc-login';
+import { ServerCarousel } from './server-carousel';
 
 const Connect = memo(() => {
   const { t } = useTranslation('connect');
@@ -58,6 +60,7 @@ const Connect = memo(() => {
 
   const [loading, setLoading] = useState(false);
   const info = useInfo();
+  const communityServers = useCommunityServers(isTauri());
 
   const inviteCode = useMemo(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -151,6 +154,13 @@ const Connect = memo(() => {
     [onConnectClick]
   );
 
+  const handleSelectServer = useCallback(
+    (address: string) => {
+      onChange('serverAddress', address);
+    },
+    [onChange]
+  );
+
   const onAutoLoginToggle = useCallback(() => {
     const nextAutoLogin = !values.autoLogin;
 
@@ -201,6 +211,15 @@ const Connect = memo(() => {
           <PluginSlotRenderer slotId={PluginSlot.CONNECT_SCREEN} />
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {isTauri() &&
+            communityServers !== undefined &&
+            communityServers.length > 0 && (
+              <ServerCarousel
+                servers={communityServers}
+                selectedAddress={values.serverAddress}
+                onSelect={handleSelectServer}
+              />
+            )}
           {info?.description && (
             <span className="text-sm text-muted-foreground">
               {info?.description}

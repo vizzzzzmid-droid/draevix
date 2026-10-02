@@ -65,6 +65,23 @@ Once the server is running, open your web browser and navigate to [http://localh
 
 Check out our [Documentation](https://draevix.com/docs) for more detailed setup instructions, configuration options, and troubleshooting tips.
 
+## Community servers
+
+The desktop app shows a server picker fed by [servers.json](servers.json) in
+this repository. Anyone can add a server with a pull request, there is no
+moderation. Entries that fail validation are skipped, and servers that do not
+answer keep their registry name without live details:
+
+```json
+[
+  {
+    "name": "My community",
+    "address": "voice.example.com",
+    "description": "Optional short description"
+  }
+]
+```
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details, and [Development](DEVELOPMENT.md) for running Draevix locally.

@@ -1,5 +1,8 @@
 {
   "identityLabel": "Identita",
+  "communityServersTitle": "Scegli un server",
+  "communityServersPrev": "Server precedenti",
+  "communityServersNext": "Server successivi",
   "serverAddressLabel": "Indirizzo del server",
   "serverAddressPlaceholder": "official.draevix.bond",
   "serverAddressRequired": "Inserisci l'indirizzo del server",
