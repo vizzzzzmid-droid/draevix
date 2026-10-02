@@ -4,7 +4,6 @@ import { connect } from '@/features/server/actions';
 import { useInfo } from '@/features/server/hooks';
 import {
   DEFAULT_SERVER_ADDRESS,
-  getFileUrl,
   getUrlFromServer,
   isTauri
 } from '@/helpers/get-file-url';
@@ -172,13 +171,7 @@ const Connect = memo(() => {
     }
   }, [onChange, values.autoLogin]);
 
-  const logoSrc = useMemo(() => {
-    if (info?.logo) {
-      return getFileUrl(info.logo);
-    }
-
-    return '/logo.webp';
-  }, [info]);
+  const logoSrc = '/logo.webp';
 
   if (oidc.isCompleting) {
     return (
@@ -202,11 +195,6 @@ const Connect = memo(() => {
               alt="Draevix"
               className="block max-h-32 max-w-full rounded-[5px]"
             />
-            {info?.logo && info?.name && (
-              <span className="text-xl font-bold leading-tight">
-                {info.name}
-              </span>
-            )}
           </CardTitle>
           <PluginSlotRenderer slotId={PluginSlot.CONNECT_SCREEN} />
         </CardHeader>
