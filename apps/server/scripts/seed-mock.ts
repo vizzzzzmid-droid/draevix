@@ -15,7 +15,6 @@
  * seedDatabase() finds a settings row on the next boot and no-ops, exactly like the e2e
  * seed in packages/e2e/tests/setup/seed-db.ts.
  */
-import { faker } from '@faker-js/faker';
 import {
   ChannelPermission,
   ChannelType,
@@ -38,6 +37,7 @@ import {
   type TISettings,
   type TIUser
 } from '@draevix/shared';
+import { faker } from '@faker-js/faker';
 import { randomUUIDv7 } from 'bun';
 import { Database } from 'bun:sqlite';
 import { eq } from 'drizzle-orm';

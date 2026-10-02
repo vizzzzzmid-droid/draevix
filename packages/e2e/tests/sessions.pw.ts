@@ -1,5 +1,5 @@
-import type { Page } from '@playwright/test';
 import { TestId } from '@draevix/shared';
+import type { Page } from '@playwright/test';
 import { expect, loginAs, test } from './fixtures';
 import { confirmDialog } from './helpers/dialogs';
 

@@ -1,9 +1,9 @@
 import path from 'path';
 import {
+  DRAEVIX_MEDIASOUP_BIN_NAME,
   IS_DEVELOPMENT,
   IS_TEST,
-  SERVER_VERSION,
-  DRAEVIX_MEDIASOUP_BIN_NAME
+  SERVER_VERSION
 } from '../utils/env';
 import { getAppDataPath } from '../utils/fs';
 

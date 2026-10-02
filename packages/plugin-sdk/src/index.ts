@@ -846,6 +846,7 @@ export type {
   TChannel,
   TCommandArg,
   TCommandContract,
+  TDraevixState,
   TInvokerContext,
   TPluginActions,
   TPluginComponentsMapBySlotId,
@@ -855,8 +856,7 @@ export type {
   TPluginStore,
   TPluginStoreState,
   TPluginTab,
-  TPluginTabs,
-  TDraevixState
+  TPluginTabs
 };
 
 export * from './actions';

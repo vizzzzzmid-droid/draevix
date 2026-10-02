@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
 import { TestId } from '@draevix/shared';
+import { expect, test } from '@playwright/test';
 import { loginAs } from './fixtures';
 import { INFINITE_SCROLL_CHANNEL, openChannel } from './helpers/channels';
 import {
