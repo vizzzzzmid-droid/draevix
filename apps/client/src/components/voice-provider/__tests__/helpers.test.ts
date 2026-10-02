@@ -52,7 +52,7 @@ describe('buildDisplayMediaConstraints', () => {
     });
 
     expect(constraints.video).toMatchObject({
-      displaySurface: { exact: 'browser' }
+      displaySurface: 'browser'
     });
     expect(constraints.audio).toMatchObject({ channelCount: 2 });
   });
@@ -64,7 +64,7 @@ describe('buildDisplayMediaConstraints', () => {
     });
 
     expect(constraints.video).toMatchObject({
-      displaySurface: { exact: 'window' }
+      displaySurface: 'window'
     });
     expect(constraints.audio).toMatchObject({ sampleRate: 48000 });
   });
@@ -77,7 +77,7 @@ describe('buildDisplayMediaConstraints', () => {
     });
 
     expect(constraints.video).toMatchObject({
-      displaySurface: { exact: 'monitor' }
+      displaySurface: 'monitor'
     });
     expect(constraints.audio).toBe(false);
   });

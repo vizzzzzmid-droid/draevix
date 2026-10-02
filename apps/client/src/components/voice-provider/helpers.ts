@@ -245,7 +245,7 @@ const buildDisplayMediaConstraints = (
     frameRate: inputs.framerate,
     // @ts-expect-error - display capture only, not in MediaTrackConstraints
     cursor: inputs.cursor,
-    displaySurface: { exact: DISPLAY_SURFACE_BY_SOURCE[inputs.source] }
+    displaySurface: DISPLAY_SURFACE_BY_SOURCE[inputs.source]
   };
 
   if (!inputs.shareAudio) {
@@ -266,7 +266,7 @@ const buildDisplayMediaConstraints = (
   return { video, audio };
 };
 
-const withoutDisplaySurfaceExact = (
+const withoutDisplaySurface = (
   constraints: MediaStreamConstraints
 ): MediaStreamConstraints => {
   if (
@@ -285,7 +285,7 @@ const withoutDisplaySurfaceExact = (
   return { ...constraints, video };
 };
 
-// older capture backends reject the surface constraint outright, so fall back
+// older capture backends reject the surface hint outright, so fall back
 // to an unconstrained pick rather than failing the share
 const requestDisplayMedia = async (
   constraints: MediaStreamConstraints
@@ -301,7 +301,7 @@ const requestDisplayMedia = async (
     if (name !== 'OverconstrainedError') throw error;
 
     return navigator.mediaDevices.getDisplayMedia(
-      withoutDisplaySurfaceExact(constraints)
+      withoutDisplaySurface(constraints)
     );
   }
 };
@@ -321,8 +321,7 @@ export {
   normalizeStreamQuality,
   parseStreamQualityDropdownValue,
   requestDisplayMedia,
-  saveStreamQualitiesToStorage,
-  withoutDisplaySurfaceExact
+  saveStreamQualitiesToStorage
 };
 
 export type {
