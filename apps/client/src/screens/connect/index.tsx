@@ -192,7 +192,7 @@ const Connect = memo(() => {
               alt="Draevix"
               className="block max-h-32 max-w-full rounded-[5px]"
             />
-            {info?.name && (
+            {info?.logo && info?.name && (
               <span className="text-xl font-bold leading-tight">
                 {info.name}
               </span>
