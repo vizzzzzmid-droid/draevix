@@ -15,7 +15,7 @@ Draevix is a self-hosted communication platform that brings the most important D
 
 ## Screenshots
 
-![Draevix Screenshot](https://i.imgur.com/urO9vKC.png)
+
 
 ## Features
 
