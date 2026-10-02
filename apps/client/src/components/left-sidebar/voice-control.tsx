@@ -1,8 +1,11 @@
+import { Dialog } from '@/components/dialogs/dialogs';
+import { openDialog } from '@/features/dialogs/actions';
 import { useCurrentVoiceChannelId } from '@/features/server/channels/hooks';
 import { useChannelCan } from '@/features/server/hooks';
 import { leaveVoice } from '@/features/server/voice/actions';
 import { useVoice } from '@/features/server/voice/hooks';
 import { cn } from '@/lib/utils';
+import type { TScreenShareSource } from '@/types';
 import { ChannelPermission } from '@draevix/shared';
 import { Button } from '@draevix/ui';
 import {
@@ -16,7 +19,7 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-react';
-import { memo, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ExternalAudioStreams } from '../channel-view/voice/external-audio-streams';
 import { VoiceAudioStreams } from '../channel-view/voice/voice-audio-streams';
@@ -63,6 +66,25 @@ const VoiceControl = memo(() => {
         };
     }
   }, [connectionStatus, t]);
+
+  const handlePickScreenSource = useCallback(
+    (source: TScreenShareSource, shareAudio: boolean) => {
+      toggleScreenShare(source, shareAudio);
+    },
+    [toggleScreenShare]
+  );
+
+  const handleScreenShareClick = useCallback(() => {
+    if (ownVoiceState.sharingScreen) {
+      toggleScreenShare();
+
+      return;
+    }
+
+    openDialog(Dialog.SCREEN_SHARE_SOURCE, {
+      onPick: handlePickScreenSource
+    });
+  }, [ownVoiceState.sharingScreen, toggleScreenShare, handlePickScreenSource]);
 
   if (!voiceChannelId) {
     return null;
@@ -127,7 +149,7 @@ const VoiceControl = memo(() => {
                     ? 'bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300'
                     : 'bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground'
                 )}
-                onClick={toggleScreenShare}
+                onClick={handleScreenShareClick}
                 title={
                   ownVoiceState.sharingScreen
                     ? t('stopScreenShare')

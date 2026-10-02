@@ -21,15 +21,16 @@ import {
   logVoiceError,
   logVoiceWarn
 } from '@/helpers/browser-logger';
-import {
-  getRestrictOwnAudioSupport,
-  getSuppressLocalAudioPlaybackSupport
-} from '@/helpers/get-display-media-support';
 import { getResWidthHeight } from '@/helpers/get-res-with-height';
 import { registerVoiceDebugSource } from '@/helpers/voice-debug';
 import { useScreenShareSupport } from '@/hooks/use-screen-share-support';
 import { getTRPCClient } from '@/lib/trpc';
-import { NoiseSuppression, VideoCodec, type TStreamQuality } from '@/types';
+import {
+  NoiseSuppression,
+  VideoCodec,
+  type TScreenShareSource,
+  type TStreamQuality
+} from '@/types';
 import {
   DEFAULT_BITRATE,
   getErrorMessage,
@@ -60,6 +61,7 @@ import {
 } from './controls-bridge';
 import { FloatingPinnedCard } from './floating-pinned-card';
 import {
+  buildDisplayMediaConstraints,
   getRemoteConsumerTypeKey,
   getScreenShareSimulcastEncodings,
   getSimulcastCodec,
@@ -68,6 +70,7 @@ import {
   getStreamQualityStorageKey,
   loadStreamQualitiesFromStorage,
   normalizeStreamQuality,
+  requestDisplayMedia,
   saveStreamQualitiesToStorage,
   type TRemoteConsumerTypes,
   type TRemoteQualityLayers,
@@ -868,269 +871,258 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
     setScreenShareProducer
   ]);
 
-  const startScreenShareStream = useCallback(async () => {
-    try {
-      logVoice('screen: starting');
-      const canRestrictOwnAudio = getRestrictOwnAudioSupport();
-      const canSuppressLocalAudioPlayback =
-        getSuppressLocalAudioPlaybackSupport();
+  const startScreenShareStream = useCallback(
+    async (
+      source: TScreenShareSource = 'screen',
+      shareAudio: boolean = devices.shareSystemAudio
+    ) => {
+      try {
+        logVoice('screen: starting', { source, shareAudio });
 
-      const displayMediaConstraints: MediaStreamConstraints = {
-        video: {
-          ...getResWidthHeight(devices?.screenResolution),
-          frameRate: devices?.screenFramerate,
-          // @ts-expect-error - display capture only, not in MediaTrackConstraints
-          cursor: devices.screenCursor
-        },
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          channelCount: 2,
-          sampleRate: 48000,
-          // @ts-expect-error - experimental, not in types yet
-          suppressLocalAudioPlayback: canSuppressLocalAudioPlayback
-            ? (devices.suppressLocalAudioPlayback ?? false)
-            : undefined,
-          restrictOwnAudio: canRestrictOwnAudio
-            ? (devices.restrictOwnAudio ?? false)
-            : undefined
-        }
-      };
-
-      logVoice('screen: requesting display media', {
-        constraints: displayMediaConstraints
-      });
-
-      const stream = await navigator.mediaDevices.getDisplayMedia(
-        displayMediaConstraints
-      );
-
-      logVoice('screen: stream obtained', {
-        videoTrackId: stream.getVideoTracks()[0]?.id,
-        hasAudio: stream.getAudioTracks().length > 0
-      });
-      setLocalScreenShare(stream);
-
-      const videoTrack = stream.getVideoTracks()[0];
-      const audioTrack = stream.getAudioTracks()[0];
-
-      if (videoTrack) {
-        logVoice('screen: video track obtained', {
-          trackId: videoTrack.id,
-          readyState: videoTrack.readyState,
-          settings: videoTrack.getSettings()
+        const displayMediaConstraints = buildDisplayMediaConstraints({
+          source,
+          shareAudio,
+          resolution: devices.screenResolution,
+          framerate: devices.screenFramerate,
+          cursor: devices.screenCursor,
+          restrictOwnAudio: devices.restrictOwnAudio,
+          suppressLocalAudioPlayback: devices.suppressLocalAudioPlayback
         });
 
-        videoTrack.contentHint = 'detail';
+        logVoice('screen: requesting display media', {
+          constraints: displayMediaConstraints
+        });
 
-        let preferredCodec: RtpCodecCapability | undefined;
+        const stream = await requestDisplayMedia(displayMediaConstraints);
 
-        if (
-          !simulcastEnabled &&
-          devices.screenCodec &&
-          devices.screenCodec !== VideoCodec.AUTO &&
-          routerRtpCapabilities.current?.codecs
-        ) {
-          preferredCodec = routerRtpCapabilities.current.codecs.find(
-            (c) =>
-              c.mimeType.toLowerCase() === devices.screenCodec.toLowerCase()
-          );
+        logVoice('screen: stream obtained', {
+          videoTrackId: stream.getVideoTracks()[0]?.id,
+          hasAudio: stream.getAudioTracks().length > 0
+        });
+        setLocalScreenShare(stream);
 
-          if (preferredCodec) {
-            logVoice('screen: using preferred codec', {
-              codec: preferredCodec.mimeType
-            });
-          }
-        }
+        const videoTrack = stream.getVideoTracks()[0];
+        const audioTrack = stream.getAudioTracks()[0];
 
-        const maxBitrateKbps = devices.screenBitrate ?? DEFAULT_BITRATE;
-        const simulcastCodec = simulcastEnabled
-          ? getSimulcastCodec(routerRtpCapabilities.current)
-          : undefined;
-        const screenCodec = simulcastCodec ?? preferredCodec;
-
-        if (simulcastCodec) {
-          logVoice('screen: using vp8 for simulcast', {
-            codec: simulcastCodec.mimeType
+        if (videoTrack) {
+          logVoice('screen: video track obtained', {
+            trackId: videoTrack.id,
+            readyState: videoTrack.readyState,
+            settings: videoTrack.getSettings()
           });
-        } else if (simulcastEnabled) {
-          logVoiceWarn('screen: vp8 unavailable, creating without simulcast');
-        }
-        const screenShareProducerOptions: ProducerOptions<TVideoProducerAppData> =
-          {
-            track: videoTrack,
-            codec: screenCodec,
-            codecOptions: {
-              videoGoogleStartBitrate: Math.min(2000, maxBitrateKbps),
-              videoGoogleMaxBitrate: maxBitrateKbps,
-              videoGoogleMinBitrate: Math.min(200, maxBitrateKbps)
-            },
-            appData: {
-              kind: StreamKind.SCREEN
+
+          videoTrack.contentHint = 'detail';
+
+          let preferredCodec: RtpCodecCapability | undefined;
+
+          if (
+            !simulcastEnabled &&
+            devices.screenCodec &&
+            devices.screenCodec !== VideoCodec.AUTO &&
+            routerRtpCapabilities.current?.codecs
+          ) {
+            preferredCodec = routerRtpCapabilities.current.codecs.find(
+              (c) =>
+                c.mimeType.toLowerCase() === devices.screenCodec.toLowerCase()
+            );
+
+            if (preferredCodec) {
+              logVoice('screen: using preferred codec', {
+                codec: preferredCodec.mimeType
+              });
             }
-          };
-        const fallbackScreenShareProducerOptions = {
-          ...screenShareProducerOptions,
-          codec: preferredCodec
-        };
-        let simulcastScreenShareProducerOptions = screenShareProducerOptions;
+          }
 
-        if (simulcastCodec) {
-          const encodings = getScreenShareSimulcastEncodings(
-            maxBitrateKbps * 1000
-          );
-          const qualityLayers = getSimulcastQualityLayers(encodings);
+          const maxBitrateKbps = devices.screenBitrate ?? DEFAULT_BITRATE;
+          const simulcastCodec = simulcastEnabled
+            ? getSimulcastCodec(routerRtpCapabilities.current)
+            : undefined;
+          const screenCodec = simulcastCodec ?? preferredCodec;
 
-          simulcastScreenShareProducerOptions = {
+          if (simulcastCodec) {
+            logVoice('screen: using vp8 for simulcast', {
+              codec: simulcastCodec.mimeType
+            });
+          } else if (simulcastEnabled) {
+            logVoiceWarn('screen: vp8 unavailable, creating without simulcast');
+          }
+          const screenShareProducerOptions: ProducerOptions<TVideoProducerAppData> =
+            {
+              track: videoTrack,
+              codec: screenCodec,
+              codecOptions: {
+                videoGoogleStartBitrate: Math.min(2000, maxBitrateKbps),
+                videoGoogleMaxBitrate: maxBitrateKbps,
+                videoGoogleMinBitrate: Math.min(200, maxBitrateKbps)
+              },
+              appData: {
+                kind: StreamKind.SCREEN
+              }
+            };
+          const fallbackScreenShareProducerOptions = {
             ...screenShareProducerOptions,
-            appData: { kind: StreamKind.SCREEN, qualityLayers },
-            encodings
+            codec: preferredCodec
           };
-        }
+          let simulcastScreenShareProducerOptions = screenShareProducerOptions;
 
-        try {
-          localScreenShareProducer.current =
-            await producerTransport.current?.produce(
-              simulcastScreenShareProducerOptions
+          if (simulcastCodec) {
+            const encodings = getScreenShareSimulcastEncodings(
+              maxBitrateKbps * 1000
             );
-        } catch (error) {
-          if (!simulcastCodec) throw error;
+            const qualityLayers = getSimulcastQualityLayers(encodings);
 
-          logVoiceWarn(
-            'screen: simulcast producer failed, retrying without simulcast',
-            { error: getErrorMessage(error) }
-          );
-
-          localScreenShareProducer.current =
-            await producerTransport.current?.produce(
-              fallbackScreenShareProducerOptions
-            );
-        }
-
-        logVoice('screen: producer created', {
-          producerId: localScreenShareProducer.current?.id,
-          simulcast: !!simulcastCodec
-        });
-
-        setScreenShareProducer(localScreenShareProducer.current);
-
-        localScreenShareProducer.current?.observer.on('close', async () => {
-          logVoice('screen: producer closed');
-
-          const trpc = getTRPCClient();
+            simulcastScreenShareProducerOptions = {
+              ...screenShareProducerOptions,
+              appData: { kind: StreamKind.SCREEN, qualityLayers },
+              encodings
+            };
+          }
 
           try {
-            await trpc.voice.closeProducer.mutate({
-              kind: StreamKind.SCREEN
-            });
+            localScreenShareProducer.current =
+              await producerTransport.current?.produce(
+                simulcastScreenShareProducerOptions
+              );
           } catch (error) {
-            logVoiceError(
-              'screen: closing producer on the server failed',
-              error
+            if (!simulcastCodec) throw error;
+
+            logVoiceWarn(
+              'screen: simulcast producer failed, retrying without simulcast',
+              { error: getErrorMessage(error) }
             );
+
+            localScreenShareProducer.current =
+              await producerTransport.current?.produce(
+                fallbackScreenShareProducerOptions
+              );
           }
-        });
 
-        videoTrack.onended = () => {
-          logVoice('screen: track ended, cleaning up');
-
-          stream.getTracks().forEach((track) => {
-            track.stop();
-          });
-          localScreenShareProducer.current?.close();
-          localScreenShareProducer.current = undefined;
-          localScreenShareAudioProducer.current?.close();
-          localScreenShareAudioProducer.current = undefined;
-
-          setScreenShareProducer(null);
-          setLocalScreenShare(undefined);
-          setLocalScreenShareAudio(undefined);
-        };
-
-        if (audioTrack) {
-          logVoice('screen audio: audio track obtained', {
-            trackId: audioTrack.id,
-            settings: audioTrack.getSettings()
+          logVoice('screen: producer created', {
+            producerId: localScreenShareProducer.current?.id,
+            simulcast: !!simulcastCodec
           });
 
-          localScreenShareAudioProducer.current =
-            await producerTransport.current?.produce({
-              track: audioTrack,
-              codecOptions: {
-                opusStereo: true,
-                opusFec: true,
-                opusDtx: false,
-                opusMaxPlaybackRate: 48000,
-                opusMaxAverageBitrate: 128000
-              },
-              appData: { kind: StreamKind.SCREEN_AUDIO }
-            });
+          setScreenShareProducer(localScreenShareProducer.current);
 
-          logVoice('screen audio: producer created', {
-            producerId: localScreenShareAudioProducer.current?.id
-          });
+          localScreenShareProducer.current?.observer.on('close', async () => {
+            logVoice('screen: producer closed');
 
-          setLocalScreenShareAudio(new MediaStream([audioTrack]));
+            const trpc = getTRPCClient();
 
-          localScreenShareAudioProducer.current?.observer.on(
-            'close',
-            async () => {
-              logVoice('screen audio: producer closed');
-
-              const trpc = getTRPCClient();
-
-              try {
-                await trpc.voice.closeProducer.mutate({
-                  kind: StreamKind.SCREEN_AUDIO
-                });
-              } catch (error) {
-                logVoiceError(
-                  'screen audio: closing producer on the server failed',
-                  error
-                );
-              }
+            try {
+              await trpc.voice.closeProducer.mutate({
+                kind: StreamKind.SCREEN
+              });
+            } catch (error) {
+              logVoiceError(
+                'screen: closing producer on the server failed',
+                error
+              );
             }
-          );
+          });
 
-          audioTrack.onended = () => {
+          videoTrack.onended = () => {
+            logVoice('screen: track ended, cleaning up');
+
+            stream.getTracks().forEach((track) => {
+              track.stop();
+            });
+            localScreenShareProducer.current?.close();
+            localScreenShareProducer.current = undefined;
             localScreenShareAudioProducer.current?.close();
             localScreenShareAudioProducer.current = undefined;
+
+            setScreenShareProducer(null);
+            setLocalScreenShare(undefined);
             setLocalScreenShareAudio(undefined);
           };
+
+          if (audioTrack) {
+            logVoice('screen audio: audio track obtained', {
+              trackId: audioTrack.id,
+              settings: audioTrack.getSettings()
+            });
+
+            localScreenShareAudioProducer.current =
+              await producerTransport.current?.produce({
+                track: audioTrack,
+                codecOptions: {
+                  opusStereo: true,
+                  opusFec: true,
+                  opusDtx: false,
+                  opusMaxPlaybackRate: 48000,
+                  opusMaxAverageBitrate: 128000
+                },
+                appData: { kind: StreamKind.SCREEN_AUDIO }
+              });
+
+            logVoice('screen audio: producer created', {
+              producerId: localScreenShareAudioProducer.current?.id
+            });
+
+            setLocalScreenShareAudio(new MediaStream([audioTrack]));
+
+            localScreenShareAudioProducer.current?.observer.on(
+              'close',
+              async () => {
+                logVoice('screen audio: producer closed');
+
+                const trpc = getTRPCClient();
+
+                try {
+                  await trpc.voice.closeProducer.mutate({
+                    kind: StreamKind.SCREEN_AUDIO
+                  });
+                } catch (error) {
+                  logVoiceError(
+                    'screen audio: closing producer on the server failed',
+                    error
+                  );
+                }
+              }
+            );
+
+            audioTrack.onended = () => {
+              localScreenShareAudioProducer.current?.close();
+              localScreenShareAudioProducer.current = undefined;
+              setLocalScreenShareAudio(undefined);
+            };
+          }
+
+          return videoTrack;
+        } else {
+          throw new Error('No video track obtained for screen share');
         }
+      } catch (error) {
+        localScreenShareAudioProducer.current?.close();
+        localScreenShareAudioProducer.current = undefined;
+        localScreenShareProducer.current?.close();
+        localScreenShareProducer.current = undefined;
 
-        return videoTrack;
-      } else {
-        throw new Error('No video track obtained for screen share');
+        setLocalScreenShare(undefined);
+        setLocalScreenShareAudio(undefined);
+        logVoiceError('screen: start failed', error);
+        throw error;
       }
-    } catch (error) {
-      localScreenShareAudioProducer.current?.close();
-      localScreenShareAudioProducer.current = undefined;
-      localScreenShareProducer.current?.close();
-      localScreenShareProducer.current = undefined;
-
-      setLocalScreenShare(undefined);
-      setLocalScreenShareAudio(undefined);
-      logVoiceError('screen: start failed', error);
-      throw error;
-    }
-  }, [
-    setLocalScreenShare,
-    setLocalScreenShareAudio,
-    localScreenShareProducer,
-    localScreenShareAudioProducer,
-    producerTransport,
-    setScreenShareProducer,
-    devices.screenResolution,
-    devices.screenFramerate,
-    devices.screenCodec,
-    devices.screenBitrate,
-    devices.restrictOwnAudio,
-    devices.suppressLocalAudioPlayback,
-    devices.screenCursor,
-    simulcastEnabled
-  ]);
+    },
+    [
+      setLocalScreenShare,
+      setLocalScreenShareAudio,
+      localScreenShareProducer,
+      localScreenShareAudioProducer,
+      producerTransport,
+      setScreenShareProducer,
+      devices.screenResolution,
+      devices.screenFramerate,
+      devices.screenCodec,
+      devices.screenBitrate,
+      devices.restrictOwnAudio,
+      devices.suppressLocalAudioPlayback,
+      devices.screenCursor,
+      devices.shareSystemAudio,
+      simulcastEnabled
+    ]
+  );
 
   const cleanup = useCallback(() => {
     logVoice('session: cleanup');

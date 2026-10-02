@@ -5,6 +5,7 @@ import { useOwnVoiceState } from '@/features/server/voice/hooks';
 import { logVoice, logVoiceError } from '@/helpers/browser-logger';
 import { playSound } from '@/helpers/sounds';
 import { getTRPCClient } from '@/lib/trpc';
+import type { TScreenShareSource } from '@/types';
 import { getTrpcError } from '@draevix/shared';
 import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,7 +30,10 @@ type TUseVoiceControlsParams = {
   startWebcamStream: () => Promise<void>;
   stopWebcamStream: () => void;
 
-  startScreenShareStream: () => Promise<MediaStreamTrack>;
+  startScreenShareStream: (
+    source?: TScreenShareSource,
+    shareAudio?: boolean
+  ) => Promise<MediaStreamTrack>;
   stopScreenShareStream: () => void;
 };
 
@@ -244,71 +248,74 @@ const useVoiceControls = ({
     stopWebcamStream
   ]);
 
-  const toggleScreenShare = useCallback(async () => {
-    if (isTogglingScreenShare.current) return;
-    isTogglingScreenShare.current = true;
+  const toggleScreenShare = useCallback(
+    async (source?: TScreenShareSource, shareAudio?: boolean) => {
+      if (isTogglingScreenShare.current) return;
+      isTogglingScreenShare.current = true;
 
-    const newState = !ownVoiceState.sharingScreen;
-    const trpc = getTRPCClient();
+      const newState = !ownVoiceState.sharingScreen;
+      const trpc = getTRPCClient();
 
-    logVoice('screen: toggle requested', { sharing: newState });
+      logVoice('screen: toggle requested', { sharing: newState });
 
-    updateOwnVoiceState({ sharingScreen: newState });
+      updateOwnVoiceState({ sharingScreen: newState });
 
-    playSound(
-      newState
-        ? SoundType.OWN_USER_STARTED_SCREENSHARE
-        : SoundType.OWN_USER_STOPPED_SCREENSHARE
-    );
-
-    try {
-      if (newState) {
-        const video = await startScreenShareStream();
-
-        // handle native screen share end
-        video.onended = async () => {
-          stopScreenShareStream();
-          updateOwnVoiceState({ sharingScreen: false });
-
-          try {
-            await trpc.voice.updateState.mutate({
-              sharingScreen: false
-            });
-          } catch {
-            // ignore
-          }
-        };
-      } else {
-        stopScreenShareStream();
-      }
-
-      await trpc.voice.updateState.mutate({
-        sharingScreen: newState
-      });
-    } catch (error) {
-      updateOwnVoiceState({ sharingScreen: false });
+      playSound(
+        newState
+          ? SoundType.OWN_USER_STARTED_SCREENSHARE
+          : SoundType.OWN_USER_STOPPED_SCREENSHARE
+      );
 
       try {
-        await trpc.voice.updateState.mutate({ sharingScreen: false });
-      } catch {
-        // ignore
-      }
+        if (newState) {
+          const video = await startScreenShareStream(source, shareAudio);
 
-      logVoiceError('screen: toggle failed, rolled back', error, {
-        sharing: newState
-      });
-      toast.error(
-        getTrpcError(error, t('common:failedUpdateScreenShareState'))
-      );
-    } finally {
-      isTogglingScreenShare.current = false;
-    }
-  }, [
-    t,
-    ownVoiceState.sharingScreen,
-    startScreenShareStream,
-    stopScreenShareStream
-  ]);
+          // handle native screen share end
+          video.onended = async () => {
+            stopScreenShareStream();
+            updateOwnVoiceState({ sharingScreen: false });
+
+            try {
+              await trpc.voice.updateState.mutate({
+                sharingScreen: false
+              });
+            } catch {
+              // ignore
+            }
+          };
+        } else {
+          stopScreenShareStream();
+        }
+
+        await trpc.voice.updateState.mutate({
+          sharingScreen: newState
+        });
+      } catch (error) {
+        updateOwnVoiceState({ sharingScreen: false });
+
+        try {
+          await trpc.voice.updateState.mutate({ sharingScreen: false });
+        } catch {
+          // ignore
+        }
+
+        logVoiceError('screen: toggle failed, rolled back', error, {
+          sharing: newState
+        });
+        toast.error(
+          getTrpcError(error, t('common:failedUpdateScreenShareState'))
+        );
+      } finally {
+        isTogglingScreenShare.current = false;
+      }
+    },
+    [
+      t,
+      ownVoiceState.sharingScreen,
+      startScreenShareStream,
+      stopScreenShareStream
+    ]
+  );
 
   return {
     toggleMic,

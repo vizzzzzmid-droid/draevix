@@ -77,6 +77,8 @@ export type TDeviceSettings = {
   screenCursor: ScreenCursor;
 };
 
+export type TScreenShareSource = 'tab' | 'window' | 'screen';
+
 export type TRemoteUserStreamKinds =
   | StreamKind.AUDIO
   | StreamKind.VIDEO

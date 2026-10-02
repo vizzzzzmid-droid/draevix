@@ -1,9 +1,16 @@
+import { getResWidthHeight } from '@/helpers/get-res-with-height';
 import {
   getLocalStorageItemAsJSON,
   LocalStorageKey,
   setLocalStorageItemAsJSON
 } from '@/helpers/storage';
-import { VideoCodec, type TStreamQuality } from '@/types';
+import {
+  Resolution,
+  ScreenCursor,
+  VideoCodec,
+  type TScreenShareSource,
+  type TStreamQuality
+} from '@/types';
 import {
   StreamKind,
   type ConsumerType,
@@ -211,7 +218,96 @@ const getSimulcastCodec = (
     (c) => c.mimeType.toLowerCase() === VideoCodec.VP8.toLowerCase()
   );
 
+type TDisplayMediaInputs = {
+  source: TScreenShareSource;
+  shareAudio: boolean;
+  resolution: Resolution;
+  framerate: number;
+  cursor: ScreenCursor;
+  restrictOwnAudio: boolean;
+  suppressLocalAudioPlayback: boolean;
+};
+
+const DISPLAY_SURFACE_BY_SOURCE = {
+  tab: 'browser',
+  window: 'window',
+  screen: 'monitor'
+} as const;
+
+// a tab carries only its own audio, so it can never loop the call back.
+// window and screen captures ride on the system mix instead, which is where
+// the echo comes from, hence they go video-only unless audio is asked for
+const buildDisplayMediaConstraints = (
+  inputs: TDisplayMediaInputs
+): MediaStreamConstraints => {
+  const video: MediaTrackConstraints = {
+    ...getResWidthHeight(inputs.resolution),
+    frameRate: inputs.framerate,
+    // @ts-expect-error - display capture only, not in MediaTrackConstraints
+    cursor: inputs.cursor,
+    displaySurface: { exact: DISPLAY_SURFACE_BY_SOURCE[inputs.source] }
+  };
+
+  if (!inputs.shareAudio) {
+    return { video, audio: false };
+  }
+
+  const audio: MediaTrackConstraints = {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+    channelCount: 2,
+    sampleRate: 48000,
+    // @ts-expect-error - experimental, not in types yet
+    suppressLocalAudioPlayback: inputs.suppressLocalAudioPlayback || undefined,
+    restrictOwnAudio: inputs.restrictOwnAudio || undefined
+  };
+
+  return { video, audio };
+};
+
+const withoutDisplaySurfaceExact = (
+  constraints: MediaStreamConstraints
+): MediaStreamConstraints => {
+  if (
+    typeof constraints.video !== 'object' ||
+    constraints.video === null ||
+    !('displaySurface' in constraints.video)
+  ) {
+    return constraints;
+  }
+
+  const { displaySurface: _dropped, ...video } = constraints.video as Record<
+    string,
+    unknown
+  >;
+
+  return { ...constraints, video };
+};
+
+// older capture backends reject the surface constraint outright, so fall back
+// to an unconstrained pick rather than failing the share
+const requestDisplayMedia = async (
+  constraints: MediaStreamConstraints
+): Promise<MediaStream> => {
+  try {
+    return await navigator.mediaDevices.getDisplayMedia(constraints);
+  } catch (error) {
+    const name =
+      error instanceof Error
+        ? error.name
+        : (error as { name?: unknown } | null)?.name;
+
+    if (name !== 'OverconstrainedError') throw error;
+
+    return navigator.mediaDevices.getDisplayMedia(
+      withoutDisplaySurfaceExact(constraints)
+    );
+  }
+};
+
 export {
+  buildDisplayMediaConstraints,
   getRemoteConsumerTypeKey,
   getScreenShareSimulcastEncodings,
   getSimulcastCodec,
@@ -224,10 +320,13 @@ export {
   loadStreamQualitiesFromStorage,
   normalizeStreamQuality,
   parseStreamQualityDropdownValue,
-  saveStreamQualitiesToStorage
+  requestDisplayMedia,
+  saveStreamQualitiesToStorage,
+  withoutDisplaySurfaceExact
 };
 
 export type {
+  TDisplayMediaInputs,
   TRemoteConsumerTypes,
   TRemoteQualityLayers,
   TStreamQualitySettings

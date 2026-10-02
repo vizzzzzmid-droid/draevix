@@ -1,3 +1,5 @@
+import { Dialog } from '@/components/dialogs/dialogs';
+import { openDialog } from '@/features/dialogs/actions';
 import { useChannelCan } from '@/features/server/hooks';
 import { leaveVoice } from '@/features/server/voice/actions';
 import {
@@ -6,6 +8,7 @@ import {
   useVoice
 } from '@/features/server/voice/hooks';
 import { cn } from '@/lib/utils';
+import type { TScreenShareSource } from '@/types';
 import { ChannelPermission } from '@draevix/shared';
 import { Button, Tooltip } from '@draevix/ui';
 import {
@@ -54,6 +57,25 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
   const handleLeaveVoice = useCallback(() => {
     leaveVoice();
   }, []);
+
+  const handlePickScreenSource = useCallback(
+    (source: TScreenShareSource, shareAudio: boolean) => {
+      toggleScreenShare(source, shareAudio);
+    },
+    [toggleScreenShare]
+  );
+
+  const handleScreenShareClick = useCallback(() => {
+    if (ownVoiceState.sharingScreen) {
+      toggleScreenShare();
+
+      return;
+    }
+
+    openDialog(Dialog.SCREEN_SHARE_SOURCE, {
+      onPick: handlePickScreenSource
+    });
+  }, [ownVoiceState.sharingScreen, toggleScreenShare, handlePickScreenSource]);
 
   return (
     <div
@@ -111,7 +133,7 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
             enabledIcon={ScreenShareOff}
             disabledIcon={Monitor}
             enabledClassName="bg-blue-500/20 text-blue-500 hover:bg-blue-500/30 hover:text-blue-500"
-            onClick={toggleScreenShare}
+            onClick={handleScreenShareClick}
             disabled={!permissions.canShareScreen}
           />
         )}
