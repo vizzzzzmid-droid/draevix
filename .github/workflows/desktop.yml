@@ -46,3 +46,14 @@ jobs:
         with:
           projectPath: apps/desktop
           args: --bundles ${{ matrix.bundles }}
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: draevix-desktop-${{ matrix.bundles }}
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/
+            apps/desktop/src-tauri/target/release/bundle/appimage/
+            apps/desktop/src-tauri/target/release/bundle/deb/
+            apps/desktop/src-tauri/target/release/bundle/msi/
+          if-no-files-found: error
