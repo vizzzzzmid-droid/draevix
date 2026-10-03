@@ -28,6 +28,9 @@ pub const OUTPUT_CHANNELS: usize = 2;
 const MAX_BUFFERED_FLOATS: usize = (OUTPUT_SAMPLE_RATE as usize) * OUTPUT_CHANNELS * 2;
 /// Max frames returned by a single poll call (1 second of audio).
 const MAX_POLL_FLOATS: usize = (OUTPUT_SAMPLE_RATE as usize) * OUTPUT_CHANNELS;
+/// Per-client carry cap (1 second of audio). Bounds stale leftovers; normal
+/// flow keeps carries to a quantum or two.
+const CARRY_CAP_FLOATS: usize = (OUTPUT_SAMPLE_RATE as usize) * OUTPUT_CHANNELS;
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -859,6 +862,7 @@ mod windows_impl {
         capture: IAudioCaptureClient,
         resampler: Resampler,
         scratch: Vec<f32>,
+        carry: Vec<f32>,
     }
 
     fn open_pid_capture(
@@ -904,6 +908,7 @@ mod windows_impl {
             capture,
             resampler: Resampler::new(mix_rate, channels),
             scratch: Vec::new(),
+            carry: Vec::new(),
         })
     }
 
@@ -1177,10 +1182,14 @@ mod windows_impl {
                 }
             }
 
-            // Drain every client into its scratch buffer, then mix down to
-            // stereo with clamping. A failing client is dropped; the resync
-            // reopens it if its pid is still audible.
-            let mut mixed_len = 0usize;
+            // Drain every client into its carry buffer, then mix the span
+            // covered by ALL clients that delivered fresh data this round,
+            // consuming it from their carries. Leftovers wait for the next
+            // round instead of being zero-padded: packing unequal chunks
+            // into one slot punches periodic holes (uniform crackle).
+            // A failing client is dropped; the resync reopens it if its
+            // pid is still audible.
+            let mut sounded: Vec<u32> = Vec::new();
             let mut dead: Vec<u32> = Vec::new();
 
             for cap in captures.iter_mut() {
@@ -1199,34 +1208,61 @@ mod windows_impl {
                     continue;
                 }
 
-                mixed_len = mixed_len.max(cap.scratch.len());
+                if cap.scratch.is_empty() {
+                    continue;
+                }
+
+                sounded.push(cap.pid);
+                cap.carry.extend_from_slice(&cap.scratch);
+
+                if cap.carry.len() > CARRY_CAP_FLOATS {
+                    let excess = cap.carry.len() - CARRY_CAP_FLOATS;
+                    cap.carry.drain(..excess);
+                }
             }
 
             if !dead.is_empty() {
                 captures.retain(|cap| !dead.contains(&cap.pid));
             }
 
-            if mixed_len > 0 {
-                if let Ok(mut guard) = queue.lock() {
-                    if guard.len() + mixed_len > MAX_BUFFERED_FLOATS {
-                        let drop = guard.len() + mixed_len - MAX_BUFFERED_FLOATS;
-                        guard.drain(..drop);
-                        lost_total.fetch_add(drop as u64, Ordering::SeqCst);
+            if !sounded.is_empty() {
+                let mut mixed_len = usize::MAX;
+
+                for cap in captures.iter() {
+                    if sounded.contains(&cap.pid) {
+                        mixed_len = mixed_len.min(cap.carry.len());
+                    }
+                }
+
+                if mixed_len > 0 && mixed_len != usize::MAX {
+                    if let Ok(mut guard) = queue.lock() {
+                        if guard.len() + mixed_len > MAX_BUFFERED_FLOATS {
+                            let drop = guard.len() + mixed_len - MAX_BUFFERED_FLOATS;
+                            guard.drain(..drop);
+                            lost_total.fetch_add(drop as u64, Ordering::SeqCst);
+                        }
+
+                        for index in 0..mixed_len {
+                            let mut sample = 0.0f32;
+
+                            for cap in captures.iter() {
+                                if sounded.contains(&cap.pid) {
+                                    sample += cap.carry[index];
+                                }
+                            }
+
+                            if sample.abs() >= 1.0 {
+                                clipped_total.fetch_add(1, Ordering::SeqCst);
+                            }
+
+                            guard.push_back(sample.clamp(-1.0, 1.0));
+                        }
                     }
 
-                    for index in 0..mixed_len {
-                        let mut sample = 0.0f32;
-
-                        for cap in captures.iter() {
-                            sample +=
-                                cap.scratch.get(index).copied().unwrap_or(0.0);
+                    for cap in captures.iter_mut() {
+                        if sounded.contains(&cap.pid) {
+                            cap.carry.drain(..mixed_len);
                         }
-
-                        if sample.abs() >= 1.0 {
-                            clipped_total.fetch_add(1, Ordering::SeqCst);
-                        }
-
-                        guard.push_back(sample.clamp(-1.0, 1.0));
                     }
                 }
             }
