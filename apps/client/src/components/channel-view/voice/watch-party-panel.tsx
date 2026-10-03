@@ -28,7 +28,6 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
   const playerRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const seekingRef = useRef(false);
-  const lastSentPositionRef = useRef<number | null>(null);
   const [duration, setDuration] = useState(0);
   const [displayPosition, setDisplayPosition] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -45,8 +44,6 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
     const player = playerRef.current;
     const target = getWatchPositionSec(watch);
-
-    lastSentPositionRef.current = target;
 
     if (player) {
       const current = player.currentTime || 0;
@@ -83,17 +80,6 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
   const handleSeekCommit = useCallback(async () => {
     seekingRef.current = false;
-
-    // blur and pointerup can both fire for one gesture, and the echo of our
-    // own commit comes back as an event: neither should send twice
-    if (
-      lastSentPositionRef.current !== null &&
-      Math.abs(displayPosition - lastSentPositionRef.current) < 0.5
-    ) {
-      return;
-    }
-
-    lastSentPositionRef.current = displayPosition;
 
     // move the local player at once instead of waiting for our own echo,
     // otherwise the thumb fights the video until the roundtrip lands
