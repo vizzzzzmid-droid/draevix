@@ -173,11 +173,11 @@ mod windows_impl {
     use super::*;
     use std::ffi::c_void;
     use windows::{
-        core::{
-            Interface, E_FAIL, E_NOINTERFACE, GUID, HRESULT, IUnknown, S_OK, PCWSTR,
-        },
+        core::{Interface, GUID, HRESULT, IUnknown, PCWSTR},
         Win32::{
-            Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0},
+            Foundation::{
+                CloseHandle, HANDLE, WAIT_OBJECT_0, S_OK, E_FAIL, E_NOINTERFACE,
+            },
             Media::Audio::*,
             System::{
                 Com::{
@@ -430,7 +430,7 @@ mod windows_impl {
                 .map_err(|e| format!("cannot read endpoint id: {e}"))?;
             Ok(id
                 .to_string()
-                .map_err(|e| format!("cannot read endpoint id: {e}")))
+                .map_err(|e| format!("cannot decode endpoint id: {e}"))?)
         }
     }
 
@@ -534,20 +534,32 @@ mod windows_impl {
         let mix: WAVEFORMATEX = *mix_ptr;
         CoTaskMemFree(Some(mix_ptr as *const c_void));
 
-        let channels = mix.nChannels as usize;
-        let mix_rate = mix.nSamplesPerSec;
+        // WAVEFORMATEX is a packed struct: copy every field out through
+        // unaligned reads instead of touching fields directly.
+        let (channels, mix_rate, format_tag, extra_size) = {
+            let base = std::ptr::from_ref(&mix);
+            (
+                std::ptr::addr_of!((*base).nChannels).read_unaligned() as usize,
+                std::ptr::addr_of!((*base).nSamplesPerSec).read_unaligned(),
+                std::ptr::addr_of!((*base).wFormatTag).read_unaligned(),
+                std::ptr::addr_of!((*base).cbSize).read_unaligned(),
+            )
+        };
 
         if channels == 0 || mix_rate == 0 {
             return Err("unsupported mix format from loopback client".to_string());
         }
 
-        let is_float = if mix.wFormatTag == WAVE_FORMAT_IEEE_FLOAT {
+        let is_float = if format_tag == WAVE_FORMAT_IEEE_FLOAT {
             true
-        } else if mix.wFormatTag == WAVE_FORMAT_PCM {
+        } else if format_tag == WAVE_FORMAT_PCM {
             false
-        } else if mix.wFormatTag == WAVE_FORMAT_EXTENSIBLE && mix.cbSize >= 22 {
-            let sub = *(std::ptr::from_ref(&mix).cast::<u8>().add(24)
-                as *const GUID);
+        } else if format_tag == WAVE_FORMAT_EXTENSIBLE && extra_size >= 22 {
+            let sub = std::ptr::from_ref(&mix)
+                .cast::<u8>()
+                .add(24)
+                .cast::<GUID>()
+                .read_unaligned();
             if sub == SUBTYPE_IEEE_FLOAT {
                 true
             } else {
@@ -556,7 +568,7 @@ mod windows_impl {
         } else {
             return Err(format!(
                 "unsupported mix format tag {}",
-                mix.wFormatTag
+                format_tag
             ));
         };
 
