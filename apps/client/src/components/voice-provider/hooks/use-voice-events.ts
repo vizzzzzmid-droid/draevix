@@ -1,5 +1,6 @@
 import { useCurrentVoiceChannelId } from '@/features/server/channels/hooks';
 import { useOwnUserId } from '@/features/server/users/hooks';
+import { setWatchStateForChannel } from '@/features/server/voice/actions';
 import {
   logVoice,
   logVoiceError,
@@ -177,6 +178,18 @@ const useVoiceEvents = ({
         }
       });
 
+    const onWatchUpdateSub = trpc.voice.onWatchUpdate.subscribe(undefined, {
+      onData: ({ channelId, watch }) => {
+        if (currentVoiceChannelId !== channelId || isCleaningUp) return;
+
+        logVoice('events: watch updated', { channelId, watch });
+        setWatchStateForChannel(channelId, watch);
+      },
+      onError: (error) => {
+        logVoiceError('events: watch update subscription error', error);
+      }
+    });
+
     return () => {
       logVoice('events: unsubscribing');
 
@@ -186,6 +199,7 @@ const useVoiceEvents = ({
       onVoiceProducerClosedSub.unsubscribe();
       onVoiceUserLeaveSub.unsubscribe();
       onVoiceRemoveExternalStreamSub.unsubscribe();
+      onWatchUpdateSub.unsubscribe();
     };
   }, [
     currentVoiceChannelId,
