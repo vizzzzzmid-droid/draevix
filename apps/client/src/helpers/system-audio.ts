@@ -159,28 +159,44 @@ const startSystemAudioTrack = async (options: {
   let restarts = 0;
   let lastQueueWarnMs = 0;
 
-  // one-shot diagnostics snapshot for the F9 voice panel: mix format plus
-  // the captured process list. Dynamic import keeps unit tests green
-  // (browser-logger pulls voice-debug, which touches window at load).
-  void invoke<{
-    format: string;
-    captures: { pid: number; exe: string }[];
-  }>('system_audio_info')
-    .then((info) =>
-      import('./browser-logger').then(({ logVoice }) =>
-        logVoice('system audio: capture info', {
-          format: info.format,
-          captures: info.captures.map((c) => `${c.exe}(${c.pid})`)
-        })
-      )
-    )
-    .catch(() => undefined);
+  // diagnostics snapshot for the F9 voice panel: mix format plus the
+  // captured process list, re-read every 5s and logged only on change so
+  // the movie (apps coming/going) is visible. Dynamic import keeps unit
+  // tests green (browser-logger pulls voice-debug, which touches window
+  // at load).
+  let lastCaptureKey = '';
+  const logCaptureInfo = () => {
+    if (stopped) return;
+
+    void invoke<{
+      format: string;
+      captures: { pid: number; exe: string }[];
+    }>('system_audio_info')
+      .then((info) => {
+        const key = JSON.stringify(info);
+
+        if (key === lastCaptureKey) return;
+        lastCaptureKey = key;
+
+        return import('./browser-logger').then(({ logVoice }) =>
+          logVoice('system audio: capture info', {
+            format: info.format,
+            captures: info.captures.map((c) => `${c.exe}(${c.pid})`)
+          })
+        );
+      })
+      .catch(() => undefined);
+  };
+
+  logCaptureInfo();
+  const infoTimer = window.setInterval(logCaptureInfo, 5000);
 
   const doStop = () => {
     if (stopped) return;
     stopped = true;
 
     window.clearInterval(timer);
+    window.clearInterval(infoTimer);
     node.disconnect();
     track.stop();
     void context.close();
