@@ -197,7 +197,7 @@ pub fn system_audio_info(
         .info
         .lock()
         .map(|info| info.clone())
-        .map_err(|_| "audio info poisoned")
+        .map_err(|_| "audio info poisoned".to_string())
 }
 
 #[tauri::command]
