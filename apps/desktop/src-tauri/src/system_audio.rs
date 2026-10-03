@@ -604,8 +604,14 @@ mod windows_impl {
 
             if hr.is_err() {
                 drop(Box::from_raw(handler_ptr as *mut LoopbackCallback));
+
+                // Decode the device path so a garbled constant shows up here.
+                let path = VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK
+                    .to_string()
+                    .unwrap_or_else(|_| "<undecodable>".to_string());
+
                 return Err(format!(
-                    "cannot begin loopback activation: {hr:?}"
+                    "cannot begin loopback activation: {hr:?} (path {path:?})"
                 ));
             }
 
