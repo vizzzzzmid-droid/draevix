@@ -15,6 +15,7 @@ import { ServerPasswordDialog } from './server-password';
 import { SoundsDialog } from './sounds';
 import { TextInputDialog } from './text-input';
 import { VoiceDebugDialog } from './voice-debug';
+import { WatchPartyPickerDialog } from './watch-party-picker';
 import { WelcomeProfileSetupDialog } from './welcome-profile-setup';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,7 +33,8 @@ const DialogsMap: any = {
   [Dialog.SEARCH]: SearchDialog,
   [Dialog.WELCOME_PROFILE_SETUP]: WelcomeProfileSetupDialog,
   [Dialog.VOICE_DEBUG]: VoiceDebugDialog,
-  [Dialog.SCREEN_SHARE_SOURCE]: ScreenShareSourceDialog
+  [Dialog.SCREEN_SHARE_SOURCE]: ScreenShareSourceDialog,
+  [Dialog.WATCH_PARTY_PICKER]: WatchPartyPickerDialog
 };
 
 const DialogsProvider = memo(() => {

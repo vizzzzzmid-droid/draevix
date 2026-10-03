@@ -12,6 +12,7 @@ import type { TScreenShareSource } from '@/types';
 import { ChannelPermission } from '@draevix/shared';
 import { Button, Tooltip } from '@draevix/ui';
 import {
+  Clapperboard,
   HeadphoneOff,
   Headphones,
   Mic,
@@ -23,6 +24,7 @@ import {
   VideoOff
 } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ControlToggleButton } from './control-toggle-button';
 
 type TControlsBarProps = {
@@ -30,6 +32,7 @@ type TControlsBarProps = {
 };
 
 const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
+  const { t } = useTranslation();
   const {
     toggleMic,
     toggleSound,
@@ -56,6 +59,10 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
 
   const handleLeaveVoice = useCallback(() => {
     leaveVoice();
+  }, []);
+
+  const handleWatchPartyClick = useCallback(() => {
+    openDialog(Dialog.WATCH_PARTY_PICKER);
   }, []);
 
   const handlePickScreenSource = useCallback(
@@ -137,6 +144,16 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
             disabled={!permissions.canShareScreen}
           />
         )}
+
+        <ControlToggleButton
+          enabled={false}
+          enabledLabel={t('watchTogether')}
+          disabledLabel={t('watchTogether')}
+          enabledIcon={Clapperboard}
+          disabledIcon={Clapperboard}
+          enabledClassName=""
+          onClick={handleWatchPartyClick}
+        />
       </div>
       <Tooltip content="Disconnect">
         <Button
