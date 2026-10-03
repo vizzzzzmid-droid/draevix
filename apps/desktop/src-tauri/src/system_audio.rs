@@ -11,7 +11,7 @@
 
 use std::collections::VecDeque;
 use std::sync::{
-    atomic::{AtomicBool, AtomicU64, Ordering},
+    atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
     mpsc, Arc, Mutex,
 };
 use std::thread::JoinHandle;
@@ -173,17 +173,18 @@ mod windows_impl {
     use super::*;
     use std::ffi::c_void;
     use windows::{
-        core::{implement, IUnknown, Interface, Ref, GUID, HRESULT},
+        core::{
+            Interface, E_FAIL, E_NOINTERFACE, GUID, HRESULT, IUnknown, S_OK, PCWSTR,
+        },
         Win32::{
             Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0},
             Media::Audio::*,
             System::{
                 Com::{
                     CoCreateInstance, CoInitializeEx, CoTaskMemFree, CLSCTX_ALL,
-                    COINIT_MULTITHREADED, BLOB,
+                    COINIT_MULTITHREADED,
                 },
                 Threading::{CreateEventW, WaitForSingleObject},
-                Variant::{PROPVARIANT, VT_BLOB},
             },
         },
     };
@@ -254,40 +255,166 @@ mod windows_impl {
         }
     }
 
-    #[implement(IActivateAudioInterfaceCompletionHandler)]
-    struct LoopbackActivation {
+    /// Hand-written COM callback for async audio-interface activation.
+    /// A manual vtable only relies on rock-solid ABI shapes (IUnknown plus
+    /// one method) instead of generated callback-trait names.
+    #[repr(C)]
+    struct LoopbackCallbackVtbl {
+        query_interface: unsafe extern "system" fn(
+            this: *mut c_void,
+            riid: *const GUID,
+            ppv: *mut *mut c_void,
+        ) -> HRESULT,
+        add_ref: unsafe extern "system" fn(this: *mut c_void) -> u32,
+        release: unsafe extern "system" fn(this: *mut c_void) -> u32,
+        activate_completed: unsafe extern "system" fn(
+            this: *mut c_void,
+            operation: *mut c_void,
+        ) -> HRESULT,
+    }
+
+    struct LoopbackCallback {
+        vtable: *const LoopbackCallbackVtbl,
+        refs: AtomicU32,
         sender: Mutex<Option<mpsc::Sender<windows::core::Result<IAudioClient>>>>,
     }
 
-    impl IActivateAudioInterfaceCompletionHandler_Impl for LoopbackActivation_Impl {
-        #[allow(non_snake_case)]
-        fn ActivateCompleted(
-            &self,
-            operation: Ref<'_, IActivateAudioInterfaceAsyncOperation>,
-        ) -> windows::core::Result<()> {
-            let client = unsafe {
-                let operation = operation.ok()?;
-                let mut hr = HRESULT(0);
-                let mut unknown: Option<IUnknown> = None;
-                operation.GetResult(&mut hr, &mut unknown)?;
+    /// IActivateAudioInterfaceAsyncOperation layout: IUnknown plus GetActivateResult.
+    #[repr(C)]
+    struct AsyncOperationVtbl {
+        _query_interface: unsafe extern "system" fn(
+            *mut c_void,
+            *const GUID,
+            *mut *mut c_void,
+        ) -> HRESULT,
+        _add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+        _release: unsafe extern "system" fn(*mut c_void) -> u32,
+        get_activate_result: unsafe extern "system" fn(
+            *mut c_void,
+            *mut HRESULT,
+            *mut *mut c_void,
+        ) -> HRESULT,
+    }
 
-                if hr.is_err() {
-                    return Err(windows::core::Error::from(hr));
-                }
+    /// Plain IUnknown layout, used to query the activated object.
+    #[repr(C)]
+    struct UnknownVtbl {
+        query_interface: unsafe extern "system" fn(
+            *mut c_void,
+            *const GUID,
+            *mut *mut c_void,
+        ) -> HRESULT,
+        _add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+        release: unsafe extern "system" fn(*mut c_void) -> u32,
+    }
 
-                unknown
-                    .ok_or(windows::core::Error::from(hr))?
-                    .cast::<IAudioClient>()?
-            };
+    unsafe extern "system" fn callback_query_interface(
+        this: *mut c_void,
+        riid: *const GUID,
+        ppv: *mut *mut c_void,
+    ) -> HRESULT {
+        if *riid == IUnknown::IID
+            || *riid == IActivateAudioInterfaceCompletionHandler::IID
+        {
+            callback_add_ref(this);
+            *ppv = this;
+            S_OK
+        } else {
+            *ppv = std::ptr::null_mut();
+            E_NOINTERFACE
+        }
+    }
 
-            if let Ok(guard) = self.sender.lock() {
-                if let Some(sender) = guard.as_ref() {
-                    let _ = sender.send(Ok(client));
-                }
+    unsafe extern "system" fn callback_add_ref(this: *mut c_void) -> u32 {
+        let ctx = &*(this as *mut LoopbackCallback);
+        ctx.refs.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    unsafe extern "system" fn callback_release(this: *mut c_void) -> u32 {
+        let ctx = &*(this as *mut LoopbackCallback);
+
+        if ctx.refs.fetch_sub(1, Ordering::SeqCst) == 1 {
+            drop(Box::from_raw(this as *mut LoopbackCallback));
+            return 0;
+        }
+
+        ctx.refs.load(Ordering::SeqCst)
+    }
+
+    unsafe extern "system" fn callback_activate_completed(
+        this: *mut c_void,
+        operation: *mut c_void,
+    ) -> HRESULT {
+        let result: windows::core::Result<IAudioClient> = (|| {
+            let op_vtable = *(operation as *mut *const AsyncOperationVtbl);
+            let mut hr = HRESULT(0);
+            let mut unknown: *mut c_void = std::ptr::null_mut();
+
+            let call_hr =
+                ((*op_vtable).get_activate_result)(operation, &mut hr, &mut unknown);
+
+            if call_hr.is_err() {
+                return Err(windows::core::Error::from(call_hr));
             }
 
-            Ok(())
+            if hr.is_err() {
+                return Err(windows::core::Error::from(hr));
+            }
+
+            if unknown.is_null() {
+                return Err(windows::core::Error::from(E_FAIL));
+            }
+
+            let unk_vtable = *(unknown as *mut *const UnknownVtbl);
+            let mut audio_raw: *mut c_void = std::ptr::null_mut();
+            let qi_hr = ((*unk_vtable).query_interface)(
+                unknown,
+                &IAudioClient::IID,
+                &mut audio_raw,
+            );
+
+            // Balance the GetActivateResult reference either way.
+            ((*unk_vtable).release)(unknown);
+
+            if qi_hr.is_err() {
+                return Err(windows::core::Error::from(qi_hr));
+            }
+
+            if audio_raw.is_null() {
+                return Err(windows::core::Error::from(E_FAIL));
+            }
+
+            Ok(IAudioClient::from_raw(audio_raw))
+        })();
+
+        let ctx = &*(this as *mut LoopbackCallback);
+
+        if let Ok(sender) = ctx.sender.lock() {
+            if let Some(tx) = sender.as_ref() {
+                let _ = tx.send(result);
+            }
         }
+
+        S_OK
+    }
+
+    static CALLBACK_VTABLE: LoopbackCallbackVtbl = LoopbackCallbackVtbl {
+        query_interface: callback_query_interface,
+        add_ref: callback_add_ref,
+        release: callback_release,
+        activate_completed: callback_activate_completed,
+    };
+
+    // Declared manually: only needs PCWSTR/GUID/HRESULT shapes, all certain.
+    #[link(name = "mmdevapi")]
+    extern "system" {
+        fn ActivateAudioInterfaceAsync(
+            device_interface_path: PCWSTR,
+            riid: *const GUID,
+            activation_params: *const c_void,
+            completion_handler: *mut c_void,
+            activation_operation: *mut *mut c_void,
+        ) -> HRESULT;
     }
 
     fn default_endpoint_id() -> Result<String, String> {
@@ -301,7 +428,9 @@ mod windows_impl {
             let id = device
                 .GetId()
                 .map_err(|e| format!("cannot read endpoint id: {e}"))?;
-            Ok(id.to_string())
+            Ok(id
+                .to_string()
+                .map_err(|e| format!("cannot read endpoint id: {e}")))
         }
     }
 
@@ -325,36 +454,60 @@ mod windows_impl {
                 PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE.0,
             );
 
-            // The activation API takes its parameters packed in a VT_BLOB propvariant.
-            let mut variant: PROPVARIANT = std::mem::zeroed();
-            variant.Anonymous.Anonymous.blob = BLOB {
-                cbSize: std::mem::size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>() as u32,
-                pBlobData: &params as *const _ as *mut u8,
-            };
-            variant.vt = VT_BLOB;
+            // The activation API takes its parameters packed in a VT_BLOB
+            // PROPVARIANT, which is 24 bytes: u32 size @0, pointer @8, u16
+            // type @16. Built manually to avoid depending on Variant bindings.
+            const VT_BLOB_TAG: u16 = 0x0041;
+            let mut variant = [0u8; 24];
+            variant[0..4].copy_from_slice(
+                &(std::mem::size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>() as u32)
+                    .to_le_bytes(),
+            );
+            variant[8..16].copy_from_slice(
+                &(std::ptr::from_ref(&params) as usize).to_le_bytes(),
+            );
+            variant[16..18].copy_from_slice(&VT_BLOB_TAG.to_le_bytes());
 
             let (tx, rx) = mpsc::channel::<windows::core::Result<IAudioClient>>();
-            let handler: IActivateAudioInterfaceCompletionHandler =
-                LoopbackActivation {
-                    sender: Mutex::new(Some(tx)),
-                }
-                .into();
 
-            // Kept alive until the completion callback fires below. `params`
-            // and `variant` outlive the wait for the same reason.
-            let _operation = ActivateAudioInterfaceAsync(
+            // Reference count starts at one and belongs to the async
+            // infrastructure once the call below succeeds; on a synchronous
+            // failure we free it ourselves.
+            let callback = Box::new(LoopbackCallback {
+                vtable: &CALLBACK_VTABLE,
+                refs: AtomicU32::new(1),
+                sender: Mutex::new(Some(tx)),
+            });
+            let handler_ptr = Box::into_raw(callback) as *mut c_void;
+
+            let mut operation: *mut c_void = std::ptr::null_mut();
+            let hr = ActivateAudioInterfaceAsync(
                 VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
                 &IAudioClient::IID,
-                Some(&variant as *const _),
-                handler,
-            )
-            .map_err(|e| format!("cannot begin loopback activation: {e}"))?;
+                variant.as_ptr().cast(),
+                handler_ptr,
+                &mut operation,
+            );
 
-            match rx.recv_timeout(Duration::from_secs(10)) {
+            if hr.is_err() {
+                drop(Box::from_raw(handler_ptr as *mut LoopbackCallback));
+                return Err(format!(
+                    "cannot begin loopback activation: {hr:?}"
+                ));
+            }
+
+            let outcome = match rx.recv_timeout(Duration::from_secs(10)) {
                 Ok(Ok(client)) => Ok(client),
                 Ok(Err(e)) => Err(format!("loopback activation failed: {e}")),
                 Err(_) => Err("timed out waiting for loopback activation".to_string()),
+            };
+
+            if !operation.is_null() {
+                let op_vtable = *(operation as *mut *const UnknownVtbl);
+                ((*op_vtable).release)(operation);
             }
+
+            outcome
         }
     }
 
@@ -365,8 +518,11 @@ mod windows_impl {
         stop: Arc<AtomicBool>,
         ready: mpsc::Sender<Result<(), String>>,
     ) -> Result<(), String> {
-        CoInitializeEx(None, COINIT_MULTITHREADED)
-            .map_err(|e| format!("COM init failed: {e}"))?;
+        let com_hr = CoInitializeEx(None, COINIT_MULTITHREADED);
+
+        if com_hr.is_err() {
+            return Err(format!("COM init failed: {com_hr:?}"));
+        }
 
         let initial_device = default_endpoint_id()?;
         let client = activate_loopback_client()?;
@@ -425,7 +581,7 @@ mod windows_impl {
                 HNS_PER_SECOND,
                 0,
                 &mix,
-                std::ptr::null(),
+                None,
             )
             .map_err(|e| format!("cannot initialize audio client: {e}"))?;
 
@@ -494,16 +650,10 @@ mod windows_impl {
                 let mut flags: u32 = 0;
 
                 capture
-                    .GetBuffer(
-                        &mut data,
-                        &mut frames,
-                        &mut flags,
-                        std::ptr::null_mut(),
-                        std::ptr::null_mut(),
-                    )
+                    .GetBuffer(&mut data, &mut frames, &mut flags, None, None)
                     .map_err(|e| format!("cannot get capture buffer: {e}"))?;
 
-                if (flags & AUDCLNT_BUFFERFLAGS_SILENT.0) == 0 {
+                if (flags as i32 & AUDCLNT_BUFFERFLAGS_SILENT.0) == 0 {
                     let raw: &[f32] = if is_float {
                         std::slice::from_raw_parts(
                             data as *const f32,
