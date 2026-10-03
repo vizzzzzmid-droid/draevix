@@ -22,6 +22,10 @@ type TWatchPartyPanelProps = {
 // shared position gets snapped to it instead of drifting apart forever
 const POSITION_SYNC_THRESHOLD_SEC = 3;
 
+// a snap aborts the in-flight range download, so back-to-back snaps (scrubbing)
+// would starve the buffer forever: only the settled position gets applied
+const SNAP_SETTLE_MS = 700;
+
 const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
   const { t } = useTranslation();
   const watch = useWatchState(channelId);
@@ -29,6 +33,7 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
   const playerRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const seekingRef = useRef(false);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [duration, setDuration] = useState(0);
   const [displayPosition, setDisplayPosition] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -43,28 +48,40 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
     if (seekingRef.current) return;
 
-    const player = playerRef.current;
     const target = getWatchPositionSec(watch);
 
-    if (player) {
-      const current = player.currentTime || 0;
-      const drift = Math.abs(target - current);
+    setDisplayPosition(target);
 
-      logVoice('watch: reconcile', {
-        target,
-        current,
-        drift,
-        seeking: seekingRef.current,
-        duration
-      });
-
-      if (drift > POSITION_SYNC_THRESHOLD_SEC) {
-        player.currentTime = target;
-      }
+    if (settleTimerRef.current) {
+      clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
     }
 
-    setDisplayPosition(target);
-  }, [watch, duration]);
+    settleTimerRef.current = setTimeout(() => {
+      settleTimerRef.current = null;
+
+      const player = playerRef.current;
+
+      if (!player || seekingRef.current) return;
+
+      const freshTarget = getWatchPositionSec(watch);
+      const current = player.currentTime || 0;
+      const drift = Math.abs(freshTarget - current);
+
+      logVoice('watch: reconcile', { target: freshTarget, current, drift });
+
+      if (drift > POSITION_SYNC_THRESHOLD_SEC) {
+        player.currentTime = freshTarget;
+      }
+    }, SNAP_SETTLE_MS);
+
+    return () => {
+      if (settleTimerRef.current) {
+        clearTimeout(settleTimerRef.current);
+        settleTimerRef.current = null;
+      }
+    };
+  }, [watch]);
 
   const handlePlay = useCallback(async () => {
     const position = playerRef.current?.currentTime ?? displayPosition;
