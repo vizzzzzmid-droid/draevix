@@ -14,14 +14,21 @@ import {
   onVoiceNewProducerRoute,
   onVoiceProducerClosedRoute,
   onVoiceRemoveExternalStreamRoute,
-  onVoiceUpdateExternalStreamRoute
+  onVoiceUpdateExternalStreamRoute,
+  onWatchUpdateRoute
 } from './events';
 import { getProducersRoute } from './get-producers';
+import { getWatchStateRoute } from './get-watch-state';
 import { joinVoiceRoute } from './join';
 import { leaveVoiceRoute } from './leave';
 import { moveUserRoute } from './move';
+import { pauseWatchRoute } from './pause-watch';
+import { playWatchRoute } from './play-watch';
 import { produceRoute } from './produce';
+import { seekWatchRoute } from './seek-watch';
+import { selectWatchFileRoute } from './select-watch-file';
 import { setConsumerQualityRoute } from './set-consumer-quality';
+import { stopWatchRoute } from './stop-watch';
 import { updateVoiceStateRoute } from './update-state';
 
 export const voiceRouter = t.router({
@@ -38,6 +45,12 @@ export const voiceRouter = t.router({
   consume: consumeRoute,
   setConsumerQuality: setConsumerQualityRoute,
   getProducers: getProducersRoute,
+  getWatchState: getWatchStateRoute,
+  selectWatchFile: selectWatchFileRoute,
+  playWatch: playWatchRoute,
+  pauseWatch: pauseWatchRoute,
+  seekWatch: seekWatchRoute,
+  stopWatch: stopWatchRoute,
   onJoin: onUserJoinVoiceRoute,
   onLeave: onUserLeaveVoiceRoute,
   onUpdateState: onUserUpdateVoiceStateRoute,
@@ -46,5 +59,6 @@ export const voiceRouter = t.router({
   onProducerClosed: onVoiceProducerClosedRoute,
   onAddExternalStream: onVoiceAddExternalStreamRoute,
   onUpdateExternalStream: onVoiceUpdateExternalStreamRoute,
-  onRemoveExternalStream: onVoiceRemoveExternalStreamRoute
+  onRemoveExternalStream: onVoiceRemoveExternalStreamRoute,
+  onWatchUpdate: onWatchUpdateRoute
 });

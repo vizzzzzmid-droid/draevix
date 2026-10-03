@@ -15,7 +15,8 @@ import type {
   TPluginMetadata,
   TPluginPushEvent,
   TPublicServerSettings,
-  TVoiceUserState
+  TVoiceUserState,
+  TWatchState
 } from '@draevix/shared';
 import type { Unsubscribable } from '@trpc/server/observable';
 import { observable, type Observable } from '@trpc/server/observable';
@@ -103,6 +104,10 @@ type Events = {
     channelId: number;
     remoteId: number;
     kind: StreamKind;
+  };
+  [ServerEvents.WATCH_STATE_UPDATE]: {
+    channelId: number;
+    watch: TWatchState | undefined;
   };
 
   [ServerEvents.PLUGIN_LOG]: TLogEntry;

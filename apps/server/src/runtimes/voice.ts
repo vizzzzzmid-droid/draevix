@@ -8,7 +8,8 @@ import {
   type TTransportParams,
   type TVoiceMap,
   type TVoiceProducerInfo,
-  type TVoiceUserState
+  type TVoiceUserState,
+  type TWatchState
 } from '@draevix/shared';
 import type {
   AppData,
@@ -149,6 +150,7 @@ class VoiceRuntime {
   private screenAudioProducers: TProducerMap = {};
   private consumers: TConsumerMap = {};
   private producerQualityLayers: TProducerQualityLayerMap = {};
+  private watchState: TWatchState | undefined;
 
   private externalCounter = EXTERNAL_STREAM_ID_BASE;
   private externalStreamsInternal: {
@@ -424,6 +426,11 @@ class VoiceRuntime {
 
     this.cleanupUserResources(userId);
 
+    // the watch party is tied to its audience, an empty channel keeps nothing
+    if (this.state.users.length === 0) {
+      this.watchState = undefined;
+    }
+
     eventBus.emit('user:left_voice', {
       userId: userId,
       channelId: this.id
@@ -488,6 +495,18 @@ class VoiceRuntime {
     if (!user) return;
 
     user.state = { ...user.state, ...newState };
+  };
+
+  public getWatchState = (): TWatchState | undefined => {
+    return this.watchState ? { ...this.watchState } : undefined;
+  };
+
+  public setWatchState = (state: TWatchState) => {
+    this.watchState = { ...state };
+  };
+
+  public clearWatchState = () => {
+    this.watchState = undefined;
   };
 
   public getRouter = (): Router<AppData> => {

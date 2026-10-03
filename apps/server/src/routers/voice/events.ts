@@ -80,6 +80,17 @@ const onVoiceProducerClosedRoute = protectedProcedure.subscription(
   }
 );
 
+const onWatchUpdateRoute = protectedProcedure.subscription(async ({ ctx }) => {
+  if (!ctx.currentVoiceChannelId) {
+    return observable<TVoiceProducerEvent>(() => () => {});
+  }
+
+  return ctx.pubsub.subscribeForChannel(
+    ctx.currentVoiceChannelId,
+    ServerEvents.WATCH_STATE_UPDATE
+  );
+});
+
 export {
   onUserJoinVoiceRoute,
   onUserLeaveVoiceRoute,
@@ -89,5 +100,6 @@ export {
   onVoiceNewProducerRoute,
   onVoiceProducerClosedRoute,
   onVoiceRemoveExternalStreamRoute,
-  onVoiceUpdateExternalStreamRoute
+  onVoiceUpdateExternalStreamRoute,
+  onWatchUpdateRoute
 };

@@ -191,8 +191,13 @@ const isFileOrphaned = async (fileId: number): Promise<boolean> => {
   return isOrphaned;
 };
 
+const getFileById = async (fileId: number) => {
+  return db.select().from(files).where(eq(files.id, fileId)).limit(1).get();
+};
+
 export {
   getExceedingOldFiles,
+  getFileById,
   getFilesByMessageId,
   getFilesByUserId,
   getOrphanedFileIds,

@@ -19,6 +19,9 @@
  *   channels          5    1 General (text), Voice, DM Channel, Private Voice,
  *                          Restricted Text
  *   messages          2    both in channel 1
+ *   files             3    watch-movie.mp4 (video) and watch-note.txt on message 1,
+ *                          watch-dm-movie.mp4 (video) on the DM message
+ *   messageFiles      3    the links above
  *   directMessages    1    the DM pair backing "DM Channel"
  *   channelRolePermissions
  *                     1    the default role may view channel 5
@@ -49,7 +52,9 @@ import {
   type TDirectMessage,
   type TICategory,
   type TIChannel,
+  type TIFile,
   type TIMessage,
+  type TIMessageFile,
   type TIRole,
   type TISettings,
   type TIUser
@@ -62,7 +67,9 @@ import {
   channels,
   channelUserPermissions,
   directMessages,
+  files,
   logins,
+  messageFiles,
   messages,
   rolePermissions,
   roles,
@@ -98,6 +105,10 @@ const hashedPassword = await Bun.password.hash('password123');
  * Messages:
  * - Test message (1) (in General, by Test Owner)
  * - Hello User B (2) (in DM Channel, by User A)
+ * Files (for the watch party tests, which need rows, not fixtures):
+ * - watch-movie.mp4 (1) (video, on message 1)
+ * - watch-note.txt (2) (text, on message 1)
+ * - watch-dm-movie.mp4 (3) (video, on the DM message, invisible outside the DM)
  */
 
 const seedTestDb = async (
@@ -345,6 +356,52 @@ const seedTestDb = async (
   };
 
   await db.insert(messages).values(dmMessage);
+
+  const watchMovie: TIFile = {
+    name: 'watch-movie.mp4',
+    originalName: 'movie.mp4',
+    md5: 'watch-movie',
+    userId: insertedOwner!.id,
+    size: 1024,
+    mimeType: 'video/mp4',
+    extension: '.mp4',
+    createdAt: firstStart
+  };
+
+  const watchNote: TIFile = {
+    name: 'watch-note.txt',
+    originalName: 'note.txt',
+    md5: 'watch-note',
+    userId: insertedOwner!.id,
+    size: 12,
+    mimeType: 'text/plain',
+    extension: '.txt',
+    createdAt: firstStart
+  };
+
+  const watchDmMovie: TIFile = {
+    name: 'watch-dm-movie.mp4',
+    originalName: 'dm-movie.mp4',
+    md5: 'watch-dm-movie',
+    userId: insertedUserA!.id,
+    size: 1024,
+    mimeType: 'video/mp4',
+    extension: '.mp4',
+    createdAt: firstStart
+  };
+
+  const [insertedWatchMovie, insertedWatchNote, insertedWatchDmMovie] = await db
+    .insert(files)
+    .values([watchMovie, watchNote, watchDmMovie])
+    .returning();
+
+  const watchLinks: TIMessageFile[] = [
+    { messageId: 1, fileId: insertedWatchMovie!.id, createdAt: firstStart },
+    { messageId: 1, fileId: insertedWatchNote!.id, createdAt: firstStart },
+    { messageId: 2, fileId: insertedWatchDmMovie!.id, createdAt: firstStart }
+  ];
+
+  await db.insert(messageFiles).values(watchLinks);
 
   // seeded after the dm channel so the ids above stay stable for existing tests
   const privateVoiceChannel: TIChannel = {

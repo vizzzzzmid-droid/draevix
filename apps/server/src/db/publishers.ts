@@ -2,7 +2,8 @@ import {
   ChannelPermission,
   getErrorMessage,
   ServerEvents,
-  type TChannelUserPermissionsMap
+  type TChannelUserPermissionsMap,
+  type TWatchState
 } from '@draevix/shared';
 import { count, eq } from 'drizzle-orm';
 import { db } from '.';
@@ -388,6 +389,16 @@ const publishReplyCount = async (
   });
 };
 
+const publishWatchState = (
+  channelId: number,
+  watch: TWatchState | undefined
+) => {
+  pubsub.publishForChannel(channelId, ServerEvents.WATCH_STATE_UPDATE, {
+    channelId,
+    watch
+  });
+};
+
 export {
   publishCapabilityAccess,
   publishCategory,
@@ -402,5 +413,6 @@ export {
   publishRole,
   publishSettings,
   publishUser,
+  publishWatchState,
   unpublishHiddenChannelFromUser
 };

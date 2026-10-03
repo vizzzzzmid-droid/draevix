@@ -15,6 +15,14 @@ export type TVoiceUser = {
   state: TVoiceUserState;
 };
 
+export type TWatchState = {
+  fileId: number;
+  playing: boolean;
+  positionSec: number;
+  updatedAt: number;
+  controllerUserId: number;
+};
+
 export type TExternalStream = {
   title: string;
   key: string;
