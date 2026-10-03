@@ -619,7 +619,9 @@ mod windows_impl {
             let device = enumerator
                 .GetDefaultAudioEndpoint(eRender, eConsole)
                 .map_err(|e| format!("[loopback/sessions] endpoint: {e:?}"))?;
-            let manager: IAudioSessionManager = device
+            // GetSessionEnumerator lives on IAudioSessionManager2 (the base
+            // IAudioSessionManager only has per-session control/volume).
+            let manager: IAudioSessionManager2 = device
                 .Activate(CLSCTX_ALL, None)
                 .map_err(|e| format!("[loopback/sessions] session manager: {e:?}"))?;
             let list = manager
@@ -796,6 +798,8 @@ mod windows_impl {
         let client = activate_pid_client(pid)
             .map_err(|error| format!("[loopback/activate-pid:{pid}] {error}"))?;
 
+        let capture: IAudioCaptureClient;
+
         unsafe {
             client
                 .Initialize(
@@ -812,7 +816,7 @@ mod windows_impl {
                 .SetEventHandle(event)
                 .map_err(|e| format!("[loopback/event:{pid}] {e:?}"))?;
 
-            let capture: IAudioCaptureClient = client
+            capture = client
                 .GetService()
                 .map_err(|e| format!("[loopback/capture-client:{pid}] {e:?}"))?;
 
@@ -958,7 +962,7 @@ mod windows_impl {
                 .iter()
                 .filter(|pid| {
                     !all.iter().any(|other| {
-                        **other != **pid && is_descendant(**pid, **other, &parents)
+                        *other != **pid && is_descendant(**pid, *other, &parents)
                     })
                 })
                 .copied()
