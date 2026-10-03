@@ -934,7 +934,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
                 });
                 nativeSystemAudioStopRef.current = null;
                 toast.error(
-                  i18next.t('systemAudioVideoOnly', { ns: 'common' })
+                  `${i18next.t('systemAudioVideoOnly', { ns: 'common' })} (${reason})`
                 );
               }
             });
@@ -946,11 +946,15 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
           } catch (error) {
             // Video sharing must survive audio failures: the share goes on
             // video-only instead of failing the whole screen share.
+            const detail = getErrorMessage(error);
+
             logVoiceWarn(
               'screen audio: native capture failed, continuing video-only',
-              { error: getErrorMessage(error) }
+              { error: detail }
             );
-            toast.error(i18next.t('systemAudioVideoOnly', { ns: 'common' }));
+            toast.error(
+              `${i18next.t('systemAudioVideoOnly', { ns: 'common' })} (${detail})`
+            );
           }
         }
 
