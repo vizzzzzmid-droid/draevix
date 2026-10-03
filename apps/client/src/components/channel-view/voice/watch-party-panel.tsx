@@ -1,6 +1,7 @@
 import { useUserById } from '@/features/server/users/hooks';
 import { getWatchPositionSec } from '@/features/server/voice/helpers';
 import { useWatchState } from '@/features/server/voice/hooks';
+import { logVoice } from '@/helpers/browser-logger';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { uploadFile } from '@/helpers/upload-file';
@@ -47,14 +48,23 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
     if (player) {
       const current = player.currentTime || 0;
+      const drift = Math.abs(target - current);
 
-      if (Math.abs(target - current) > POSITION_SYNC_THRESHOLD_SEC) {
+      logVoice('watch: reconcile', {
+        target,
+        current,
+        drift,
+        seeking: seekingRef.current,
+        duration
+      });
+
+      if (drift > POSITION_SYNC_THRESHOLD_SEC) {
         player.currentTime = target;
       }
     }
 
     setDisplayPosition(target);
-  }, [watch]);
+  }, [watch, duration]);
 
   const handlePlay = useCallback(async () => {
     const position = playerRef.current?.currentTime ?? displayPosition;
@@ -103,6 +113,10 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
     },
     []
   );
+
+  const handleSeekAbort = useCallback(() => {
+    seekingRef.current = false;
+  }, []);
 
   const handleStop = useCallback(async () => {
     const trpc = getTRPCClient();
@@ -239,6 +253,8 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
               value={Math.min(displayPosition, Math.max(duration, 0.01))}
               onChange={handleSeekChange}
               onPointerUp={handleSeekCommit}
+              onPointerCancel={handleSeekAbort}
+              onLostPointerCapture={handleSeekAbort}
               onKeyUp={handleSeekCommit}
               aria-label={t('watchSeek')}
               className="flex-1"
