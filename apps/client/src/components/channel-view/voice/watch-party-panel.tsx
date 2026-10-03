@@ -1,15 +1,13 @@
-import { useCan, useInfo } from '@/features/server/hooks';
-import { useOwnUserId, useUserById } from '@/features/server/users/hooks';
+import { useUserById } from '@/features/server/users/hooks';
 import { getWatchPositionSec } from '@/features/server/voice/helpers';
 import { useWatchState } from '@/features/server/voice/hooks';
 import { logVoice } from '@/helpers/browser-logger';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
-import { uploadFile } from '@/helpers/upload-file';
-import { getTRPCClient, type TRouterOutputs } from '@/lib/trpc';
-import { getTrpcError, Permission } from '@draevix/shared';
+import { getTRPCClient } from '@/lib/trpc';
+import { getTrpcError } from '@draevix/shared';
 import { Button } from '@draevix/ui';
-import { Pause, Play, Square, Trash2, Upload } from 'lucide-react';
+import { Pause, Play, Square } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactPlayer from 'react-player';
@@ -27,59 +25,15 @@ const POSITION_SYNC_THRESHOLD_SEC = 3;
 // would starve the buffer forever: only the settled position gets applied
 const SNAP_SETTLE_MS = 700;
 
-type TLibraryVideo = TRouterOutputs['library']['list']['videos'][number];
-
 const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
   const { t } = useTranslation();
   const watch = useWatchState(channelId);
-  const can = useCan();
-  const info = useInfo();
-  const ownUserId = useOwnUserId();
   const controller = useUserById(watch?.controllerUserId ?? -1);
   const playerRef = useRef<HTMLVideoElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const seekingRef = useRef(false);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [duration, setDuration] = useState(0);
   const [displayPosition, setDisplayPosition] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [library, setLibrary] = useState<TLibraryVideo[]>([]);
-
-  const libraryLocked = info?.watchLibraryLocked ?? true;
-  const canManageLibrary = libraryLocked
-    ? can(Permission.MANAGE_SETTINGS)
-    : can(Permission.UPLOAD_FILES);
-
-  const canDeleteLibraryVideo = useCallback(
-    (entry: TLibraryVideo) => {
-      if (can(Permission.MANAGE_SETTINGS)) return true;
-
-      return (
-        !libraryLocked &&
-        entry.addedByUserId !== null &&
-        entry.addedByUserId === ownUserId
-      );
-    },
-    [can, libraryLocked, ownUserId]
-  );
-
-  const fetchLibrary = useCallback(async () => {
-    const trpc = getTRPCClient();
-
-    try {
-      const { videos } = await trpc.library.list.query();
-
-      setLibrary(videos);
-    } catch (error) {
-      toast.error(getTrpcError(error, t('failedLoadLibrary')));
-    }
-  }, [t]);
-
-  useEffect(() => {
-    if (!watch) {
-      void fetchLibrary();
-    }
-  }, [watch, fetchLibrary]);
 
   useEffect(() => {
     if (!watch) {
@@ -217,68 +171,6 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
     }
   }, [t]);
 
-  const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFilePicked = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const picked = event.target.files?.[0];
-
-      event.target.value = '';
-
-      if (!picked) return;
-
-      setUploading(true);
-
-      try {
-        const temp = await uploadFile(picked);
-
-        if (!temp) return;
-
-        const trpc = getTRPCClient();
-
-        await trpc.library.add.mutate({ tempFileId: temp.id });
-        await fetchLibrary();
-        toast.success(t('watchLibraryUploaded'));
-      } catch (error) {
-        toast.error(getTrpcError(error, t('failedWatchTogether')));
-      } finally {
-        setUploading(false);
-      }
-    },
-    [fetchLibrary, t]
-  );
-
-  const handleLibraryPlay = useCallback(
-    async (fileId: number) => {
-      const trpc = getTRPCClient();
-
-      try {
-        await trpc.voice.selectWatchFile.mutate({ fileId });
-        toast.success(t('watchPartyStarted'));
-      } catch (error) {
-        toast.error(getTrpcError(error, t('failedWatchTogether')));
-      }
-    },
-    [t]
-  );
-
-  const handleLibraryDelete = useCallback(
-    async (fileId: number) => {
-      const trpc = getTRPCClient();
-
-      try {
-        await trpc.library.remove.mutate({ fileId });
-        await fetchLibrary();
-        toast.success(t('watchLibraryDeleted'));
-      } catch (error) {
-        toast.error(getTrpcError(error, t('failedWatchTogether')));
-      }
-    },
-    [fetchLibrary, t]
-  );
-
   const handleTimeUpdate = useCallback(
     (event: React.SyntheticEvent<HTMLVideoElement>) => {
       if (!seekingRef.current) {
@@ -295,134 +187,73 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
     []
   );
 
+  if (!watch) return null;
+
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{t('watchPartyTitle')}</span>
-        {watch && (
-          <span className="text-xs text-muted-foreground">
-            {t('watchControlledBy', {
-              name: controller ? getRenderedUsername(controller) : '?'
-            })}
-          </span>
-        )}
+        <span className="text-xs text-muted-foreground">
+          {t('watchControlledBy', {
+            name: controller ? getRenderedUsername(controller) : '?'
+          })}
+        </span>
       </div>
-      {!watch && (
-        <div className="flex flex-col gap-2">
-          {library.map((entry) => (
-            <div
-              key={entry.id}
-              className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5"
-            >
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => handleLibraryPlay(entry.fileId)}
-                title={t('watchPlay')}
-              >
-                <Play className="h-4 w-4" />
-              </Button>
-              <span className="min-w-0 flex-1 truncate text-sm">
-                {entry.file.originalName}
-              </span>
-              {canDeleteLibraryVideo(entry) && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => handleLibraryDelete(entry.fileId)}
-                  title={t('watchDelete')}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ))}
-          {library.length === 0 && (
-            <span className="text-xs text-muted-foreground">
-              {t('watchLibraryEmpty')}
-            </span>
-          )}
-          {canManageLibrary && (
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={handleFilePicked}
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleUploadClick}
-                disabled={uploading}
-              >
-                <Upload className="h-4 w-4" />
-                {t('watchUploadMovie')}
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-      {watch && (
-        <>
-          <div className="aspect-video max-h-[45vh] w-full overflow-hidden rounded-md bg-black">
-            <ReactPlayer
-              ref={playerRef}
-              src={getFileUrl(watch.file)}
-              playing={watch.playing}
-              width="100%"
-              height="100%"
-              style={{ colorScheme: 'dark' }}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            {watch.playing ? (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={handlePause}
-                title={t('watchPause')}
-              >
-                <Pause className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={handlePlay}
-                title={t('watchPlay')}
-              >
-                <Play className="h-4 w-4" />
-              </Button>
-            )}
-            <input
-              type="range"
-              min={0}
-              max={Math.max(duration, 0.01)}
-              step={0.1}
-              value={Math.min(displayPosition, Math.max(duration, 0.01))}
-              onChange={handleSeekChange}
-              onPointerUp={handleSeekCommit}
-              onPointerCancel={handleSeekAbort}
-              onLostPointerCapture={handleSeekAbort}
-              onKeyUp={handleSeekKeyUp}
-              aria-label={t('watchSeek')}
-              className="flex-1"
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={handleStop}
-              title={t('watchStop')}
-            >
-              <Square className="h-4 w-4" />
-            </Button>
-          </div>
-        </>
-      )}
+      <div className="aspect-video max-h-[45vh] w-full overflow-hidden rounded-md bg-black">
+        <ReactPlayer
+          ref={playerRef}
+          src={getFileUrl(watch.file)}
+          playing={watch.playing}
+          width="100%"
+          height="100%"
+          style={{ colorScheme: 'dark' }}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        {watch.playing ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handlePause}
+            title={t('watchPause')}
+          >
+            <Pause className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handlePlay}
+            title={t('watchPlay')}
+          >
+            <Play className="h-4 w-4" />
+          </Button>
+        )}
+        <input
+          type="range"
+          min={0}
+          max={Math.max(duration, 0.01)}
+          step={0.1}
+          value={Math.min(displayPosition, Math.max(duration, 0.01))}
+          onChange={handleSeekChange}
+          onPointerUp={handleSeekCommit}
+          onPointerCancel={handleSeekAbort}
+          onLostPointerCapture={handleSeekAbort}
+          onKeyUp={handleSeekKeyUp}
+          aria-label={t('watchSeek')}
+          className="flex-1"
+        />
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleStop}
+          title={t('watchStop')}
+        >
+          <Square className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 });
