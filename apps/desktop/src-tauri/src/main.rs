@@ -15,7 +15,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             system_audio::system_audio_start,
             system_audio::system_audio_poll,
-            system_audio::system_audio_stop
+            system_audio::system_audio_stop,
+            system_audio::system_audio_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running draevix desktop");

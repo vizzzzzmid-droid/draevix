@@ -64,6 +64,22 @@ struct Session {
     device_changed: Arc<AtomicBool>,
     stop: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
+    info: Arc<Mutex<CaptureInfo>>,
+}
+
+/// Point-in-time view of what the pump is capturing. Surfaced to JS through
+/// `system_audio_info` so the F9 voice-diagnostics panel can show mix format
+/// and the captured process list without console access.
+#[derive(Clone, Default, serde::Serialize)]
+pub struct CaptureEntry {
+    pub pid: u32,
+    pub exe: String,
+}
+
+#[derive(Clone, Default, serde::Serialize)]
+pub struct CaptureInfo {
+    pub format: String,
+    pub captures: Vec<CaptureEntry>,
 }
 
 #[derive(Default)]
@@ -169,6 +185,22 @@ pub fn system_audio_poll(
 }
 
 #[tauri::command]
+pub fn system_audio_info(
+    state: tauri::State<SystemAudioState>,
+) -> Result<CaptureInfo, String> {
+    let guard = state.inner.lock().map_err(|_| "audio state poisoned")?;
+    let session = guard
+        .as_ref()
+        .ok_or_else(|| "system audio capture is not running".to_string())?;
+
+    session
+        .info
+        .lock()
+        .map(|info| info.clone())
+        .map_err(|_| "audio info poisoned")
+}
+
+#[tauri::command]
 pub fn system_audio_stop(state: tauri::State<SystemAudioState>) -> Result<(), String> {
     let mut guard = state.inner.lock().map_err(|_| "audio state poisoned")?;
 
@@ -232,6 +264,7 @@ mod windows_impl {
         let clipped_total = Arc::new(AtomicU64::new(0));
         let device_changed = Arc::new(AtomicBool::new(false));
         let stop = Arc::new(AtomicBool::new(false));
+        let info = Arc::new(Mutex::new(CaptureInfo::default()));
 
         let (tx, rx) = mpsc::channel::<Result<(), String>>();
 
@@ -240,6 +273,7 @@ mod windows_impl {
         let thread_clipped = Arc::clone(&clipped_total);
         let thread_device_changed = Arc::clone(&device_changed);
         let thread_stop = Arc::clone(&stop);
+        let thread_info = Arc::clone(&info);
 
         let handle = std::thread::spawn(move || {
             // The thread owns every COM object it creates; nothing crosses threads.
@@ -251,6 +285,7 @@ mod windows_impl {
                     thread_clipped,
                     thread_device_changed,
                     thread_stop,
+                    thread_info,
                     ready_tx,
                 )
             };
@@ -274,6 +309,7 @@ mod windows_impl {
                 device_changed,
                 stop,
                 handle: Some(handle),
+                info,
             }),
             Ok(Err(error)) => {
                 let _ = handle.join();
@@ -570,18 +606,20 @@ mod windows_impl {
     const _: () =
         assert!(std::mem::offset_of!(BlobPropVariant, blob_data) == 16);
 
-    /// pid -> parent pid for every live process, via a Toolhelp snapshot.
-    fn process_parent_map() -> HashMap<u32, u32> {
+    /// pid -> parent pid plus pid -> exe name for every live process,
+    /// via a Toolhelp snapshot.
+    fn process_snapshot() -> (HashMap<u32, u32>, HashMap<u32, String>) {
         let mut parent_of: HashMap<u32, u32> = HashMap::new();
+        let mut names: HashMap<u32, String> = HashMap::new();
 
         unsafe {
             let snapshot = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
                 Ok(handle) => handle,
-                Err(_) => return parent_of,
+                Err(_) => return (parent_of, names),
             };
 
             if snapshot.is_invalid() {
-                return parent_of;
+                return (parent_of, names);
             }
 
             let mut entry: PROCESSENTRY32W = std::mem::zeroed();
@@ -590,6 +628,16 @@ mod windows_impl {
             if Process32FirstW(snapshot, &mut entry).is_ok() {
                 loop {
                     parent_of.insert(entry.th32ProcessID, entry.th32ParentProcessID);
+
+                    let end = entry
+                        .szExeFile
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(entry.szExeFile.len());
+                    names.insert(
+                        entry.th32ProcessID,
+                        String::from_utf16_lossy(&entry.szExeFile[..end]),
+                    );
 
                     if Process32NextW(snapshot, &mut entry).is_err() {
                         break;
@@ -600,14 +648,14 @@ mod windows_impl {
             let _ = CloseHandle(snapshot);
         }
 
-        parent_of
+        (parent_of, names)
     }
 
     /// All PIDs in our own process tree (ourselves plus every descendant),
     /// resolved live via a Toolhelp snapshot so WebView2 children spawned at
     /// any moment are covered.
     fn our_tree_pids() -> HashSet<u32> {
-        let parent_of = process_parent_map();
+        let (parent_of, _) = process_snapshot();
         let own = std::process::id();
         let mut tree = HashSet::new();
         tree.insert(own);
@@ -915,6 +963,7 @@ mod windows_impl {
         clipped_total: Arc<AtomicU64>,
         device_changed: Arc<AtomicBool>,
         stop: Arc<AtomicBool>,
+        info: Arc<Mutex<CaptureInfo>>,
         ready: mpsc::Sender<Result<(), String>>,
     ) -> Result<(), String> {
         let com_hr = CoInitializeEx(None, COINIT_MULTITHREADED);
@@ -957,6 +1006,13 @@ mod windows_impl {
             ));
         };
 
+        if let Ok(mut snapshot) = info.lock() {
+            snapshot.format = format!(
+                "{mix_rate}Hz {channels}ch {}",
+                if is_float { "float" } else { "pcm16" }
+            );
+        }
+
         // --- event-driven capture -------------------------------------------
         // One event shared by all per-PID clients: every wake drains every
         // client, empty ones cost almost nothing.
@@ -990,7 +1046,7 @@ mod windows_impl {
             cycle += 1;
 
             let all = foreign_audio_pids()?;
-            let parents = process_parent_map();
+            let (parents, names) = process_snapshot();
 
             // INCLUDE captures whole trees: keep only roots, otherwise an app
             // whose parent and child both hold sessions would play twice.
@@ -1033,6 +1089,20 @@ mod windows_impl {
             if failed_at.len() > 64 {
                 failed_at
                     .retain(|_, &mut at| cycle.wrapping_sub(at) < FAILED_RETRY_CYCLES);
+            }
+
+            // Refresh the diagnostics snapshot (surfaced via system_audio_info).
+            if let Ok(mut snapshot) = info.lock() {
+                snapshot.captures = captures
+                    .iter()
+                    .map(|cap| CaptureEntry {
+                        pid: cap.pid,
+                        exe: names
+                            .get(&cap.pid)
+                            .cloned()
+                            .unwrap_or_else(|| "?".to_string()),
+                    })
+                    .collect();
             }
 
             Ok(())

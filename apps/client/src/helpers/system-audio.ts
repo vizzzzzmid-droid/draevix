@@ -159,6 +159,23 @@ const startSystemAudioTrack = async (options: {
   let restarts = 0;
   let lastQueueWarnMs = 0;
 
+  // one-shot diagnostics snapshot for the F9 voice panel: mix format plus
+  // the captured process list. Dynamic import keeps unit tests green
+  // (browser-logger pulls voice-debug, which touches window at load).
+  void invoke<{
+    format: string;
+    captures: { pid: number; exe: string }[];
+  }>('system_audio_info')
+    .then((info) =>
+      import('./browser-logger').then(({ logVoice }) =>
+        logVoice('system audio: capture info', {
+          format: info.format,
+          captures: info.captures.map((c) => `${c.exe}(${c.pid})`)
+        })
+      )
+    )
+    .catch(() => undefined);
+
   const doStop = () => {
     if (stopped) return;
     stopped = true;
