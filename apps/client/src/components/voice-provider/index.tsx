@@ -22,6 +22,10 @@ import {
   logVoiceWarn
 } from '@/helpers/browser-logger';
 import { getResWidthHeight } from '@/helpers/get-res-with-height';
+import {
+  isSystemAudioCaptureSupported,
+  startSystemAudioTrack
+} from '@/helpers/system-audio';
 import { registerVoiceDebugSource } from '@/helpers/voice-debug';
 import { useScreenShareSupport } from '@/hooks/use-screen-share-support';
 import { getTRPCClient } from '@/lib/trpc';
@@ -198,6 +202,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
   const deviceRtpCapabilities = useRef<RtpCapabilities | null>(null);
   const audioVideoRefsMap = useRef<Map<TRefsKey, AudioVideoRefs>>(new Map());
   const previousVoiceChannelIdRef = useRef<number | undefined>(undefined);
+  const nativeSystemAudioStopRef = useRef<(() => void) | null>(null);
   const [streamQualities, setStreamQualities] =
     useState<TStreamQualitySettings>(loadStreamQualitiesFromStorage);
   const [remoteConsumerTypes, setRemoteConsumerTypes] =
@@ -843,6 +848,11 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
   const stopScreenShareStream = useCallback(() => {
     logVoice('screen: stopping');
 
+    if (nativeSystemAudioStopRef.current) {
+      nativeSystemAudioStopRef.current();
+      nativeSystemAudioStopRef.current = null;
+    }
+
     localScreenShareStream?.getTracks().forEach((track) => {
       logVoice('screen: stopping track', {
         trackId: track.id,
@@ -879,9 +889,16 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       try {
         logVoice('screen: starting', { source, shareAudio });
 
+        // On Windows desktop the webview cannot capture system audio
+        // through getDisplayMedia, so the native loopback module provides
+        // the audio track while the browser still provides the video track.
+        // Everywhere else the browser capture path stays exactly as before.
+        const useNativeSystemAudio =
+          shareAudio && isSystemAudioCaptureSupported();
+
         const displayMediaConstraints = buildDisplayMediaConstraints({
           source,
-          shareAudio,
+          shareAudio: shareAudio && !useNativeSystemAudio,
           resolution: devices.screenResolution,
           framerate: devices.screenFramerate,
           cursor: devices.screenCursor,
@@ -902,7 +919,34 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
         setLocalScreenShare(stream);
 
         const videoTrack = stream.getVideoTracks()[0];
-        const audioTrack = stream.getAudioTracks()[0];
+        let audioTrack = stream.getAudioTracks()[0];
+
+        if (useNativeSystemAudio) {
+          try {
+            logVoice('screen audio: starting native loopback capture');
+
+            const handle = await startSystemAudioTrack({
+              onInterrupted: (reason) => {
+                logVoiceWarn('screen audio: native capture interrupted', {
+                  reason
+                });
+                nativeSystemAudioStopRef.current = null;
+              }
+            });
+
+            nativeSystemAudioStopRef.current = handle.stop;
+            audioTrack = handle.track;
+
+            logVoice('screen audio: native loopback capture running');
+          } catch (error) {
+            // Video sharing must survive audio failures: the share goes on
+            // video-only instead of failing the whole screen share.
+            logVoiceWarn(
+              'screen audio: native capture failed, continuing video-only',
+              { error: getErrorMessage(error) }
+            );
+          }
+        }
 
         if (videoTrack) {
           logVoice('screen: video track obtained', {
@@ -1024,6 +1068,11 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
           videoTrack.onended = () => {
             logVoice('screen: track ended, cleaning up');
 
+            if (nativeSystemAudioStopRef.current) {
+              nativeSystemAudioStopRef.current();
+              nativeSystemAudioStopRef.current = null;
+            }
+
             stream.getTracks().forEach((track) => {
               track.stop();
             });
@@ -1083,6 +1132,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
             );
 
             audioTrack.onended = () => {
+              nativeSystemAudioStopRef.current = null;
               localScreenShareAudioProducer.current?.close();
               localScreenShareAudioProducer.current = undefined;
               setLocalScreenShareAudio(undefined);
@@ -1094,6 +1144,11 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
           throw new Error('No video track obtained for screen share');
         }
       } catch (error) {
+        if (nativeSystemAudioStopRef.current) {
+          nativeSystemAudioStopRef.current();
+          nativeSystemAudioStopRef.current = null;
+        }
+
         localScreenShareAudioProducer.current?.close();
         localScreenShareAudioProducer.current = undefined;
         localScreenShareProducer.current?.close();
@@ -1126,6 +1181,11 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
 
   const cleanup = useCallback(() => {
     logVoice('session: cleanup');
+
+    if (nativeSystemAudioStopRef.current) {
+      nativeSystemAudioStopRef.current();
+      nativeSystemAudioStopRef.current = null;
+    }
 
     stopMonitoring();
     resetStats();
