@@ -568,18 +568,18 @@ mod windows_impl {
             );
 
             // The activation API takes its parameters packed in a VT_BLOB
-            // PROPVARIANT, which is 24 bytes: u32 size @0, pointer @8, u16
-            // type @16. Built manually to avoid depending on Variant bindings.
+            // PROPVARIANT (24 bytes): u16 type @0, 6 reserved bytes @2,
+            // u32 blob size @8, pointer @16.
             const VT_BLOB_TAG: u16 = 0x0041;
             let mut variant = [0u8; 24];
-            variant[0..4].copy_from_slice(
+            variant[0..2].copy_from_slice(&VT_BLOB_TAG.to_le_bytes());
+            variant[8..12].copy_from_slice(
                 &(std::mem::size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>() as u32)
                     .to_le_bytes(),
             );
-            variant[8..16].copy_from_slice(
+            variant[16..24].copy_from_slice(
                 &(std::ptr::from_ref(&params) as usize).to_le_bytes(),
             );
-            variant[16..18].copy_from_slice(&VT_BLOB_TAG.to_le_bytes());
 
             let (tx, rx) = mpsc::channel::<windows::core::Result<IAudioClient>>();
 
