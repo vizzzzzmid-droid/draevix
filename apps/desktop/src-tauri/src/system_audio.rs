@@ -43,6 +43,9 @@ pub struct SystemAudioChunk {
     pub samples: Vec<f32>,
     /// Frames dropped from the ring buffer since the previous poll.
     pub frames_lost: u64,
+    /// Mixed samples that hit the ±1.0 clamp since the previous poll.
+    /// Persistent clipping sounds like harsh crackle on loud passages.
+    pub clipped: u64,
     /// True when the default output device changed mid-capture. The session
     /// is already stopped; the caller should start a new one.
     pub device_changed: bool,
@@ -56,6 +59,8 @@ struct Session {
     queue: Arc<Mutex<VecDeque<f32>>>,
     lost_total: Arc<AtomicU64>,
     lost_reported: u64,
+    clipped_total: Arc<AtomicU64>,
+    clipped_reported: u64,
     device_changed: Arc<AtomicBool>,
     stop: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
@@ -125,6 +130,11 @@ pub fn system_audio_poll(
     let frames_lost = lost_total.saturating_sub(session.lost_reported) / OUTPUT_CHANNELS as u64;
     session.lost_reported = lost_total;
 
+    let clipped_total = session.clipped_total.load(Ordering::SeqCst);
+    let clipped =
+        clipped_total.saturating_sub(session.clipped_reported) / OUTPUT_CHANNELS as u64;
+    session.clipped_reported = clipped_total;
+
     let device_changed = session.device_changed.load(Ordering::SeqCst);
     let finished = session
         .handle
@@ -137,6 +147,7 @@ pub fn system_audio_poll(
         return Ok(SystemAudioChunk {
             samples,
             frames_lost,
+            clipped,
             device_changed: true,
             queued_ms,
         });
@@ -151,6 +162,7 @@ pub fn system_audio_poll(
     Ok(SystemAudioChunk {
         samples,
         frames_lost,
+        clipped,
         device_changed: false,
         queued_ms,
     })
@@ -217,6 +229,7 @@ mod windows_impl {
             MAX_BUFFERED_FLOATS,
         )));
         let lost_total = Arc::new(AtomicU64::new(0));
+        let clipped_total = Arc::new(AtomicU64::new(0));
         let device_changed = Arc::new(AtomicBool::new(false));
         let stop = Arc::new(AtomicBool::new(false));
 
@@ -224,6 +237,7 @@ mod windows_impl {
 
         let thread_queue = Arc::clone(&queue);
         let thread_lost = Arc::clone(&lost_total);
+        let thread_clipped = Arc::clone(&clipped_total);
         let thread_device_changed = Arc::clone(&device_changed);
         let thread_stop = Arc::clone(&stop);
 
@@ -234,6 +248,7 @@ mod windows_impl {
                 run_capture_loop(
                     thread_queue,
                     thread_lost,
+                    thread_clipped,
                     thread_device_changed,
                     thread_stop,
                     ready_tx,
@@ -254,6 +269,8 @@ mod windows_impl {
                 queue,
                 lost_total,
                 lost_reported: 0,
+                clipped_total,
+                clipped_reported: 0,
                 device_changed,
                 stop,
                 handle: Some(handle),
@@ -895,6 +912,7 @@ mod windows_impl {
     unsafe fn run_capture_loop(
         queue: Arc<Mutex<VecDeque<f32>>>,
         lost_total: Arc<AtomicU64>,
+        clipped_total: Arc<AtomicU64>,
         device_changed: Arc<AtomicBool>,
         stop: Arc<AtomicBool>,
         ready: mpsc::Sender<Result<(), String>>,
@@ -1132,6 +1150,10 @@ mod windows_impl {
                         for cap in captures.iter() {
                             sample +=
                                 cap.scratch.get(index).copied().unwrap_or(0.0);
+                        }
+
+                        if sample.abs() >= 1.0 {
+                            clipped_total.fetch_add(1, Ordering::SeqCst);
                         }
 
                         guard.push_back(sample.clamp(-1.0, 1.0));

@@ -22,6 +22,7 @@ type TSystemAudioChunk = {
   framesLost: number;
   deviceChanged: boolean;
   queuedMs?: number;
+  clipped?: number;
 };
 
 export type TSystemAudioHandle = {
@@ -213,10 +214,11 @@ const startSystemAudioTrack = async (options: {
         // is about to starve — audible as stutter. Throttled so healthy
         // streams stay quiet.
         const queuedMs = chunk.queuedMs ?? 0;
+        const clipped = chunk.clipped ?? 0;
         const nowMs = Date.now();
 
         if (
-          (chunk.framesLost > 0 || queuedMs > 800) &&
+          (chunk.framesLost > 0 || queuedMs > 800 || clipped > 0) &&
           nowMs - lastQueueWarnMs > 5000
         ) {
           lastQueueWarnMs = nowMs;
@@ -227,7 +229,8 @@ const startSystemAudioTrack = async (options: {
             .then(({ logVoiceWarn }) =>
               logVoiceWarn('system audio: delivery gap', {
                 framesLost: chunk.framesLost,
-                queuedMs
+                queuedMs,
+                clipped
               })
             )
             .catch(() => undefined);
