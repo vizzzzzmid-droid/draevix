@@ -417,8 +417,71 @@ mod windows_impl {
         ) -> HRESULT;
     }
 
-    fn default_endpoint_id() -> Result<String, String> {
+    /// Classic device-loopback open used only as a diagnostic probe: it never
+    /// publishes anything, it just tells whether the WASAPI capture path
+    /// works at all on this machine.
+    fn probe_device_loopback() -> Result<u32, String> {
         unsafe {
+            let enumerator: IMMDeviceEnumerator =
+                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
+                    .map_err(|e| format!("probe enumerator: {e:?}"))?;
+            let device = enumerator
+                .GetDefaultAudioEndpoint(eRender, eConsole)
+                .map_err(|e| format!("probe endpoint: {e:?}"))?;
+            let client: IAudioClient = device
+                .Activate(CLSCTX_ALL, None)
+                .map_err(|e| format!("probe activate: {e:?}"))?;
+
+            let mix_ptr = client
+                .GetMixFormat()
+                .map_err(|e| format!("probe mix format: {e:?}"))?;
+            let mix: WAVEFORMATEX = *mix_ptr;
+            CoTaskMemFree(Some(mix_ptr as *const c_void));
+
+            client
+                .Initialize(
+                    AUDCLNT_SHAREMODE_SHARED,
+                    AUDCLNT_STREAMFLAGS_LOOPBACK,
+                    HNS_PER_SECOND,
+                    0,
+                    &mix,
+                    None,
+                )
+                .map_err(|e| format!("probe initialize: {e:?}"))?;
+
+            let capture: IAudioCaptureClient = client
+                .GetService()
+                .map_err(|e| format!("probe capture client: {e:?}"))?;
+
+            client
+                .Start()
+                .map_err(|e| format!("probe start: {e:?}"))?;
+
+            let mut frames = 0u32;
+
+            for _ in 0..10 {
+                let packet = capture
+                    .GetNextPacketSize()
+                    .map_err(|e| format!("probe packet size: {e:?}"))?;
+
+                if packet > 0 {
+                    frames = packet;
+                    capture
+                        .ReleaseBuffer(packet)
+                        .map_err(|e| format!("probe release: {e:?}"))?;
+                    break;
+                }
+
+                std::thread::sleep(Duration::from_millis(50));
+            }
+
+            let _ = client.Stop();
+
+            Ok(frames)
+        }
+    }
+
+    fn default_endpoint_id() -> Result<String, String> {        unsafe {
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
                     .map_err(|e| format!("cannot create device enumerator: {e}"))?;
@@ -525,7 +588,10 @@ mod windows_impl {
         }
 
         let initial_device = default_endpoint_id()?;
-        let client = activate_loopback_client()?;
+        let client = activate_loopback_client().map_err(|error| match probe_device_loopback() {
+            Ok(frames) => format!("{error}; device loopback probe ok ({frames} frames)"),
+            Err(probe) => format!("{error}; device loopback probe failed: {probe}"),
+        })?;
 
         // --- mix format -----------------------------------------------------
         let mix_ptr = client
