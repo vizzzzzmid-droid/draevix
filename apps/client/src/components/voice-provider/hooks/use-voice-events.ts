@@ -182,7 +182,14 @@ const useVoiceEvents = ({
       onData: ({ channelId, watch }) => {
         if (currentVoiceChannelId !== channelId || isCleaningUp) return;
 
-        logVoice('events: watch updated', { channelId, watch });
+        logVoice('events: watch updated', {
+          channelId,
+          positionSec: watch?.positionSec,
+          playing: watch?.playing,
+          controllerUserId: watch?.controllerUserId,
+          updatedAt: watch?.updatedAt,
+          fileId: watch?.file.id
+        });
         setWatchStateForChannel(channelId, watch);
       },
       onError: (error) => {

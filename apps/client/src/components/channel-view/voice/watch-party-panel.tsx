@@ -85,6 +85,9 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
   const handlePlay = useCallback(async () => {
     const position = playerRef.current?.currentTime ?? displayPosition;
+
+    logVoice('watch: send play', { positionSec: position });
+
     const trpc = getTRPCClient();
 
     try {
@@ -96,6 +99,9 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
   const handlePause = useCallback(async () => {
     const position = playerRef.current?.currentTime ?? displayPosition;
+
+    logVoice('watch: send pause', { positionSec: position });
+
     const trpc = getTRPCClient();
 
     try {
@@ -107,6 +113,8 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
   const handleSeekCommit = useCallback(async () => {
     seekingRef.current = false;
+
+    logVoice('watch: send seek', { positionSec: displayPosition });
 
     // move the local player at once instead of waiting for our own echo,
     // otherwise the thumb fights the video until the roundtrip lands
