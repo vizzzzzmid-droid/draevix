@@ -250,7 +250,7 @@ mod windows_impl {
             Err(_) => {
                 stop.store(true, Ordering::SeqCst);
                 let _ = handle.join();
-                Err("timed out starting system audio capture".to_string())
+                Err("[loopback/start] timed out starting system audio capture".to_string())
             }
         }
     }
@@ -308,6 +308,19 @@ mod windows_impl {
         release: unsafe extern "system" fn(*mut c_void) -> u32,
     }
 
+    /// IAgileObject marker IID {94EA2B94-E9CC-49E0-C0FF-EE64CA8F5B90}
+    /// (objidl.h, IID_IAgileObject). Answering it is honest here: the
+    /// callback only touches an atomic refcount and a mutex-guarded sender,
+    /// so it is genuinely free-threaded. OBS builds its activation handler
+    /// on WRL FtmBase for the same reason; without an agility claim the
+    /// activation infrastructure may reject the handler synchronously.
+    const IAGILEOBJECT_IID: GUID = GUID::from_values(
+        0x94ea2b94,
+        0xe9cc,
+        0x49e0,
+        [0xc0, 0xff, 0xee, 0x64, 0xca, 0x8f, 0x5b, 0x90],
+    );
+
     unsafe extern "system" fn callback_query_interface(
         this: *mut c_void,
         riid: *const GUID,
@@ -315,6 +328,7 @@ mod windows_impl {
     ) -> HRESULT {
         if *riid == IUnknown::IID
             || *riid == IActivateAudioInterfaceCompletionHandler::IID
+            || *riid == IAGILEOBJECT_IID
         {
             callback_add_ref(this);
             *ppv = this;
@@ -465,17 +479,17 @@ mod windows_impl {
         unsafe {
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
-                    .map_err(|e| format!("probe enumerator: {e:?}"))?;
+                    .map_err(|e| format!("[probe/enumerator] {e:?}"))?;
             let device = enumerator
                 .GetDefaultAudioEndpoint(eRender, eConsole)
-                .map_err(|e| format!("probe endpoint: {e:?}"))?;
+                .map_err(|e| format!("[probe/endpoint] {e:?}"))?;
             let client: IAudioClient = device
                 .Activate(CLSCTX_ALL, None)
-                .map_err(|e| format!("probe activate: {e:?}"))?;
+                .map_err(|e| format!("[probe/activate] {e:?}"))?;
 
             let mix_ptr = client
                 .GetMixFormat()
-                .map_err(|e| format!("probe mix format: {e:?}"))?;
+                .map_err(|e| format!("[probe/mix-format] {e:?}"))?;
             let format_buf = copy_mix_format(mix_ptr);
             CoTaskMemFree(Some(mix_ptr as *const c_void));
 
@@ -488,22 +502,22 @@ mod windows_impl {
                     format_buf.as_ptr() as *const WAVEFORMATEX,
                     None,
                 )
-                .map_err(|e| format!("probe initialize: {e:?}"))?;
+                .map_err(|e| format!("[probe/initialize] {e:?}"))?;
 
             let capture: IAudioCaptureClient = client
                 .GetService()
-                .map_err(|e| format!("probe capture client: {e:?}"))?;
+                .map_err(|e| format!("[probe/capture-client] {e:?}"))?;
 
             client
                 .Start()
-                .map_err(|e| format!("probe start: {e:?}"))?;
+                .map_err(|e| format!("[probe/start] {e:?}"))?;
 
             let mut frames = 0u32;
 
             for _ in 0..10 {
                 let packet = capture
                     .GetNextPacketSize()
-                    .map_err(|e| format!("probe packet size: {e:?}"))?;
+                    .map_err(|e| format!("[probe/packet-size] {e:?}"))?;
 
                 if packet > 0 {
                     let mut data: *mut u8 = std::ptr::null_mut();
@@ -512,10 +526,10 @@ mod windows_impl {
 
                     capture
                         .GetBuffer(&mut data, &mut got, &mut flags, None, None)
-                        .map_err(|e| format!("probe buffer: {e:?}"))?;
+                        .map_err(|e| format!("[probe/buffer] {e:?}"))?;
                     capture
                         .ReleaseBuffer(got)
-                        .map_err(|e| format!("probe release: {e:?}"))?;
+                        .map_err(|e| format!("[probe/release] {e:?}"))?;
 
                     frames = got;
                     break;
@@ -534,18 +548,40 @@ mod windows_impl {
         unsafe {
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
-                    .map_err(|e| format!("cannot create device enumerator: {e}"))?;
+                    .map_err(|e| format!("[loopback/default-endpoint] enumerator: {e:?}"))?;
             let device = enumerator
                 .GetDefaultAudioEndpoint(eRender, eConsole)
-                .map_err(|e| format!("cannot get default render endpoint: {e}"))?;
+                .map_err(|e| format!("[loopback/default-endpoint] endpoint: {e:?}"))?;
             let id = device
                 .GetId()
-                .map_err(|e| format!("cannot read endpoint id: {e}"))?;
+                .map_err(|e| format!("[loopback/default-endpoint] id: {e:?}"))?;
             Ok(id
                 .to_string()
-                .map_err(|e| format!("cannot decode endpoint id: {e}"))?)
+                .map_err(|e| format!("[loopback/default-endpoint] decode: {e}"))?)
         }
     }
+
+    /// VT_BLOB PROPVARIANT as declared in propidl.h: u16 type @0, three u16
+    /// reserved words @2/@4/@6, then the BLOB union member (u32 size @8,
+    /// padding @12, data pointer @16). 24 bytes total.
+    #[repr(C)]
+    struct BlobPropVariant {
+        vt: u16,
+        reserved1: u16,
+        reserved2: u16,
+        reserved3: u16,
+        cb_size: u32,
+        _pad: u32,
+        blob_data: *mut u8,
+    }
+
+    const VT_BLOB_TAG: u16 = 0x0041;
+
+    const _: () = assert!(std::mem::size_of::<BlobPropVariant>() == 24);
+    const _: () =
+        assert!(std::mem::offset_of!(BlobPropVariant, cb_size) == 8);
+    const _: () =
+        assert!(std::mem::offset_of!(BlobPropVariant, blob_data) == 16);
 
     fn activate_loopback_client() -> Result<IAudioClient, String> {
         // AUDIOCLIENT_ACTIVATION_PARAMS is repr(C): a 4-byte activation type
@@ -560,6 +596,9 @@ mod windows_impl {
 
             // Written by offset instead of naming the union member type, so
             // this keeps compiling even if the bindings rename it.
+            // EXCLUDE (not INCLUDE like OBS uses) is intentional: OBS wants
+            // the target app's sound, we want everything EXCEPT our own
+            // process tree so call voices can never be re-broadcast.
             let base = std::ptr::from_mut(&mut params).cast::<u8>();
             std::ptr::write_unaligned(base.add(4).cast::<u32>(), std::process::id());
             std::ptr::write_unaligned(
@@ -567,19 +606,20 @@ mod windows_impl {
                 PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE.0,
             );
 
-            // The activation API takes its parameters packed in a VT_BLOB
-            // PROPVARIANT (24 bytes): u16 type @0, 6 reserved bytes @2,
-            // u32 blob size @8, pointer @16.
-            const VT_BLOB_TAG: u16 = 0x0041;
-            let mut variant = [0u8; 24];
-            variant[0..2].copy_from_slice(&VT_BLOB_TAG.to_le_bytes());
-            variant[8..12].copy_from_slice(
-                &(std::mem::size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>() as u32)
-                    .to_le_bytes(),
-            );
-            variant[16..24].copy_from_slice(
-                &(std::ptr::from_ref(&params) as usize).to_le_bytes(),
-            );
+            // Typed VT_BLOB carrier instead of a raw byte array: same shape
+            // as the C PROPVARIANT from propidl.h that OBS fills field by
+            // field (vt/blob.cbSize/blob.pBlobData). Layout is verified at
+            // compile time below.
+            let variant = BlobPropVariant {
+                vt: VT_BLOB_TAG,
+                reserved1: 0,
+                reserved2: 0,
+                reserved3: 0,
+                cb_size: std::mem::size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>()
+                    as u32,
+                _pad: 0,
+                blob_data: std::ptr::from_ref(&params).cast_mut().cast::<u8>(),
+            };
 
             let (tx, rx) = mpsc::channel::<windows::core::Result<IAudioClient>>();
 
@@ -594,10 +634,17 @@ mod windows_impl {
             let handler_ptr = Box::into_raw(callback) as *mut c_void;
 
             let mut operation: *mut c_void = std::ptr::null_mut();
+
+            // Lifetime: `params` and `variant` are stack locals, but this
+            // function blocks on `rx` below until completion or timeout, so
+            // both outlive the async activation either way. The callback Box
+            // (refcount 1) is owned by the async infrastructure after a
+            // successful call and freed by its own Release at refcount 0;
+            // on a synchronous failure we free it right here.
             let hr = ActivateAudioInterfaceAsync(
                 VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
                 &IAudioClient::IID,
-                variant.as_ptr().cast(),
+                std::ptr::from_ref(&variant).cast(),
                 handler_ptr,
                 &mut operation,
             );
@@ -611,16 +658,22 @@ mod windows_impl {
                     .unwrap_or_else(|_| "<undecodable>".to_string());
 
                 return Err(format!(
-                    "cannot begin loopback activation: {hr:?} (path {path:?})"
+                    "[loopback/activate] cannot begin loopback activation: {hr:?} (path {path:?})"
                 ));
             }
 
             let outcome = match rx.recv_timeout(Duration::from_secs(10)) {
                 Ok(Ok(client)) => Ok(client),
-                Ok(Err(e)) => Err(format!("loopback activation failed: {e}")),
-                Err(_) => Err("timed out waiting for loopback activation".to_string()),
+                Ok(Err(e)) => Err(format!(
+                    "[loopback/activate-callback] loopback activation failed: {e:?}"
+                )),
+                Err(_) => Err(
+                    "[loopback/activate-callback] timed out waiting for loopback activation"
+                        .to_string(),
+                ),
             };
 
+            // Balance the async-operation reference obtained above.
             if !operation.is_null() {
                 let op_vtable = *(operation as *mut *const UnknownVtbl);
                 ((*op_vtable).release)(operation);
@@ -640,16 +693,17 @@ mod windows_impl {
         let com_hr = CoInitializeEx(None, COINIT_MULTITHREADED);
 
         if com_hr.is_err() {
-            return Err(format!("COM init failed: {com_hr:?}"));
+            return Err(format!("[loopback/com] COM init failed: {com_hr:?}"));
         }
 
         let initial_device = default_endpoint_id()?;
         let client = activate_loopback_client().map_err(|error| match probe_device_loopback() {
-            // The device path works but the OS rejected process capture:
-            // per-process loopback needs Windows 11 (or Server 2022+),
-            // Windows 10 simply does not have this API.
+            // The device path works but the OS rejected process capture.
+            // No full-mix fallback is used here on purpose: it would
+            // re-broadcast call voices. The HRESULT above says exactly
+            // which stage refused.
             Ok(_) => format!(
-                "{error}; process capture unsupported by this Windows build, system sound sharing needs Windows 11 or newer"
+                "{error}; device loopback probe ok, process capture was rejected"
             ),
             Err(probe) => format!("{error}; device loopback probe failed: {probe}"),
         })?;
@@ -657,9 +711,10 @@ mod windows_impl {
         // --- mix format -----------------------------------------------------
         // Keep the full buffer (base + extensible tail) alive through
         // Initialize: passing a truncated WAVEFORMATEX fails with E_INVALIDARG.
+        // `format_buf` lives until end of scope, covering the call below.
         let mix_ptr = client
             .GetMixFormat()
-            .map_err(|e| format!("cannot get mix format: {e}"))?;
+            .map_err(|e| format!("[loopback/mix-format] {e:?}"))?;
         let format_buf = copy_mix_format(mix_ptr);
         CoTaskMemFree(Some(mix_ptr as *const c_void));
 
@@ -667,7 +722,10 @@ mod windows_impl {
             parse_mix_format(&format_buf);
 
         if channels == 0 || mix_rate == 0 {
-            return Err("unsupported mix format from loopback client".to_string());
+            return Err(
+                "[loopback/mix-format] unsupported mix format from loopback client"
+                    .to_string(),
+            );
         }
 
         let is_float = if format_tag == WAVE_FORMAT_IEEE_FLOAT {
@@ -678,18 +736,19 @@ mod windows_impl {
             if is_float_extensible {
                 true
             } else {
-                return Err("unsupported extensible subformat".to_string());
+                return Err(
+                    "[loopback/mix-format] unsupported extensible subformat".to_string(),
+                );
             }
         } else {
             return Err(format!(
-                "unsupported mix format tag {}",
-                format_tag
+                "[loopback/mix-format] unsupported mix format tag {format_tag}"
             ));
         };
 
         // --- event-driven capture -------------------------------------------
         let event = CreateEventW(None, false, false, None)
-            .map_err(|e| format!("cannot create capture event: {e}"))?;
+            .map_err(|e| format!("[loopback/event] cannot create capture event: {e:?}"))?;
 
         struct EventGuard(HANDLE);
         impl Drop for EventGuard {
@@ -710,19 +769,19 @@ mod windows_impl {
                 format_buf.as_ptr() as *const WAVEFORMATEX,
                 None,
             )
-            .map_err(|e| format!("cannot initialize audio client: {e}"))?;
+            .map_err(|e| format!("[loopback/init-client] {e:?}"))?;
 
         client
             .SetEventHandle(event)
-            .map_err(|e| format!("cannot set capture event: {e}"))?;
+            .map_err(|e| format!("[loopback/event] cannot set capture event: {e:?}"))?;
 
         let capture: IAudioCaptureClient = client
             .GetService()
-            .map_err(|e| format!("cannot get capture client: {e}"))?;
+            .map_err(|e| format!("[loopback/capture-client] {e:?}"))?;
 
         client
             .Start()
-            .map_err(|e| format!("cannot start capture: {e}"))?;
+            .map_err(|e| format!("[loopback/start] {e:?}"))?;
 
         // Signal readiness: from here on the pump owns the session and the
         // caller polls for data. A later failure surfaces through poll().
@@ -766,7 +825,7 @@ mod windows_impl {
             loop {
                 let packet_frames = capture
                     .GetNextPacketSize()
-                    .map_err(|e| format!("cannot query packet size: {e}"))?;
+                    .map_err(|e| format!("[loopback/pump] packet size: {e:?}"))?;
 
                 if packet_frames == 0 {
                     break;
@@ -778,7 +837,7 @@ mod windows_impl {
 
                 capture
                     .GetBuffer(&mut data, &mut frames, &mut flags, None, None)
-                    .map_err(|e| format!("cannot get capture buffer: {e}"))?;
+                    .map_err(|e| format!("[loopback/pump] get buffer: {e:?}"))?;
 
                 if (flags as i32 & AUDCLNT_BUFFERFLAGS_SILENT.0) == 0 {
                     let raw: &[f32] = if is_float {
@@ -808,7 +867,7 @@ mod windows_impl {
 
                 capture
                     .ReleaseBuffer(frames)
-                    .map_err(|e| format!("cannot release buffer: {e}"))?;
+                    .map_err(|e| format!("[loopback/pump] release buffer: {e:?}"))?;
             }
         }
     }
