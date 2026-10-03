@@ -92,7 +92,7 @@ pub fn system_audio_start(
 
     #[cfg(not(windows))]
     {
-        let _ = guard;
+        drop(guard);
         Err("system audio capture is only available on Windows".to_string())
     }
 }
@@ -306,17 +306,24 @@ mod windows_impl {
     }
 
     fn activate_loopback_client() -> Result<IAudioClient, String> {
+        // AUDIOCLIENT_ACTIVATION_PARAMS is repr(C): a 4-byte activation type
+        // followed by the process-loopback union { u32 pid, i32 mode }.
+        const _: () = assert!(
+            std::mem::size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>() == 12
+        );
+
         unsafe {
-            let params = AUDIOCLIENT_ACTIVATION_PARAMS {
-                ActivationType: AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK,
-                Anonymous: AUDIOCLIENT_ACTIVATION_PARAMS_0 {
-                    ProcessLoopbackParams: PROCESS_LOOPBACK_PARAMS {
-                        TargetProcessId: std::process::id(),
-                        ProcessExcludeMode:
-                            PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE,
-                    },
-                },
-            };
+            let mut params: AUDIOCLIENT_ACTIVATION_PARAMS = std::mem::zeroed();
+            params.ActivationType = AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK;
+
+            // Written by offset instead of naming the union member type, so
+            // this keeps compiling even if the bindings rename it.
+            let base = std::ptr::from_mut(&mut params).cast::<u8>();
+            std::ptr::write_unaligned(base.add(4).cast::<u32>(), std::process::id());
+            std::ptr::write_unaligned(
+                base.add(8).cast::<i32>(),
+                PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE.0,
+            );
 
             // The activation API takes its parameters packed in a VT_BLOB propvariant.
             let mut variant: PROPVARIANT = std::mem::zeroed();
