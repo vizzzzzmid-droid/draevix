@@ -506,10 +506,18 @@ mod windows_impl {
                     .map_err(|e| format!("probe packet size: {e:?}"))?;
 
                 if packet > 0 {
-                    frames = packet;
+                    let mut data: *mut u8 = std::ptr::null_mut();
+                    let mut got: u32 = 0;
+                    let mut flags: u32 = 0;
+
                     capture
-                        .ReleaseBuffer(packet)
+                        .GetBuffer(&mut data, &mut got, &mut flags, None, None)
+                        .map_err(|e| format!("probe buffer: {e:?}"))?;
+                    capture
+                        .ReleaseBuffer(got)
                         .map_err(|e| format!("probe release: {e:?}"))?;
+
+                    frames = got;
                     break;
                 }
 
