@@ -1,4 +1,4 @@
-import { ServerEvents, type StreamKind } from '@draevix/shared';
+import { ServerEvents, type StreamKind, type TWatchState } from '@draevix/shared';
 import { observable } from '@trpc/server/observable';
 import { protectedProcedure } from '../../utils/trpc';
 
@@ -82,7 +82,10 @@ const onVoiceProducerClosedRoute = protectedProcedure.subscription(
 
 const onWatchUpdateRoute = protectedProcedure.subscription(async ({ ctx }) => {
   if (!ctx.currentVoiceChannelId) {
-    return observable<TVoiceProducerEvent>(() => () => {});
+    return observable<{
+      channelId: number;
+      watch: TWatchState | undefined;
+    }>(() => () => {});
   }
 
   return ctx.pubsub.subscribeForChannel(

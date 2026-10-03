@@ -12,6 +12,7 @@ import { usePinCardController } from './hooks/use-pin-card-controller';
 import { ScreenShareCard } from './screen-share-card';
 import { VoiceGrid } from './voice-grid';
 import { VoiceUserCard } from './voice-user-card';
+import { WatchPartyPanel } from './watch-party-panel';
 
 type TChannelProps = {
   channelId: number;
@@ -132,6 +133,7 @@ const VoiceChannel = memo(({ channelId }: TChannelProps) => {
   return (
     <div className="flex flex-col size-full relative bg-background overflow-hidden group/voice-stage">
       <VoiceGrid pinnedCardId={pinnedCard?.id}>{cards}</VoiceGrid>
+      <WatchPartyPanel channelId={channelId} />
       <ControlsBar channelId={channelId} />
     </div>
   );

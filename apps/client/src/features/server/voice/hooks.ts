@@ -14,7 +14,8 @@ import {
   showUserBannersInVoiceSelector,
   voiceChannelAudioExternalStreamsSelector,
   voiceChannelExternalStreamsListSelector,
-  voiceMoveTargetChannelIdSelector
+  voiceMoveTargetChannelIdSelector,
+  watchStateByChannelIdSelector
 } from './selectors';
 
 export const useVoiceChannelExternalStreamsList = (channelId: number) =>
@@ -40,6 +41,11 @@ export const useVoice = () => {
 };
 
 export const useOwnVoiceState = () => useSelector(ownVoiceStateSelector);
+
+export const useWatchState = (channelId: number) =>
+  useSelector((state: IRootState) =>
+    watchStateByChannelIdSelector(state, channelId)
+  );
 
 export const usePinnedCard = () => useSelector(pinnedCardSelector);
 

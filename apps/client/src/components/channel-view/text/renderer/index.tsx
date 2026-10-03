@@ -2,12 +2,13 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { PluginSlotRenderer } from '@/components/plugin-slot-renderer';
 import { RelativeTime } from '@/components/relative-time';
 import { requestConfirmation } from '@/features/dialogs/actions';
+import { useCurrentVoiceChannelId } from '@/features/server/channels/hooks';
 import { useOwnUserId, useUserById } from '@/features/server/users/hooks';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { getTRPCClient } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import { PluginSlot, type TJoinedMessage } from '@draevix/shared';
+import { getTrpcError, PluginSlot, type TJoinedMessage } from '@draevix/shared';
 import { Tooltip } from '@draevix/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -79,6 +80,22 @@ const MessageRenderer = memo(
       [message, allMedia]
     );
 
+    const currentVoiceChannelId = useCurrentVoiceChannelId();
+
+    const onWatchFileClick = useCallback(
+      async (fileId: number) => {
+        const trpc = getTRPCClient();
+
+        try {
+          await trpc.voice.selectWatchFile.mutate({ fileId });
+          toast.success(t('watchPartyStarted'));
+        } catch (error) {
+          toast.error(getTrpcError(error, t('failedWatchTogether')));
+        }
+      },
+      [t]
+    );
+
     return (
       <div className="flex flex-col gap-1">
         <div
@@ -144,6 +161,11 @@ const MessageRenderer = memo(
                 size={file.size}
                 onRemove={
                   isOwnMessage ? () => onRemoveFileClick(file.id) : undefined
+                }
+                onWatch={
+                  currentVoiceChannelId && file.mimeType.startsWith('video/')
+                    ? () => onWatchFileClick(file.id)
+                    : undefined
                 }
                 href={getFileUrl(file)}
               />

@@ -98,7 +98,7 @@ describe('watch selectWatchFile', () => {
       const { watch } = await caller.voice.getWatchState();
 
       expect(watch).toMatchObject({
-        fileId: MOVIE_FILE_ID,
+        file: { id: MOVIE_FILE_ID, originalName: 'movie.mp4' },
         playing: true,
         positionSec: 0,
         controllerUserId: 1
@@ -106,7 +106,7 @@ describe('watch selectWatchFile', () => {
       expect(typeof watch?.updatedAt).toBe('number');
       expect(published).toHaveLength(1);
       expect(published[0]).toMatchObject({
-        fileId: MOVIE_FILE_ID,
+        file: { id: MOVIE_FILE_ID },
         playing: true,
         controllerUserId: 1
       });

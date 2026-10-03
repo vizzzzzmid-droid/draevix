@@ -15,8 +15,17 @@ export type TVoiceUser = {
   state: TVoiceUserState;
 };
 
+export type TWatchFile = {
+  id: number;
+  name: string;
+  originalName: string;
+  mimeType: string;
+  _accessToken?: string;
+  _accessTokenExpiresAt?: number;
+};
+
 export type TWatchState = {
-  fileId: number;
+  file: TWatchFile;
   playing: boolean;
   positionSec: number;
   updatedAt: number;
@@ -63,4 +72,8 @@ export type TVoiceProducerInfo = {
   kind: StreamKind;
   producerId: string;
   paused: boolean;
+};
+
+export type TWatchMap = {
+  [channelId: number]: TWatchState;
 };

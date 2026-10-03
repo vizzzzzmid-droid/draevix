@@ -60,7 +60,12 @@ const getUrlFromServer = () => {
   return `${secure ? 'https' : 'http'}://${host}`;
 };
 
-const getFileUrl = (file: TFile | undefined | null) => {
+const getFileUrl = (
+  file:
+    | Pick<TFile, 'name' | '_accessToken' | '_accessTokenExpiresAt'>
+    | undefined
+    | null
+) => {
   if (!file) return '';
 
   const url = getUrlFromServer();

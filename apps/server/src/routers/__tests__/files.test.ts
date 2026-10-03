@@ -1,7 +1,11 @@
-import type { TTempFile } from '@draevix/shared';
+import { Permission, type TTempFile } from '@draevix/shared';
 import { beforeEach, describe, expect, test } from 'bun:test';
+import { and, eq } from 'drizzle-orm';
 import fs from 'fs/promises';
 import { initTest, login, uploadFile } from '../../__tests__/helpers';
+import { tdb } from '../../__tests__/setup';
+import { rolePermissions, roles } from '../../db/schema';
+import { files } from '../../db/schema';
 import { fileManager } from '../../helpers/file-manager';
 
 describe('files router', () => {
@@ -131,5 +135,72 @@ describe('files router', () => {
     );
 
     expect(await fs.exists(tempFile.path)).toBe(true);
+  });
+
+  describe('keepUpload', () => {
+    test('should persist an uploaded file without a message', async () => {
+      const { caller } = await initTest();
+
+      const { fileId } = await caller.files.keepUpload({
+        tempFileId: tempFile.id
+      });
+
+      const row = await tdb
+        .select()
+        .from(files)
+        .where(eq(files.id, fileId))
+        .get();
+
+      expect(row?.originalName).toBe(tempFile.originalName);
+      expect(row?.size).toBe(tempFile.size);
+    });
+
+    test('should throw when keeping other users temporary file', async () => {
+      const { caller } = await initTest(2);
+
+      await expect(
+        caller.files.keepUpload({ tempFileId: tempFile.id })
+      ).rejects.toThrow("You don't have permission to access this file");
+    });
+
+    test('should throw when keeping a non-existent temporary file', async () => {
+      const { caller } = await initTest();
+
+      await expect(
+        caller.files.keepUpload({ tempFileId: 'non-existent-id' })
+      ).rejects.toThrow('File not found');
+    });
+
+    test('should throw when the user cannot upload files', async () => {
+      const defaultRole = await tdb
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.isDefault, true))
+        .get();
+
+      await tdb
+        .delete(rolePermissions)
+        .where(
+          and(
+            eq(rolePermissions.roleId, defaultRole!.id),
+            eq(rolePermissions.permission, Permission.UPLOAD_FILES)
+          )
+        )
+        .execute();
+
+      const { caller } = await initTest(2);
+
+      await expect(
+        caller.files.keepUpload({ tempFileId: tempFile.id })
+      ).rejects.toThrow('Insufficient permissions');
+    });
+
+    test('should reject an empty temporary file id', async () => {
+      const { caller } = await initTest();
+
+      await expect(
+        caller.files.keepUpload({ tempFileId: '' })
+      ).rejects.toThrow('tempFileId');
+    });
   });
 });

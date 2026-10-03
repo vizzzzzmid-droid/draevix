@@ -1,6 +1,5 @@
 import type { TPinnedCard } from '@/components/channel-view/voice/hooks/use-pin-card-controller';
 import { getLocalStorageItemBool, LocalStorageKey } from '@/helpers/storage';
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type {
   TCategory,
   TChannel,
@@ -21,9 +20,12 @@ import type {
   TReadStateMap,
   TServerInfo,
   TVoiceMap,
-  TVoiceUserState
+  TVoiceUserState,
+  TWatchMap,
+  TWatchState
 } from '@draevix/shared';
 import { DEFAULT_MESSAGES_LIMIT } from '@draevix/shared';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { mergeMessagesChronologically } from './helpers';
 import type {
   TDisconnectInfo,
@@ -63,6 +65,7 @@ export interface IServerState {
   };
   voiceMap: TVoiceMap;
   externalStreamsMap: TExternalStreamsMap;
+  watchMap: TWatchMap;
   ownVoiceState: TVoiceUserState;
   pinnedCard: TPinnedCard | undefined;
   channelPermissions: TChannelUserPermissionsMap;
@@ -108,6 +111,7 @@ const initialState: IServerState = {
   threadTypingMap: {},
   voiceMap: {},
   externalStreamsMap: {},
+  watchMap: {},
   ownVoiceState: {
     micMuted: false,
     soundMuted: false,
@@ -854,6 +858,23 @@ export const serverSlice = createSlice({
       if (!state.externalStreamsMap[channelId]) return;
 
       delete state.externalStreamsMap[channelId][streamId];
+    },
+    setWatchState: (
+      state,
+      action: PayloadAction<{
+        channelId: number;
+        watch: TWatchState | undefined;
+      }>
+    ) => {
+      const { channelId, watch } = action.payload;
+
+      if (!watch) {
+        delete state.watchMap[channelId];
+
+        return;
+      }
+
+      state.watchMap[channelId] = watch;
     },
 
     // PLUGINS ------------------------------------------------------------

@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { publishWatchState } from '../../db/publishers';
 import { getFileById } from '../../db/queries/files';
 import { getMessageByFileId } from '../../db/queries/messages';
+import { getSettings } from '../../db/queries/server';
 import { assertChannelAccess } from '../../helpers/assert-channel-access';
+import { signFile } from '../../helpers/files-crypto';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
@@ -40,8 +42,25 @@ const selectWatchFileRoute = protectedProcedure
 
     invariant(visible, { code: 'NOT_FOUND', message: 'File not found' });
 
+    const { storageSignedUrlsEnabled, storageSignedUrlsTtlSeconds } =
+      await getSettings();
+    const signed = signFile(
+      file,
+      storageSignedUrlsEnabled,
+      storageSignedUrlsTtlSeconds
+    );
+
+    invariant(signed, { code: 'NOT_FOUND', message: 'File not found' });
+
     const watch = {
-      fileId: file.id,
+      file: {
+        id: signed.id,
+        name: signed.name,
+        originalName: signed.originalName,
+        mimeType: signed.mimeType,
+        _accessToken: signed._accessToken,
+        _accessTokenExpiresAt: signed._accessTokenExpiresAt
+      },
       playing: true,
       positionSec: 0,
       updatedAt: Date.now(),

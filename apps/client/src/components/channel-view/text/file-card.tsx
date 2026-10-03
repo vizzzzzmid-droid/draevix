@@ -8,9 +8,11 @@ import {
   FileMusic,
   FileText,
   FileVideo,
+  Play,
   Trash
 } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type TFileIconProps = {
   extension: string;
@@ -39,6 +41,7 @@ type TFileCardProps = {
   extension: string;
   href?: string;
   onRemove?: () => void;
+  onWatch?: () => void;
 };
 
 const FileCard = ({
@@ -46,8 +49,10 @@ const FileCard = ({
   size,
   extension,
   href,
-  onRemove
+  onRemove,
+  onWatch
 }: TFileCardProps) => {
+  const { t } = useTranslation();
   const onRemoveClick = useCallback(
     (e: React.MouseEvent) => {
       if (onRemove) {
@@ -56,6 +61,16 @@ const FileCard = ({
       }
     },
     [onRemove]
+  );
+
+  const onWatchClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (onWatch) {
+        e.preventDefault();
+        onWatch();
+      }
+    },
+    [onWatch]
   );
 
   return (
@@ -77,6 +92,17 @@ const FileCard = ({
         </span>
         <span className="text-xs text-muted-foreground">{filesize(size)}</span>
       </div>
+      {onWatch && (
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 shrink-0 transition-opacity duration-200"
+          onClick={onWatchClick}
+          title={t('watchTogether')}
+        >
+          <Play className="h-4 w-4" />
+        </Button>
+      )}
       {onRemove && (
         <Button
           size="icon"

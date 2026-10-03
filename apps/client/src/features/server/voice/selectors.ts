@@ -18,6 +18,11 @@ export const voiceChannelStateSelector = (
   channelId: number
 ) => state.server.voiceMap[channelId];
 
+export const watchStateByChannelIdSelector = (
+  state: IRootState,
+  channelId: number
+) => state.server.watchMap[channelId];
+
 export const voiceChannelExternalStreamsSelector = (
   state: IRootState,
   channelId: number

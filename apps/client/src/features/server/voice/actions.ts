@@ -12,7 +12,8 @@ import { getTRPCClient } from '@/lib/trpc';
 import {
   getTrpcError,
   type TExternalStream,
-  type TVoiceUserState
+  type TVoiceUserState,
+  type TWatchState
 } from '@draevix/shared';
 import type { RtpCapabilities } from 'mediasoup-client/types';
 import { toast } from 'sonner';
@@ -47,8 +48,15 @@ export const addUserToVoiceChannel = (
   );
 
   if (userId !== ownUserId && channelId === currentChannelId) {
-    playSound(SoundType.REMOTE_USER_JOINED_VOICE_CHANNEL);
+    playSound(SoundType.REMOTE_USER_LEFT_VOICE_CHANNEL);
   }
+};
+
+export const setWatchStateForChannel = (
+  channelId: number,
+  watch: TWatchState | undefined
+): void => {
+  store.dispatch(serverSliceActions.setWatchState({ channelId, watch }));
 };
 
 const clearLocalVoiceSession = (): void => {
@@ -69,6 +77,10 @@ const clearLocalVoiceSession = (): void => {
   setCurrentVoiceChannelId(undefined);
   updateOwnVoiceState({ webcamEnabled: false, sharingScreen: false });
   setPinnedCard(undefined);
+
+  if (currentVoiceChannelId) {
+    setWatchStateForChannel(currentVoiceChannelId, undefined);
+  }
 };
 
 export const removeUserFromVoiceChannel = (
@@ -203,6 +215,15 @@ export const joinVoice = async (
     });
 
     logVoice('session: joined', { channelId });
+
+    try {
+      const { watch } = await client.voice.getWatchState.query();
+
+      setWatchStateForChannel(channelId, watch);
+    } catch (error) {
+      // the join itself succeeded, a running party syncs over events anyway
+      logVoiceError('session: watch state sync failed', error, { channelId });
+    }
 
     return routerRtpCapabilities;
   } catch (error) {
