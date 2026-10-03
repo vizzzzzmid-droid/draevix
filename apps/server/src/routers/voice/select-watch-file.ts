@@ -26,12 +26,12 @@ const selectWatchFileRoute = protectedProcedure
       message: 'Only video files can be watched together'
     });
 
-    // the file has to come from chat the caller can actually see, never trust
-    // a bare id. nothing usable leaks either way, the answer stays not found
+    // the file has to come from chat the caller can actually see, or be their own
+    // upload. never trust a bare id, nothing usable leaks either way
     const message = await getMessageByFileId(file.id);
-    let visible = false;
+    let visible = file.userId !== null && file.userId === ctx.user.id;
 
-    if (message?.channelId) {
+    if (!visible && message?.channelId) {
       try {
         await assertChannelAccess(ctx, message.channelId);
         visible = true;

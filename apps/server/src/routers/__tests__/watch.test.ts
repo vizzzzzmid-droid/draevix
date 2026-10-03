@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { initTest } from '../../__tests__/helpers';
 import { tdb } from '../../__tests__/setup';
-import { rolePermissions, roles } from '../../db/schema';
+import { files, rolePermissions, roles } from '../../db/schema';
 import { VoiceRuntime } from '../../runtimes/voice';
 import { pubsub } from '../../utils/pubsub';
 
@@ -146,6 +146,65 @@ describe('watch selectWatchFile', () => {
     try {
       await expect(
         caller.voice.selectWatchFile({ fileId: DM_MOVIE_FILE_ID })
+      ).rejects.toThrow('File not found');
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should accept the caller own upload without a message link', async () => {
+    const now = Date.now();
+    const [ownUpload] = await tdb
+      .insert(files)
+      .values({
+        name: `own-upload-${now}.mp4`,
+        originalName: 'own-upload.mp4',
+        md5: 'own-upload',
+        userId: 1,
+        size: 1024,
+        mimeType: 'video/mp4',
+        extension: '.mp4',
+        createdAt: now
+      })
+      .returning();
+
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.selectWatchFile({ fileId: ownUpload!.id });
+
+      const { watch } = await caller.voice.getWatchState();
+
+      expect(watch).toMatchObject({
+        file: { id: ownUpload!.id },
+        controllerUserId: 1
+      });
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should refuse another user upload without a message link', async () => {
+    const now = Date.now();
+    const [foreignUpload] = await tdb
+      .insert(files)
+      .values({
+        name: `foreign-upload-${now}.mp4`,
+        originalName: 'foreign-upload.mp4',
+        md5: 'foreign-upload',
+        userId: 2,
+        size: 1024,
+        mimeType: 'video/mp4',
+        extension: '.mp4',
+        createdAt: now
+      })
+      .returning();
+
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await expect(
+        caller.voice.selectWatchFile({ fileId: foreignUpload!.id })
       ).rejects.toThrow('File not found');
     } finally {
       await runtime.destroy();

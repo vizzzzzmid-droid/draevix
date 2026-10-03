@@ -1,4 +1,8 @@
-import { ServerEvents, type StreamKind, type TWatchState } from '@draevix/shared';
+import {
+  ServerEvents,
+  type StreamKind,
+  type TWatchState
+} from '@draevix/shared';
 import { observable } from '@trpc/server/observable';
 import { protectedProcedure } from '../../utils/trpc';
 

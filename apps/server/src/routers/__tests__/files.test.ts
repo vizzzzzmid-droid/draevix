@@ -4,8 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import fs from 'fs/promises';
 import { initTest, login, uploadFile } from '../../__tests__/helpers';
 import { tdb } from '../../__tests__/setup';
-import { rolePermissions, roles } from '../../db/schema';
-import { files } from '../../db/schema';
+import { files, rolePermissions, roles } from '../../db/schema';
 import { fileManager } from '../../helpers/file-manager';
 
 describe('files router', () => {
@@ -198,9 +197,9 @@ describe('files router', () => {
     test('should reject an empty temporary file id', async () => {
       const { caller } = await initTest();
 
-      await expect(
-        caller.files.keepUpload({ tempFileId: '' })
-      ).rejects.toThrow('tempFileId');
+      await expect(caller.files.keepUpload({ tempFileId: '' })).rejects.toThrow(
+        'tempFileId'
+      );
     });
   });
 });
