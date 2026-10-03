@@ -192,16 +192,18 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
       )}
       {watch && (
         <>
-          <ReactPlayer
-            ref={playerRef}
-            src={getFileUrl(watch.file)}
-            playing={watch.playing}
-            width="100%"
-            height="auto"
-            style={{ aspectRatio: '16 / 9', colorScheme: 'dark' }}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-          />
+          <div className="aspect-video max-h-[45vh] w-full overflow-hidden rounded-md bg-black">
+            <ReactPlayer
+              ref={playerRef}
+              src={getFileUrl(watch.file)}
+              playing={watch.playing}
+              width="100%"
+              height="100%"
+              style={{ colorScheme: 'dark' }}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+            />
+          </div>
           <div className="flex items-center gap-2">
             {watch.playing ? (
               <Button
