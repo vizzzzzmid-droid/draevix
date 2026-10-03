@@ -40,6 +40,22 @@ const files = sqliteTable(
   ]
 );
 
+// server-wide video library for watch parties: entries reference files that
+// stay out of chat, the file itself is protected from cleanup by keep=true
+const watchLibrary = sqliteTable(
+  'watch_library',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    fileId: integer('file_id')
+      .notNull()
+      .unique()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    addedByUserId: integer('added_by_user_id'),
+    createdAt: integer('created_at').notNull()
+  },
+  (t) => [index('watch_library_file_idx').on(t.fileId)]
+);
+
 const settings = sqliteTable(
   'settings',
   {
@@ -109,7 +125,12 @@ const settings = sqliteTable(
       'storage_image_optimization_quality'
     )
       .notNull()
-      .default(80)
+      .default(80),
+    watchLibraryLocked: integer('watch_library_locked', {
+      mode: 'boolean'
+    })
+      .notNull()
+      .default(true)
   },
   (t) => [
     index('settings_server_idx').on(t.serverId),
@@ -640,5 +661,6 @@ export {
   roles,
   settings,
   userRoles,
-  users
+  users,
+  watchLibrary
 };

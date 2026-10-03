@@ -249,6 +249,8 @@
   "allowUploadsDesc": "Allows users to upload files to the server. Existing files won't be affected.",
   "allowFileSharingInDMsLabel": "Allow file sharing in direct messages",
   "allowFileSharingInDMsDesc": "Allows users to share files in direct messages. This setting only applies if uploads are enabled, and it does not affect existing files in direct messages.",
+  "watchLibraryLockedLabel": "Only admins manage the video library",
+  "watchLibraryLockedDesc": "When enabled, only server admins can upload movies to the watch party library and delete them. Everyone can still pick a movie from the library to watch together.",
   "quotaLabel": "Quota",
   "quotaDesc": "The total amount of storage space allocated to the server.",
   "quotaHelp": "This is not a hard limit, meaning that files will still be written to disk temporarily even if the quota is exceeded. The overflow action will be applied after the upload is complete. Make sure you have more disk space available than the quota you set here.",

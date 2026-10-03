@@ -73,7 +73,8 @@ const INITIAL_VALUES: TStorageSettings = {
   storageSignedUrlsEnabled: false,
   storageSignedUrlsTtlSeconds: STORAGE_DEFAULT_SIGNED_URLS_TTL_SECONDS,
   storageImageOptimizationEnabled: false,
-  storageImageOptimizationQuality: STORAGE_DEFAULT_IMAGE_OPTIMIZATION_QUALITY
+  storageImageOptimizationQuality: STORAGE_DEFAULT_IMAGE_OPTIMIZATION_QUALITY,
+  watchLibraryLocked: true
 };
 
 const toSizeLabel = (value: unknown) =>
@@ -102,7 +103,8 @@ const Storage = memo(() => {
       storageSignedUrlsEnabled: values.storageSignedUrlsEnabled,
       storageSignedUrlsTtlSeconds: values.storageSignedUrlsTtlSeconds,
       storageImageOptimizationEnabled: values.storageImageOptimizationEnabled,
-      storageImageOptimizationQuality: values.storageImageOptimizationQuality
+      storageImageOptimizationQuality: values.storageImageOptimizationQuality,
+      watchLibraryLocked: values.watchLibraryLocked
     });
   }, []);
 
@@ -148,9 +150,20 @@ const Storage = memo(() => {
       </Group>
 
       <Group
+        label={t('watchLibraryLockedLabel')}
+        description={t('watchLibraryLockedDesc')}
+      >
+        <Switch
+          checked={!!values.watchLibraryLocked}
+          onCheckedChange={(checked) => onChange('watchLibraryLocked', checked)}
+        />
+      </Group>
+
+      <Group
         label={t('allowFileSharingInDMsLabel')}
         description={t('allowFileSharingInDMsDesc')}
       >
+        {' '}
         <Switch
           checked={!!values.storageFileSharingInDirectMessages}
           onCheckedChange={(checked) =>

@@ -5,6 +5,7 @@ import { dmsRouter } from './dms';
 import { emojisRouter } from './emojis';
 import { filesRouter } from './files';
 import { invitesRouter } from './invites';
+import { libraryRouter } from './library';
 import { messagesRouter } from './messages';
 import { othersRouter } from './others';
 import { pluginsRouter } from './plugins';
@@ -22,6 +23,7 @@ const appRouter = t.router({
   emojis: emojisRouter,
   roles: rolesRouter,
   invites: invitesRouter,
+  library: libraryRouter,
   voice: voiceRouter,
   categories: categoriesRouter,
   plugins: pluginsRouter

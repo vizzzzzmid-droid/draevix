@@ -27,7 +27,8 @@ const getStorageSettingsRoute = protectedProcedure.query(async ({ ctx }) => {
     storageSignedUrlsEnabled: settings.storageSignedUrlsEnabled,
     storageSignedUrlsTtlSeconds: settings.storageSignedUrlsTtlSeconds,
     storageImageOptimizationEnabled: settings.storageImageOptimizationEnabled,
-    storageImageOptimizationQuality: settings.storageImageOptimizationQuality
+    storageImageOptimizationQuality: settings.storageImageOptimizationQuality,
+    watchLibraryLocked: settings.watchLibraryLocked
   };
 
   return { storageSettings, diskMetrics, pluginStorage };

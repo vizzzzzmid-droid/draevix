@@ -38,7 +38,8 @@ const zStorageSettings = z.object({
     .int()
     .min(STORAGE_MIN_IMAGE_OPTIMIZATION_QUALITY)
     .max(STORAGE_MAX_IMAGE_OPTIMIZATION_QUALITY)
-    .optional()
+    .optional(),
+  watchLibraryLocked: z.boolean().optional()
 });
 
 const zGeneralSettings = z.object({

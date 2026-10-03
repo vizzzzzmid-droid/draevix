@@ -166,6 +166,9 @@ const getOrphanedFileIds = async (): Promise<number[]> => {
     AND NOT EXISTS (
       SELECT 1 FROM settings s WHERE s.logo_id = f.id
     )
+    AND NOT EXISTS (
+      SELECT 1 FROM watch_library wl WHERE wl.file_id = f.id
+    )
     LIMIT ${ORPHAN_BATCH_SIZE}
   `);
 
@@ -185,6 +188,7 @@ const isFileOrphaned = async (fileId: number): Promise<boolean> => {
         AND NOT EXISTS (SELECT 1 FROM emojis e WHERE e.file_id = ${fileId})
         AND NOT EXISTS (SELECT 1 FROM message_reactions mr WHERE mr.file_id = ${fileId})
         AND NOT EXISTS (SELECT 1 FROM settings s WHERE s.logo_id = ${fileId})
+        AND NOT EXISTS (SELECT 1 FROM watch_library wl WHERE wl.file_id = ${fileId})
         THEN 1
         ELSE 0
       END as isOrphaned

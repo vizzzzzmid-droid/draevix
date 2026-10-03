@@ -16,6 +16,7 @@ const infoRouteHandler = async (
     description: settings.description,
     logo: settings.logo,
     allowNewUsers: settings.allowNewUsers,
+    watchLibraryLocked: settings.watchLibraryLocked,
     onlineCount: getOnlineUserIds().length,
     ...getOidcServerInfo()
   };

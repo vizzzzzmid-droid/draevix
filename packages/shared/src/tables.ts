@@ -18,7 +18,8 @@ import {
   roles,
   settings,
   userRoles,
-  users
+  users,
+  watchLibrary
 } from '../../../apps/server/src/db/schema';
 import type { Permission } from './statics';
 import type { UserStatus } from './types';
@@ -49,6 +50,8 @@ export type TChannelUserPermission = InferSelectModel<
 >;
 export type TChannelReadState = InferSelectModel<typeof channelReadStates>;
 export type TDirectMessage = InferSelectModel<typeof directMessages>;
+export type TWatchLibraryEntry = InferSelectModel<typeof watchLibrary>;
+export type TIWatchLibraryEntry = InferInsertModel<typeof watchLibrary>;
 
 export type TISettings = InferInsertModel<typeof settings>;
 export type TIRole = InferInsertModel<typeof roles>;
@@ -89,6 +92,7 @@ export type TStorageSettings = Pick<
   | 'storageSignedUrlsTtlSeconds'
   | 'storageImageOptimizationEnabled'
   | 'storageImageOptimizationQuality'
+  | 'watchLibraryLocked'
 >;
 
 // joined types

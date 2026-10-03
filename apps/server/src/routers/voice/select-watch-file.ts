@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { publishWatchState } from '../../db/publishers';
 import { getFileById } from '../../db/queries/files';
+import { isLibraryFile } from '../../db/queries/library';
 import { getMessageByFileId } from '../../db/queries/messages';
 import { getSettings } from '../../db/queries/server';
 import { assertChannelAccess } from '../../helpers/assert-channel-access';
@@ -26,10 +27,15 @@ const selectWatchFileRoute = protectedProcedure
       message: 'Only video files can be watched together'
     });
 
-    // the file has to come from chat the caller can actually see, or be their own
-    // upload. never trust a bare id, nothing usable leaks either way
+    // the file has to come from chat the caller can actually see, be their own
+    // upload, or sit in the server video library. never trust a bare id,
+    // nothing usable leaks either way
     const message = await getMessageByFileId(file.id);
     let visible = file.userId !== null && file.userId === ctx.user.id;
+
+    if (!visible && (await isLibraryFile(file.id))) {
+      visible = true;
+    }
 
     if (!visible && message?.channelId) {
       try {
