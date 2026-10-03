@@ -8,7 +8,11 @@ const getWatchPositionSec = (
 ): number => {
   if (!watch.playing) return watch.positionSec;
 
-  return watch.positionSec + (nowMs - watch.updatedAt) / 1000;
+  // server and client clocks can disagree by a little (or the stamp can be
+  // fresher than our receipt), never extrapolate backwards from the future
+  const elapsedSec = Math.max(0, (nowMs - watch.updatedAt) / 1000);
+
+  return watch.positionSec + elapsedSec;
 };
 
 export { getWatchPositionSec };

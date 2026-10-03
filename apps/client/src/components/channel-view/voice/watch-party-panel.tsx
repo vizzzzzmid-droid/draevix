@@ -143,6 +143,27 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
     seekingRef.current = false;
   }, []);
 
+  // arrow keys change the value (see onChange above) and need a commit, but
+  // any other key (space, tab, ...) must not broadcast a phantom seek at the
+  // current video position
+  const handleSeekKeyUp = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (
+        event.key === 'ArrowLeft' ||
+        event.key === 'ArrowRight' ||
+        event.key === 'ArrowUp' ||
+        event.key === 'ArrowDown' ||
+        event.key === 'Home' ||
+        event.key === 'End'
+      ) {
+        void handleSeekCommit();
+      } else {
+        seekingRef.current = false;
+      }
+    },
+    [handleSeekCommit]
+  );
+
   const handleStop = useCallback(async () => {
     const trpc = getTRPCClient();
 
@@ -280,7 +301,7 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
               onPointerUp={handleSeekCommit}
               onPointerCancel={handleSeekAbort}
               onLostPointerCapture={handleSeekAbort}
-              onKeyUp={handleSeekCommit}
+              onKeyUp={handleSeekKeyUp}
               aria-label={t('watchSeek')}
               className="flex-1"
             />
