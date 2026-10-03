@@ -485,7 +485,7 @@ mod windows_impl {
                     AUDCLNT_STREAMFLAGS_LOOPBACK,
                     HNS_PER_SECOND,
                     0,
-                    Some(format_buf.as_ptr() as *const WAVEFORMATEX),
+                    format_buf.as_ptr() as *const WAVEFORMATEX,
                     None,
                 )
                 .map_err(|e| format!("probe initialize: {e:?}"))?;
@@ -688,7 +688,7 @@ mod windows_impl {
                 AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
                 HNS_PER_SECOND,
                 0,
-                Some(format_buf.as_ptr() as *const WAVEFORMATEX),
+                format_buf.as_ptr() as *const WAVEFORMATEX,
                 None,
             )
             .map_err(|e| format!("cannot initialize audio client: {e}"))?;
