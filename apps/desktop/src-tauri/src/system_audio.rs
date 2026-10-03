@@ -645,7 +645,12 @@ mod windows_impl {
 
         let initial_device = default_endpoint_id()?;
         let client = activate_loopback_client().map_err(|error| match probe_device_loopback() {
-            Ok(frames) => format!("{error}; device loopback probe ok ({frames} frames)"),
+            // The device path works but the OS rejected process capture:
+            // per-process loopback needs Windows 11 (or Server 2022+),
+            // Windows 10 simply does not have this API.
+            Ok(_) => format!(
+                "{error}; process capture unsupported by this Windows build, system sound sharing needs Windows 11 or newer"
+            ),
             Err(probe) => format!("{error}; device loopback probe failed: {probe}"),
         })?;
 
