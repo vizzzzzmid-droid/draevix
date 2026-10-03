@@ -173,6 +173,10 @@ const getOrphanedFileIds = async (): Promise<number[]> => {
 };
 
 const isFileOrphaned = async (fileId: number): Promise<boolean> => {
+  const row = await getFileById(fileId);
+
+  if (row?.keep) return false;
+
   const result = await db.get(sql`
     SELECT 
       CASE 

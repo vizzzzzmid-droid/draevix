@@ -152,6 +152,7 @@ describe('files router', () => {
 
       expect(row?.originalName).toBe(tempFile.originalName);
       expect(row?.size).toBe(tempFile.size);
+      expect(row?.keep).toBe(true);
     });
 
     test('should throw when keeping other users temporary file', async () => {
@@ -199,6 +200,37 @@ describe('files router', () => {
 
       await expect(caller.files.keepUpload({ tempFileId: '' })).rejects.toThrow(
         'tempFileId'
+      );
+    });
+
+    test('should delete an own kept file without a message link', async () => {
+      const { caller } = await initTest();
+
+      const { fileId } = await caller.files.keepUpload({
+        tempFileId: tempFile.id
+      });
+
+      await caller.files.delete({ fileId });
+
+      const row = await tdb
+        .select()
+        .from(files)
+        .where(eq(files.id, fileId))
+        .get();
+
+      expect(row).toBeUndefined();
+    });
+
+    test('should refuse to delete another user kept file', async () => {
+      const { caller } = await initTest();
+      const { caller: secondCaller } = await initTest(2);
+
+      const { fileId } = await caller.files.keepUpload({
+        tempFileId: tempFile.id
+      });
+
+      await expect(secondCaller.files.delete({ fileId })).rejects.toThrow(
+        'File not found'
       );
     });
   });

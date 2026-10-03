@@ -101,16 +101,15 @@ const buildBrokenTailFolder = () => {
 
 afterAll(async () => {
   // windows releases closed sqlite handles lazily, so the newest files can stay
-  // locked for a while after every close ran. keep retrying instead of failing
-  // the whole file over test cleanup
-  for (let attempt = 0; ; attempt++) {
+  // locked for a while after every close ran. this is test scratch under a
+  // gitignored dir that the upload suite sweeps anyway, so a leftover here is
+  // harmless and must not fail the file
+  for (let attempt = 0; attempt < 10; attempt++) {
     try {
       fs.rmSync(workDir, { recursive: true, force: true });
 
       return;
-    } catch (error) {
-      if (attempt >= 50) throw error;
-
+    } catch {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }

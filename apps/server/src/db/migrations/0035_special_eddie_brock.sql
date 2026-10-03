@@ -1,0 +1,1 @@
+ALTER TABLE `files` ADD `keep` integer DEFAULT false NOT NULL;

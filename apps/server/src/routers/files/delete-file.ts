@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { removeFile } from '../../db/mutations/files';
 import { deleteMessage } from '../../db/mutations/messages';
 import { publishMessage } from '../../db/publishers';
-import { getFilesByMessageId } from '../../db/queries/files';
+import { getFileById, getFilesByMessageId } from '../../db/queries/files';
 import { getMessageByFileId } from '../../db/queries/messages';
 import { assertChannelAccess } from '../../helpers/assert-channel-access';
 import { assertCanModifyMessage } from '../../helpers/load-message-for-write';
@@ -15,10 +15,24 @@ const deleteFileRoute = protectedProcedure
   .mutation(async ({ input, ctx }) => {
     const message = await getMessageByFileId(input.fileId);
 
-    invariant(message, {
-      code: 'NOT_FOUND',
-      message: 'File not found'
-    });
+    if (!message) {
+      // uploads kept outside of chat have no message to moderate through,
+      // only the owner can drop them and the answer stays not found either way
+      const file = await getFileById(input.fileId);
+
+      invariant(file, {
+        code: 'NOT_FOUND',
+        message: 'File not found'
+      });
+      invariant(file.userId !== null && file.userId === ctx.user.id, {
+        code: 'NOT_FOUND',
+        message: 'File not found'
+      });
+
+      await removeFile(file.id);
+
+      return;
+    }
 
     await assertChannelAccess(ctx, message.channelId);
 

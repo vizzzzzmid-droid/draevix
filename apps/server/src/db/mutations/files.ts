@@ -29,4 +29,8 @@ const removeFile = async (fileId: number): Promise<TFile | undefined> => {
   return removedFile;
 };
 
-export { removeFile };
+const keepFile = async (fileId: number): Promise<void> => {
+  await db.update(files).set({ keep: true }).where(eq(files.id, fileId));
+};
+
+export { keepFile, removeFile };

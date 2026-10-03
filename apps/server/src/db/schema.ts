@@ -29,7 +29,8 @@ const files = sqliteTable(
     mimeType: text('mime_type').notNull(),
     extension: text('extension').notNull(),
     createdAt: integer('created_at').notNull(),
-    updatedAt: integer('updated_at')
+    updatedAt: integer('updated_at'),
+    keep: integer('keep', { mode: 'boolean' }).notNull().default(false)
   },
   (t) => [
     index('files_user_idx').on(t.userId),

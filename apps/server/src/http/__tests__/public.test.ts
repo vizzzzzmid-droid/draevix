@@ -210,6 +210,29 @@ describe('/public', () => {
     expect(data).toHaveProperty('error', 'File not found');
   });
 
+  test('should serve a kept file without a message link', async () => {
+    const { caller } = await initTest();
+    const temp = await upload(
+      new File(['kept content'], 'kept.txt', { type: 'text/plain' }),
+      token
+    );
+
+    const { fileId } = await caller.files.keepUpload({ tempFileId: temp.id });
+
+    const dbFile = await tdb
+      .select()
+      .from(files)
+      .where(eq(files.id, fileId))
+      .get();
+
+    const response = await fetch(
+      `${testsBaseUrl}/public/${encodeURIComponent(dbFile!.name)}`
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('kept content');
+  });
+
   test('should return 404 when file exists in database but not on disk', async () => {
     const missingFileName = `test-missing-${Date.now()}.txt`;
 
