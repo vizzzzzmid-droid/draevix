@@ -1,15 +1,18 @@
 //! Windows system-audio capture for screen sharing.
 //!
-//! Uses the WASAPI process-loopback API to capture everything the user hears
-//! except our own process tree (`PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE`
-//! with our own pid). Remote call participants are rendered by this same
-//! process, so they are excluded automatically and can never be re-broadcast.
+//! Uses the WASAPI process-loopback API in INCLUDE mode: instead of capturing
+//! the whole mix and hoping our own tree is excluded (EXCLUDE mode demonstrably
+//! does not exclude on Win10 19045 — remote voices leaked into the stream),
+//! we enumerate the default endpoint's audio sessions and open one loopback
+//! client per audible process OUTSIDE our own tree, then mix them natively.
+//! Our client (and therefore every call voice it renders) can never be picked
+//! up, by construction rather than by exclusion flag.
 //!
 //! The capture runs on a dedicated native thread and resamples everything to
 //! 48 kHz stereo f32. JavaScript polls buffered chunks over `invoke` (bulk
 //! request/response, no per-frame events) and feeds them into an AudioWorklet.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
     mpsc, Arc, Mutex,
@@ -183,6 +186,10 @@ mod windows_impl {
                 Com::{
                     CoCreateInstance, CoInitializeEx, CoTaskMemFree, CLSCTX_ALL,
                     COINIT_MULTITHREADED,
+                },
+                Diagnostics::ToolHelp::{
+                    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW,
+                    PROCESSENTRY32W, TH32CS_SNAPPROCESS,
                 },
                 Threading::{CreateEventW, WaitForSingleObject},
             },
@@ -472,78 +479,6 @@ mod windows_impl {
         (channels, rate, tag, extra, is_float_extensible)
     }
 
-    /// Classic device-loopback open used only as a diagnostic probe: it never
-    /// publishes anything, it just tells whether the WASAPI capture path
-    /// works at all on this machine.
-    fn probe_device_loopback() -> Result<u32, String> {
-        unsafe {
-            let enumerator: IMMDeviceEnumerator =
-                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
-                    .map_err(|e| format!("[probe/enumerator] {e:?}"))?;
-            let device = enumerator
-                .GetDefaultAudioEndpoint(eRender, eConsole)
-                .map_err(|e| format!("[probe/endpoint] {e:?}"))?;
-            let client: IAudioClient = device
-                .Activate(CLSCTX_ALL, None)
-                .map_err(|e| format!("[probe/activate] {e:?}"))?;
-
-            let mix_ptr = client
-                .GetMixFormat()
-                .map_err(|e| format!("[probe/mix-format] {e:?}"))?;
-            let format_buf = copy_mix_format(mix_ptr);
-            CoTaskMemFree(Some(mix_ptr as *const c_void));
-
-            client
-                .Initialize(
-                    AUDCLNT_SHAREMODE_SHARED,
-                    AUDCLNT_STREAMFLAGS_LOOPBACK,
-                    HNS_PER_SECOND,
-                    0,
-                    format_buf.as_ptr() as *const WAVEFORMATEX,
-                    None,
-                )
-                .map_err(|e| format!("[probe/initialize] {e:?}"))?;
-
-            let capture: IAudioCaptureClient = client
-                .GetService()
-                .map_err(|e| format!("[probe/capture-client] {e:?}"))?;
-
-            client
-                .Start()
-                .map_err(|e| format!("[probe/start] {e:?}"))?;
-
-            let mut frames = 0u32;
-
-            for _ in 0..10 {
-                let packet = capture
-                    .GetNextPacketSize()
-                    .map_err(|e| format!("[probe/packet-size] {e:?}"))?;
-
-                if packet > 0 {
-                    let mut data: *mut u8 = std::ptr::null_mut();
-                    let mut got: u32 = 0;
-                    let mut flags: u32 = 0;
-
-                    capture
-                        .GetBuffer(&mut data, &mut got, &mut flags, None, None)
-                        .map_err(|e| format!("[probe/buffer] {e:?}"))?;
-                    capture
-                        .ReleaseBuffer(got)
-                        .map_err(|e| format!("[probe/release] {e:?}"))?;
-
-                    frames = got;
-                    break;
-                }
-
-                std::thread::sleep(Duration::from_millis(50));
-            }
-
-            let _ = client.Stop();
-
-            Ok(frames)
-        }
-    }
-
     /// Reads the default render endpoint's mix format into an owned buffer.
     /// Process-loopback clients are not bound to any endpoint, so their own
     /// GetMixFormat answers E_NOTIMPL (observed on Win10 19045). The loopback
@@ -610,7 +545,117 @@ mod windows_impl {
     const _: () =
         assert!(std::mem::offset_of!(BlobPropVariant, blob_data) == 16);
 
-    fn activate_loopback_client() -> Result<IAudioClient, String> {
+    /// pid -> parent pid for every live process, via a Toolhelp snapshot.
+    fn process_parent_map() -> HashMap<u32, u32> {
+        let mut parent_of: HashMap<u32, u32> = HashMap::new();
+
+        unsafe {
+            let snapshot = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+                Ok(handle) => handle,
+                Err(_) => return parent_of,
+            };
+
+            if snapshot.is_invalid() {
+                return parent_of;
+            }
+
+            let mut entry: PROCESSENTRY32W = std::mem::zeroed();
+            entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+
+            if Process32FirstW(snapshot, &mut entry).is_ok() {
+                loop {
+                    parent_of.insert(entry.th32ProcessID, entry.th32ParentProcessID);
+
+                    if Process32NextW(snapshot, &mut entry).is_err() {
+                        break;
+                    }
+                }
+            }
+
+            let _ = CloseHandle(snapshot);
+        }
+
+        parent_of
+    }
+
+    /// All PIDs in our own process tree (ourselves plus every descendant),
+    /// resolved live via a Toolhelp snapshot so WebView2 children spawned at
+    /// any moment are covered.
+    fn our_tree_pids() -> HashSet<u32> {
+        let parent_of = process_parent_map();
+        let own = std::process::id();
+        let mut tree = HashSet::new();
+        tree.insert(own);
+
+        // Anything whose ancestor chain reaches our pid is ours.
+        for pid in parent_of.keys() {
+            let mut current = *pid;
+
+            while let Some(&parent) = parent_of.get(&current) {
+                if parent == own {
+                    tree.insert(*pid);
+                    break;
+                }
+
+                if parent == 0 || !parent_of.contains_key(&parent) {
+                    break;
+                }
+
+                current = parent;
+            }
+        }
+
+        tree
+    }
+
+    /// PIDs with audio sessions on the default render endpoint that are NOT
+    /// in our tree: games, players, browsers — everything the user hears
+    /// except our own client (and therefore every call voice it renders).
+    fn foreign_audio_pids() -> Result<Vec<u32>, String> {
+        unsafe {
+            let enumerator: IMMDeviceEnumerator =
+                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
+                    .map_err(|e| format!("[loopback/sessions] enumerator: {e:?}"))?;
+            let device = enumerator
+                .GetDefaultAudioEndpoint(eRender, eConsole)
+                .map_err(|e| format!("[loopback/sessions] endpoint: {e:?}"))?;
+            let manager: IAudioSessionManager = device
+                .Activate(CLSCTX_ALL, None)
+                .map_err(|e| format!("[loopback/sessions] session manager: {e:?}"))?;
+            let list = manager
+                .GetSessionEnumerator()
+                .map_err(|e| format!("[loopback/sessions] list: {e:?}"))?;
+            let count = list
+                .GetCount()
+                .map_err(|e| format!("[loopback/sessions] count: {e:?}"))?;
+
+            let ours = our_tree_pids();
+            let mut pids = HashSet::new();
+
+            for index in 0..count {
+                let session = match list.GetSession(index) {
+                    Ok(session) => session,
+                    Err(_) => continue,
+                };
+                let control: IAudioSessionControl2 = match session.cast() {
+                    Ok(control) => control,
+                    Err(_) => continue,
+                };
+                let pid = match control.GetProcessId() {
+                    Ok(pid) => pid,
+                    Err(_) => continue,
+                };
+
+                if !ours.contains(&pid) {
+                    pids.insert(pid);
+                }
+            }
+
+            Ok(pids.into_iter().collect())
+        }
+    }
+
+    fn activate_pid_client(pid: u32) -> Result<IAudioClient, String> {
         // AUDIOCLIENT_ACTIVATION_PARAMS is repr(C): a 4-byte activation type
         // followed by the process-loopback union { u32 pid, i32 mode }.
         const _: () = assert!(
@@ -623,14 +668,15 @@ mod windows_impl {
 
             // Written by offset instead of naming the union member type, so
             // this keeps compiling even if the bindings rename it.
-            // EXCLUDE (not INCLUDE like OBS uses) is intentional: OBS wants
-            // the target app's sound, we want everything EXCEPT our own
-            // process tree so call voices can never be re-broadcast.
+            // INCLUDE is deliberate (and the only mode OBS ships, proven on
+            // Win10): each client captures exactly one foreign process tree,
+            // and our own tree never gets a client at all — no echo by
+            // construction instead of by exclusion flag.
             let base = std::ptr::from_mut(&mut params).cast::<u8>();
-            std::ptr::write_unaligned(base.add(4).cast::<u32>(), std::process::id());
+            std::ptr::write_unaligned(base.add(4).cast::<u32>(), pid);
             std::ptr::write_unaligned(
                 base.add(8).cast::<i32>(),
-                PROCESS_LOOPBACK_MODE_EXCLUDE_TARGET_PROCESS_TREE.0,
+                PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE.0,
             );
 
             // Typed VT_BLOB carrier instead of a raw byte array: same shape
@@ -710,6 +756,130 @@ mod windows_impl {
         }
     }
 
+    /// True when `pid` descends from `ancestor` in the given parent map.
+    fn is_descendant(pid: u32, ancestor: u32, parents: &HashMap<u32, u32>) -> bool {
+        let mut current = pid;
+
+        while let Some(&parent) = parents.get(&current) {
+            if parent == ancestor {
+                return true;
+            }
+
+            if parent == 0 || !parents.contains_key(&parent) {
+                return false;
+            }
+
+            current = parent;
+        }
+
+        false
+    }
+
+    /// One live INCLUDE loopback capture for a single foreign process.
+    /// ComPtrs release themselves on drop; the shared event (owned by the
+    /// pump) is only borrowed for SetEventHandle.
+    struct ActiveCapture {
+        pid: u32,
+        client: IAudioClient,
+        capture: IAudioCaptureClient,
+        resampler: Resampler,
+        scratch: Vec<f32>,
+    }
+
+    fn open_pid_capture(
+        pid: u32,
+        event: HANDLE,
+        format: *const WAVEFORMATEX,
+        channels: usize,
+        mix_rate: u32,
+    ) -> Result<ActiveCapture, String> {
+        let client = activate_pid_client(pid)
+            .map_err(|error| format!("[loopback/activate-pid:{pid}] {error}"))?;
+
+        unsafe {
+            client
+                .Initialize(
+                    AUDCLNT_SHAREMODE_SHARED,
+                    AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+                    HNS_PER_SECOND,
+                    0,
+                    format,
+                    None,
+                )
+                .map_err(|e| format!("[loopback/init-client:{pid}] {e:?}"))?;
+
+            client
+                .SetEventHandle(event)
+                .map_err(|e| format!("[loopback/event:{pid}] {e:?}"))?;
+
+            let capture: IAudioCaptureClient = client
+                .GetService()
+                .map_err(|e| format!("[loopback/capture-client:{pid}] {e:?}"))?;
+
+            client
+                .Start()
+                .map_err(|e| format!("[loopback/start:{pid}] {e:?}"))?;
+        }
+
+        Ok(ActiveCapture {
+            pid,
+            client,
+            capture,
+            resampler: Resampler::new(mix_rate, channels),
+            scratch: Vec::new(),
+        })
+    }
+
+    fn drain_client(
+        capture: &IAudioCaptureClient,
+        resampler: &mut Resampler,
+        is_float: bool,
+        channels: usize,
+        out: &mut Vec<f32>,
+    ) -> Result<(), String> {
+        unsafe {
+            loop {
+                let packet = capture
+                    .GetNextPacketSize()
+                    .map_err(|e| format!("[loopback/pump] packet size: {e:?}"))?;
+
+                if packet == 0 {
+                    break;
+                }
+
+                let mut data: *mut u8 = std::ptr::null_mut();
+                let mut frames: u32 = 0;
+                let mut flags: u32 = 0;
+
+                capture
+                    .GetBuffer(&mut data, &mut frames, &mut flags, None, None)
+                    .map_err(|e| format!("[loopback/pump] get buffer: {e:?}"))?;
+
+                if (flags as i32 & AUDCLNT_BUFFERFLAGS_SILENT.0) == 0 {
+                    if is_float {
+                        let raw = std::slice::from_raw_parts(
+                            data as *const f32,
+                            frames as usize * channels,
+                        );
+                        resampler.push_planar(raw, out);
+                    } else {
+                        let pcm = std::slice::from_raw_parts(
+                            data as *const i16,
+                            frames as usize * channels,
+                        );
+                        resampler.push_pcm16(pcm, out);
+                    }
+                }
+
+                capture
+                    .ReleaseBuffer(frames)
+                    .map_err(|e| format!("[loopback/pump] release buffer: {e:?}"))?;
+            }
+
+            Ok(())
+        }
+    }
+
     unsafe fn run_capture_loop(
         queue: Arc<Mutex<VecDeque<f32>>>,
         lost_total: Arc<AtomicU64>,
@@ -724,22 +894,9 @@ mod windows_impl {
         }
 
         let initial_device = default_endpoint_id()?;
-        let client = activate_loopback_client().map_err(|error| match probe_device_loopback() {
-            // The device path works but the OS rejected process capture.
-            // No full-mix fallback is used here on purpose: it would
-            // re-broadcast call voices. The HRESULT above says exactly
-            // which stage refused.
-            Ok(_) => format!(
-                "{error}; device loopback probe ok, process capture was rejected"
-            ),
-            Err(probe) => format!("{error}; device loopback probe failed: {probe}"),
-        })?;
 
-        // --- mix format -----------------------------------------------------
-        // Process-loopback clients are not bound to an endpoint, so their
-        // GetMixFormat returns E_NOTIMPL. Feed Initialize the default
-        // device's mix format instead (see default_mix_format). The buffer
-        // lives until end of scope, covering the Initialize call below.
+        // Device mix format feeds every per-PID loopback Initialize (their
+        // own GetMixFormat is E_NOTIMPL — see default_mix_format).
         let format_buf = default_mix_format()?;
 
         let (channels, mix_rate, format_tag, extra_size, is_float_extensible) =
@@ -771,6 +928,8 @@ mod windows_impl {
         };
 
         // --- event-driven capture -------------------------------------------
+        // One event shared by all per-PID clients: every wake drains every
+        // client, empty ones cost almost nothing.
         let event = CreateEventW(None, false, false, None)
             .map_err(|e| format!("[loopback/event] cannot create capture event: {e:?}"))?;
 
@@ -784,40 +943,64 @@ mod windows_impl {
         }
         let _event_guard = EventGuard(event);
 
-        client
-            .Initialize(
-                AUDCLNT_SHAREMODE_SHARED,
-                AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-                HNS_PER_SECOND,
-                0,
-                format_buf.as_ptr() as *const WAVEFORMATEX,
-                None,
-            )
-            .map_err(|e| format!("[loopback/init-client] {e:?}"))?;
+        let format_ptr = format_buf.as_ptr() as *const WAVEFORMATEX;
 
-        client
-            .SetEventHandle(event)
-            .map_err(|e| format!("[loopback/event] cannot set capture event: {e:?}"))?;
+        // Opens INCLUDE captures for every audible foreign PID, drops dead
+        // ones. Enumeration failure at start is fatal (fail fast); mid-run
+        // it just keeps the current set until the next resync.
+        let mut sync_pids = |captures: &mut Vec<ActiveCapture>| -> Result<(), String> {
+            let all = foreign_audio_pids()?;
+            let parents = process_parent_map();
 
-        let capture: IAudioCaptureClient = client
-            .GetService()
-            .map_err(|e| format!("[loopback/capture-client] {e:?}"))?;
+            // INCLUDE captures whole trees: keep only roots, otherwise an app
+            // whose parent and child both hold sessions would play twice.
+            let wanted: Vec<u32> = all
+                .iter()
+                .filter(|pid| {
+                    !all.iter().any(|other| {
+                        **other != **pid && is_descendant(**pid, **other, &parents)
+                    })
+                })
+                .copied()
+                .collect();
 
-        client
-            .Start()
-            .map_err(|e| format!("[loopback/start] {e:?}"))?;
+            captures.retain(|cap| wanted.contains(&cap.pid));
+
+            for pid in wanted {
+                if captures.iter().any(|cap| cap.pid == pid) {
+                    continue;
+                }
+
+                // An app may die between listing and open; a dead pid is
+                // simply skipped and retried on the next resync if listed.
+                if let Ok(cap) =
+                    open_pid_capture(pid, event, format_ptr, channels, mix_rate)
+                {
+                    captures.push(cap);
+                }
+            }
+
+            Ok(())
+        };
+
+        let mut captures: Vec<ActiveCapture> = Vec::new();
+        sync_pids(&mut captures)
+            .map_err(|error| format!("[loopback/start] {error}"))?;
 
         // Signal readiness: from here on the pump owns the session and the
         // caller polls for data. A later failure surfaces through poll().
+        // Zero captures is fine (silence) — apps appearing later are picked
+        // up by the periodic resync below.
         let _ = ready.send(Ok(()));
 
-        let mut resampler = Resampler::new(mix_rate, channels);
         let mut polls_since_device_check = 0u32;
-        let mut silent_logged = false;
 
         loop {
             if stop.load(Ordering::SeqCst) {
-                let _ = client.Stop();
+                for cap in &captures {
+                    let _ = cap.client.Stop();
+                }
+
                 return Ok(());
             }
 
@@ -829,69 +1012,87 @@ mod windows_impl {
 
             polls_since_device_check += 1;
 
+            // Resync every ~6s so apps that started (or stopped) producing
+            // sound join (or leave) the mix without restarting the session.
+            if polls_since_device_check % 3 == 0 {
+                let _ = sync_pids(&mut captures);
+            }
+
             if polls_since_device_check >= 25 {
                 polls_since_device_check = 0;
 
                 match default_endpoint_id() {
                     Ok(current) if current != initial_device => {
                         device_changed.store(true, Ordering::SeqCst);
-                        let _ = client.Stop();
-                        return Err("default audio output device changed".to_string());
+
+                        for cap in &captures {
+                            let _ = cap.client.Stop();
+                        }
+
+                        return Err(
+                            "[loopback/device] default audio output device changed"
+                                .to_string(),
+                        );
                     }
                     Err(e) => {
-                        let _ = client.Stop();
+                        for cap in &captures {
+                            let _ = cap.client.Stop();
+                        }
+
                         return Err(e);
                     }
                     _ => {}
                 }
             }
 
-            loop {
-                let packet_frames = capture
-                    .GetNextPacketSize()
-                    .map_err(|e| format!("[loopback/pump] packet size: {e:?}"))?;
+            // Drain every client into its scratch buffer, then mix down to
+            // stereo with clamping. A failing client is dropped; the resync
+            // reopens it if its pid is still audible.
+            let mut mixed_len = 0usize;
+            let mut dead: Vec<u32> = Vec::new();
 
-                if packet_frames == 0 {
-                    break;
+            for cap in captures.iter_mut() {
+                cap.scratch.clear();
+
+                if drain_client(
+                    &cap.capture,
+                    &mut cap.resampler,
+                    is_float,
+                    channels,
+                    &mut cap.scratch,
+                )
+                .is_err()
+                {
+                    dead.push(cap.pid);
+                    continue;
                 }
 
-                let mut data: *mut u8 = std::ptr::null_mut();
-                let mut frames: u32 = 0;
-                let mut flags: u32 = 0;
+                mixed_len = mixed_len.max(cap.scratch.len());
+            }
 
-                capture
-                    .GetBuffer(&mut data, &mut frames, &mut flags, None, None)
-                    .map_err(|e| format!("[loopback/pump] get buffer: {e:?}"))?;
+            if !dead.is_empty() {
+                captures.retain(|cap| !dead.contains(&cap.pid));
+            }
 
-                if (flags as i32 & AUDCLNT_BUFFERFLAGS_SILENT.0) == 0 {
-                    let raw: &[f32] = if is_float {
-                        std::slice::from_raw_parts(
-                            data as *const f32,
-                            frames as usize * channels,
-                        )
-                    } else {
-                        // 16-bit PCM path is expanded below sample by sample.
-                        &[]
-                    };
-
-                    if is_float {
-                        resampler.push_planar(raw, &queue, &lost_total);
-                    } else {
-                        let pcm = std::slice::from_raw_parts(
-                            data as *const i16,
-                            frames as usize * channels,
-                        );
-                        resampler.push_pcm16(pcm, &queue, &lost_total);
+            if mixed_len > 0 {
+                if let Ok(mut guard) = queue.lock() {
+                    if guard.len() + mixed_len > MAX_BUFFERED_FLOATS {
+                        let drop = guard.len() + mixed_len - MAX_BUFFERED_FLOATS;
+                        guard.drain(..drop);
+                        lost_total.fetch_add(drop as u64, Ordering::SeqCst);
                     }
 
-                    silent_logged = false;
-                } else if !silent_logged {
-                    silent_logged = true;
-                }
+                    for index in 0..mixed_len {
+                        let mut sample = 0.0f32;
 
-                capture
-                    .ReleaseBuffer(frames)
-                    .map_err(|e| format!("[loopback/pump] release buffer: {e:?}"))?;
+                        for cap in captures.iter() {
+                            sample +=
+                                cap.scratch.get(index).copied().unwrap_or(0.0);
+                        }
+
+                        guard.push_back(sample.clamp(-1.0, 1.0));
+                    }
+                }
             }
         }
     }
@@ -916,17 +1117,9 @@ mod windows_impl {
             }
         }
 
-        fn push_frame(&mut self, stereo: [f32; 2], queue: &Arc<Mutex<VecDeque<f32>>>, lost: &Arc<AtomicU64>) {
-            if let Ok(mut guard) = queue.lock() {
-                if guard.len() + 2 > MAX_BUFFERED_FLOATS {
-                    let drop = guard.len() + 2 - MAX_BUFFERED_FLOATS;
-                    guard.drain(..drop);
-                    lost.fetch_add(drop as u64, Ordering::SeqCst);
-                }
-
-                guard.push_back(stereo[0]);
-                guard.push_back(stereo[1]);
-            }
+        fn push_frame(&mut self, stereo: [f32; 2], out: &mut Vec<f32>) {
+            out.push(stereo[0]);
+            out.push(stereo[1]);
         }
 
         fn to_stereo(&self, frame: &[f32]) -> [f32; 2] {
@@ -941,12 +1134,7 @@ mod windows_impl {
             }
         }
 
-        fn push_planar(
-            &mut self,
-            interleaved: &[f32],
-            queue: &Arc<Mutex<VecDeque<f32>>>,
-            lost: &Arc<AtomicU64>,
-        ) {
+        fn push_planar(&mut self, interleaved: &[f32], out: &mut Vec<f32>) {
             let frames = interleaved.len() / self.channels.max(1);
 
             for index in 0..frames {
@@ -956,7 +1144,7 @@ mod windows_impl {
                 // Linear interpolation between source frames.
                 while self.position < 1.0 {
                     let alpha = self.position as f32;
-                    let out = if self.prev_valid {
+                    let frame = if self.prev_valid {
                         [
                             self.prev_stereo()[0] * (1.0 - alpha) + stereo[0] * alpha,
                             self.prev_stereo()[1] * (1.0 - alpha) + stereo[1] * alpha,
@@ -964,7 +1152,7 @@ mod windows_impl {
                     } else {
                         stereo
                     };
-                    self.push_frame(out, queue, lost);
+                    self.push_frame(frame, out);
                     self.position += self.ratio;
                 }
 
@@ -974,12 +1162,7 @@ mod windows_impl {
             }
         }
 
-        fn push_pcm16(
-            &mut self,
-            interleaved: &[i16],
-            queue: &Arc<Mutex<VecDeque<f32>>>,
-            lost: &Arc<AtomicU64>,
-        ) {
+        fn push_pcm16(&mut self, interleaved: &[i16], out: &mut Vec<f32>) {
             const SCALE: f32 = 1.0 / 32768.0;
             let frames = interleaved.len() / self.channels.max(1);
             let mut converted = Vec::with_capacity(frames * self.channels);
@@ -988,7 +1171,7 @@ mod windows_impl {
                 converted.push(*sample as f32 * SCALE);
             }
 
-            self.push_planar(&converted, queue, lost);
+            self.push_planar(&converted, out);
         }
 
         fn prev_stereo(&self) -> [f32; 2] {
