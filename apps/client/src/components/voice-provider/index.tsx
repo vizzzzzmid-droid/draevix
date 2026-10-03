@@ -15,6 +15,8 @@ import {
 } from '@/helpers/audio-worklet/noise-gate-worklet';
 import { createNsChain } from '@/helpers/audio-worklet/ns-worklet';
 import { playSound } from '@/helpers/sounds';
+import i18next from 'i18next';
+import { toast } from 'sonner';
 
 import {
   logVoice,
@@ -931,6 +933,9 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
                   reason
                 });
                 nativeSystemAudioStopRef.current = null;
+                toast.error(
+                  i18next.t('systemAudioVideoOnly', { ns: 'common' })
+                );
               }
             });
 
@@ -945,6 +950,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
               'screen audio: native capture failed, continuing video-only',
               { error: getErrorMessage(error) }
             );
+            toast.error(i18next.t('systemAudioVideoOnly', { ns: 'common' }));
           }
         }
 

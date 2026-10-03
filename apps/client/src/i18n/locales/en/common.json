@@ -105,6 +105,7 @@
   "failedLoadLibrary": "Failed to load the video library",
   "onlyImageFilesAllowed": "Only image files are allowed",
   "uploadFailed": "Upload failed",
+  "systemAudioVideoOnly": "System sound unavailable, sharing video only",
   "edited": "(edited)",
   "reply_one": "{{count}} reply",
   "reply_other": "{{count}} replies",

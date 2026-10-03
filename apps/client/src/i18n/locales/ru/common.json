@@ -105,6 +105,7 @@
   "failedLoadLibrary": "Не получилось загрузить библиотеку видео",
   "onlyImageFilesAllowed": "Разрешены только файлы изображений",
   "uploadFailed": "Не удалось загрузить файл",
+  "systemAudioVideoOnly": "Системный звук недоступен, демонстрируется только видео",
   "edited": "(отредактировано)",
   "reply_one": "{{count}} ответ",
   "reply_other": "{{count}} ответа(ов)",
