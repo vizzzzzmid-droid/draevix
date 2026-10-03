@@ -18,7 +18,7 @@ use std::sync::{
     mpsc, Arc, Mutex,
 };
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub const OUTPUT_SAMPLE_RATE: u32 = 48_000;
 pub const OUTPUT_CHANNELS: usize = 2;
@@ -1032,6 +1032,11 @@ mod windows_impl {
 
         let mut polls_since_device_check = 0u32;
 
+        // Time-based resync: the counter above ticks per wake (~10ms with
+        // flowing audio), so counting wakes would re-enumerate sessions
+        // dozens of times per second and starve draining. Wall clock it.
+        let mut last_resync = Instant::now();
+
         loop {
             if stop.load(Ordering::SeqCst) {
                 for cap in &captures {
@@ -1049,9 +1054,11 @@ mod windows_impl {
 
             polls_since_device_check += 1;
 
-            // Resync every ~6s so apps that started (or stopped) producing
+            // Resync every 5s so apps that started (or stopped) producing
             // sound join (or leave) the mix without restarting the session.
-            if polls_since_device_check % 3 == 0 {
+            if last_resync.elapsed() >= Duration::from_secs(5) {
+                last_resync = Instant::now();
+
                 let _ = sync_pids(&mut captures);
             }
 
