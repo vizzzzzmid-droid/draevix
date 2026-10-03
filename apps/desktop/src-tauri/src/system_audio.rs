@@ -544,6 +544,33 @@ mod windows_impl {
         }
     }
 
+    /// Reads the default render endpoint's mix format into an owned buffer.
+    /// Process-loopback clients are not bound to any endpoint, so their own
+    /// GetMixFormat answers E_NOTIMPL (observed on Win10 19045). The loopback
+    /// Initialize is therefore fed the device mix format — the same shape
+    /// the engine mixes into. OBS does the equivalent by building the format
+    /// itself instead of querying the loopback client.
+    fn default_mix_format() -> Result<Vec<u8>, String> {
+        unsafe {
+            let enumerator: IMMDeviceEnumerator =
+                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
+                    .map_err(|e| format!("[loopback/device-format] enumerator: {e:?}"))?;
+            let device = enumerator
+                .GetDefaultAudioEndpoint(eRender, eConsole)
+                .map_err(|e| format!("[loopback/device-format] endpoint: {e:?}"))?;
+            let device_client: IAudioClient = device
+                .Activate(CLSCTX_ALL, None)
+                .map_err(|e| format!("[loopback/device-format] activate: {e:?}"))?;
+            let mix_ptr = device_client
+                .GetMixFormat()
+                .map_err(|e| format!("[loopback/device-format] mix format: {e:?}"))?;
+            let format_buf = copy_mix_format(mix_ptr);
+            CoTaskMemFree(Some(mix_ptr as *const c_void));
+
+            Ok(format_buf)
+        }
+    }
+
     fn default_endpoint_id() -> Result<String, String> {
         unsafe {
             let enumerator: IMMDeviceEnumerator =
@@ -709,14 +736,11 @@ mod windows_impl {
         })?;
 
         // --- mix format -----------------------------------------------------
-        // Keep the full buffer (base + extensible tail) alive through
-        // Initialize: passing a truncated WAVEFORMATEX fails with E_INVALIDARG.
-        // `format_buf` lives until end of scope, covering the call below.
-        let mix_ptr = client
-            .GetMixFormat()
-            .map_err(|e| format!("[loopback/mix-format] {e:?}"))?;
-        let format_buf = copy_mix_format(mix_ptr);
-        CoTaskMemFree(Some(mix_ptr as *const c_void));
+        // Process-loopback clients are not bound to an endpoint, so their
+        // GetMixFormat returns E_NOTIMPL. Feed Initialize the default
+        // device's mix format instead (see default_mix_format). The buffer
+        // lives until end of scope, covering the Initialize call below.
+        let format_buf = default_mix_format()?;
 
         let (channels, mix_rate, format_tag, extra_size, is_float_extensible) =
             parse_mix_format(&format_buf);
