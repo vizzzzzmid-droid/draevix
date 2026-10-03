@@ -21,6 +21,7 @@ type TSystemAudioChunk = {
   samples: number[];
   framesLost: number;
   deviceChanged: boolean;
+  queuedMs?: number;
 };
 
 export type TSystemAudioHandle = {
@@ -155,6 +156,7 @@ const startSystemAudioTrack = async (options: {
   let stopped = false;
   let polling = false;
   let restarts = 0;
+  let lastQueueWarnMs = 0;
 
   const doStop = () => {
     if (stopped) return;
@@ -205,6 +207,31 @@ const startSystemAudioTrack = async (options: {
         }
 
         restarts = 0;
+
+        // delivery telemetry: a growing native queue or dropped frames means
+        // the pump outruns the poller (or stalls mid-open) and the worklet
+        // is about to starve — audible as stutter. Throttled so healthy
+        // streams stay quiet.
+        const queuedMs = chunk.queuedMs ?? 0;
+        const nowMs = Date.now();
+
+        if (
+          (chunk.framesLost > 0 || queuedMs > 800) &&
+          nowMs - lastQueueWarnMs > 5000
+        ) {
+          lastQueueWarnMs = nowMs;
+
+          // dynamic import: browser-logger pulls voice-debug, which touches
+          // window at module load and would break unit tests otherwise.
+          void import('./browser-logger')
+            .then(({ logVoiceWarn }) =>
+              logVoiceWarn('system audio: delivery gap', {
+                framesLost: chunk.framesLost,
+                queuedMs
+              })
+            )
+            .catch(() => undefined);
+        }
 
         if (chunk.samples.length === 0) return;
 

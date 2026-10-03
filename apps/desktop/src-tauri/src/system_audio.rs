@@ -46,6 +46,10 @@ pub struct SystemAudioChunk {
     /// True when the default output device changed mid-capture. The session
     /// is already stopped; the caller should start a new one.
     pub device_changed: bool,
+    /// Buffered audio awaiting pickup at poll time, in milliseconds.
+    /// Diagnostic only: grows when the pump outruns the poller or stalls
+    /// mid-open; the JS side logs it when abnormal.
+    pub queued_ms: u64,
 }
 
 struct Session {
@@ -111,6 +115,8 @@ pub fn system_audio_poll(
         .ok_or_else(|| "system audio capture is not running".to_string())?;
 
     let mut queue = session.queue.lock().map_err(|_| "audio queue poisoned")?;
+    let queued_ms =
+        queue.len() as u64 * 1000 / (OUTPUT_SAMPLE_RATE as u64 * OUTPUT_CHANNELS as u64);
     let take = queue.len().min(MAX_POLL_FLOATS);
     let samples: Vec<f32> = queue.drain(..take).collect();
     drop(queue);
@@ -132,6 +138,7 @@ pub fn system_audio_poll(
             samples,
             frames_lost,
             device_changed: true,
+            queued_ms,
         });
     }
 
@@ -145,6 +152,7 @@ pub fn system_audio_poll(
         samples,
         frames_lost,
         device_changed: false,
+        queued_ms,
     })
 }
 
@@ -737,7 +745,7 @@ mod windows_impl {
                 ));
             }
 
-            let outcome = match rx.recv_timeout(Duration::from_secs(10)) {
+            let outcome = match rx.recv_timeout(Duration::from_secs(5)) {
                 Ok(Ok(client)) => Ok(client),
                 Ok(Err(e)) => Err(format!(
                     "[loopback/activate-callback] loopback activation failed: {e:?}"
@@ -952,7 +960,17 @@ mod windows_impl {
         // Opens INCLUDE captures for every audible foreign PID, drops dead
         // ones. Enumeration failure at start is fatal (fail fast); mid-run
         // it just keeps the current set until the next resync.
+        //
+        // A slow activation freezes the whole pump (no draining meanwhile),
+        // so a pid whose open recently failed is not retried for a while.
+        const FAILED_RETRY_CYCLES: u32 = 10;
+
+        let mut failed_at: HashMap<u32, u32> = HashMap::new();
+        let mut cycle: u32 = 0;
+
         let mut sync_pids = |captures: &mut Vec<ActiveCapture>| -> Result<(), String> {
+            cycle += 1;
+
             let all = foreign_audio_pids()?;
             let parents = process_parent_map();
 
@@ -975,13 +993,28 @@ mod windows_impl {
                     continue;
                 }
 
-                // An app may die between listing and open; a dead pid is
-                // simply skipped and retried on the next resync if listed.
-                if let Ok(cap) =
-                    open_pid_capture(pid, event, format_ptr, channels, mix_rate)
-                {
-                    captures.push(cap);
+                if let Some(&at) = failed_at.get(&pid) {
+                    if cycle.wrapping_sub(at) < FAILED_RETRY_CYCLES {
+                        continue;
+                    }
                 }
+
+                // An app may die between listing and open; a dead pid is
+                // simply skipped and retried on a later resync if listed.
+                match open_pid_capture(pid, event, format_ptr, channels, mix_rate) {
+                    Ok(cap) => {
+                        captures.push(cap);
+                        failed_at.remove(&pid);
+                    }
+                    Err(_) => {
+                        failed_at.insert(pid, cycle);
+                    }
+                }
+            }
+
+            if failed_at.len() > 64 {
+                failed_at
+                    .retain(|_, &mut at| cycle.wrapping_sub(at) < FAILED_RETRY_CYCLES);
             }
 
             Ok(())
