@@ -417,6 +417,47 @@ mod windows_impl {
         ) -> HRESULT;
     }
 
+    /// Copies the full mix format (base WAVEFORMATEX plus the extensible
+    /// tail) into an owned buffer. GetMixFormat usually returns
+    /// WAVEFORMATEXTENSIBLE, so passing only the 18-byte base struct to
+    /// Initialize fails with E_INVALIDARG.
+    unsafe fn copy_mix_format(mix_ptr: *mut WAVEFORMATEX) -> Vec<u8> {
+        let extra =
+            std::ptr::addr_of!((*mix_ptr).cbSize).read_unaligned() as usize;
+        let total = std::mem::size_of::<WAVEFORMATEX>() + extra;
+        let mut buf = vec![0u8; total];
+        std::ptr::copy_nonoverlapping(
+            mix_ptr as *const u8,
+            buf.as_mut_ptr(),
+            total,
+        );
+        buf
+    }
+
+    /// Reads (channels, sample rate, format tag, extra bytes, float-subtype?)
+    /// from an owned format buffer without touching packed fields directly.
+    unsafe fn parse_mix_format(buf: &[u8]) -> (usize, u32, u16, u16, bool) {
+        let base = buf.as_ptr() as *const WAVEFORMATEX;
+        let channels =
+            std::ptr::addr_of!((*base).nChannels).read_unaligned() as usize;
+        let rate = std::ptr::addr_of!((*base).nSamplesPerSec).read_unaligned();
+        let tag = std::ptr::addr_of!((*base).wFormatTag).read_unaligned();
+        let extra = std::ptr::addr_of!((*base).cbSize).read_unaligned();
+
+        let mut is_float_extensible = false;
+
+        if tag == WAVE_FORMAT_EXTENSIBLE && extra >= 22 && buf.len() >= 40 {
+            let sub = buf
+                .as_ptr()
+                .add(24)
+                .cast::<GUID>()
+                .read_unaligned();
+            is_float_extensible = sub == SUBTYPE_IEEE_FLOAT;
+        }
+
+        (channels, rate, tag, extra, is_float_extensible)
+    }
+
     /// Classic device-loopback open used only as a diagnostic probe: it never
     /// publishes anything, it just tells whether the WASAPI capture path
     /// works at all on this machine.
@@ -435,7 +476,7 @@ mod windows_impl {
             let mix_ptr = client
                 .GetMixFormat()
                 .map_err(|e| format!("probe mix format: {e:?}"))?;
-            let mix: WAVEFORMATEX = *mix_ptr;
+            let format_buf = copy_mix_format(mix_ptr);
             CoTaskMemFree(Some(mix_ptr as *const c_void));
 
             client
@@ -444,7 +485,7 @@ mod windows_impl {
                     AUDCLNT_STREAMFLAGS_LOOPBACK,
                     HNS_PER_SECOND,
                     0,
-                    &mix,
+                    Some(format_buf.as_ptr() as *const WAVEFORMATEX),
                     None,
                 )
                 .map_err(|e| format!("probe initialize: {e:?}"))?;
@@ -481,7 +522,8 @@ mod windows_impl {
         }
     }
 
-    fn default_endpoint_id() -> Result<String, String> {        unsafe {
+    fn default_endpoint_id() -> Result<String, String> {
+        unsafe {
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
                     .map_err(|e| format!("cannot create device enumerator: {e}"))?;
@@ -594,23 +636,16 @@ mod windows_impl {
         })?;
 
         // --- mix format -----------------------------------------------------
+        // Keep the full buffer (base + extensible tail) alive through
+        // Initialize: passing a truncated WAVEFORMATEX fails with E_INVALIDARG.
         let mix_ptr = client
             .GetMixFormat()
             .map_err(|e| format!("cannot get mix format: {e}"))?;
-        let mix: WAVEFORMATEX = *mix_ptr;
+        let format_buf = copy_mix_format(mix_ptr);
         CoTaskMemFree(Some(mix_ptr as *const c_void));
 
-        // WAVEFORMATEX is a packed struct: copy every field out through
-        // unaligned reads instead of touching fields directly.
-        let (channels, mix_rate, format_tag, extra_size) = {
-            let base = std::ptr::from_ref(&mix);
-            (
-                std::ptr::addr_of!((*base).nChannels).read_unaligned() as usize,
-                std::ptr::addr_of!((*base).nSamplesPerSec).read_unaligned(),
-                std::ptr::addr_of!((*base).wFormatTag).read_unaligned(),
-                std::ptr::addr_of!((*base).cbSize).read_unaligned(),
-            )
-        };
+        let (channels, mix_rate, format_tag, extra_size, is_float_extensible) =
+            parse_mix_format(&format_buf);
 
         if channels == 0 || mix_rate == 0 {
             return Err("unsupported mix format from loopback client".to_string());
@@ -621,12 +656,7 @@ mod windows_impl {
         } else if format_tag == WAVE_FORMAT_PCM {
             false
         } else if format_tag == WAVE_FORMAT_EXTENSIBLE && extra_size >= 22 {
-            let sub = std::ptr::from_ref(&mix)
-                .cast::<u8>()
-                .add(24)
-                .cast::<GUID>()
-                .read_unaligned();
-            if sub == SUBTYPE_IEEE_FLOAT {
+            if is_float_extensible {
                 true
             } else {
                 return Err("unsupported extensible subformat".to_string());
@@ -658,7 +688,7 @@ mod windows_impl {
                 AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
                 HNS_PER_SECOND,
                 0,
-                &mix,
+                Some(format_buf.as_ptr() as *const WAVEFORMATEX),
                 None,
             )
             .map_err(|e| format!("cannot initialize audio client: {e}"))?;
