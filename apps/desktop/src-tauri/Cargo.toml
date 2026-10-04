@@ -1,6 +1,6 @@
 [package]
 name = "draevix-desktop"
-version = "0.0.25"
+version = "0.0.27"
 description = "Draevix desktop client"
 edition = "2021"
 
@@ -9,6 +9,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 
 [target.'cfg(windows)'.dependencies]

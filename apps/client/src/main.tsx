@@ -4,6 +4,7 @@ import 'prosemirror-view/style/prosemirror.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
+import { AppUpdater } from './components/app-updater/index.tsx';
 import { DebugInfo } from './components/debug-info/index.tsx';
 import { StoreDebug } from './components/debug/store-debug.tsx';
 import { DevicesProvider } from './components/devices-provider/index.tsx';
@@ -39,6 +40,7 @@ createRoot(document.getElementById('root')!).render(
         <Provider store={store}>
           <StoreDebug />
           <HotkeysController />
+          <AppUpdater />
           <DevicesProvider>
             <PluginsController />
             <DialogsProvider />

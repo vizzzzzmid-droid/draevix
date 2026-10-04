@@ -36,6 +36,21 @@ describe('users setProfileEffect', () => {
     expect(cleared.profileEffect).toBeNull();
   });
 
+  test('should accept every registered effect', async () => {
+    const { caller } = await initTest(1);
+
+    for (const effect of Object.values(ProfileEffect)) {
+      const result = await caller.users.setProfileEffect({
+        userId: 2,
+        effect
+      });
+
+      expect(result.profileEffect).toBe(effect);
+    }
+
+    await caller.users.setProfileEffect({ userId: 2, effect: null });
+  });
+
   test('should reject an unknown effect id', async () => {
     const { caller } = await initTest(1);
 

@@ -71,6 +71,15 @@ const ProfileEffectPicker = memo(() => {
             <SelectItem value={ProfileEffect.SNOW}>
               {t('profileEffectSnow')}
             </SelectItem>
+            <SelectItem value={ProfileEffect.SPARKS}>
+              {t('profileEffectSparks')}
+            </SelectItem>
+            <SelectItem value={ProfileEffect.GLOW_PARTICLES}>
+              {t('profileEffectGlowParticles')}
+            </SelectItem>
+            <SelectItem value={ProfileEffect.SAKURA}>
+              {t('profileEffectSakura')}
+            </SelectItem>
           </SelectContent>
         </Select>
       </CardContent>

@@ -1,9 +1,15 @@
 import { ProfileEffect } from '@draevix/shared';
 import { memo, type ComponentType } from 'react';
+import { GlowParticlesEffect } from './glow-particles';
+import { SakuraEffect } from './sakura';
 import { SnowEffect } from './snow';
+import { SparksEffect } from './sparks';
 
 const PROFILE_EFFECT_RENDERERS: Record<ProfileEffect, ComponentType> = {
-  [ProfileEffect.SNOW]: SnowEffect
+  [ProfileEffect.SNOW]: SnowEffect,
+  [ProfileEffect.SPARKS]: SparksEffect,
+  [ProfileEffect.GLOW_PARTICLES]: GlowParticlesEffect,
+  [ProfileEffect.SAKURA]: SakuraEffect
 };
 
 type TProfileEffectOverlayProps = {

@@ -32,7 +32,8 @@ export enum LocalStorageKey {
   SERVER_ADDRESS = 'draevix-server-address',
   PLUGIN_SLOT_DEBUG = 'draevix-plugin-slot-debug',
   HIDE_OWN_SCREEN_SHARE = 'draevix-hide-own-screen-share',
-  ALWAYS_SHOW_VOICE_CONTROLS = 'draevix-always-show-voice-controls'
+  ALWAYS_SHOW_VOICE_CONTROLS = 'draevix-always-show-voice-controls',
+  SKIPPED_APP_UPDATE_VERSION = 'draevix-skipped-app-update-version'
 }
 
 export enum SessionStorageKey {
