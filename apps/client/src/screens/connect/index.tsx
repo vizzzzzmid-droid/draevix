@@ -32,9 +32,20 @@ import {
   Input,
   Label,
   Spinner,
-  Switch
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
 } from '@draevix/ui';
-import { memo, useCallback, useMemo, useState, type FormEvent } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useCommunityServers } from './hooks/use-community-servers';
@@ -43,14 +54,16 @@ import { ServerCarousel } from './server-carousel';
 
 const Connect = memo(() => {
   const { t } = useTranslation('connect');
-  const { values, r, setErrors, onChange } = useForm<{
+  const { values, r, setErrors, setError, onChange } = useForm<{
     identity: string;
     password: string;
+    confirmPassword: string;
     autoLogin: boolean;
     serverAddress: string;
   }>({
     identity: getLocalStorageItem(LocalStorageKey.IDENTITY) || '',
     password: '',
+    confirmPassword: '',
     autoLogin: getLocalStorageItemBool(LocalStorageKey.AUTO_LOGIN),
     serverAddress:
       getLocalStorageItem(LocalStorageKey.SERVER_ADDRESS) ||
@@ -66,6 +79,23 @@ const Connect = memo(() => {
     const invite = urlParams.get('invite');
     return invite || undefined;
   }, []);
+
+  const [tab, setTab] = useState<'login' | 'register'>(
+    inviteCode ? 'register' : 'login'
+  );
+  const canRegister = !info || info.allowNewUsers || !!inviteCode;
+
+  useEffect(() => {
+    if (!canRegister && tab === 'register') setTab('login');
+  }, [canRegister, tab]);
+
+  const handleTabChange = useCallback(
+    (next: string) => {
+      setErrors({});
+      setTab(next as 'login' | 'register');
+    },
+    [setErrors]
+  );
 
   const startSession = useCallback(
     async (token: string) => {
@@ -85,72 +115,84 @@ const Connect = memo(() => {
 
   const oidc = useOidcLogin({ onToken: startSession });
 
-  const onConnectClick = useCallback(async () => {
-    if (isTauri() && values.serverAddress.trim() === '') {
-      setErrors({ serverAddress: t('serverAddressRequired') });
+  const onConnectClick = useCallback(
+    async (intent: 'login' | 'register') => {
+      if (isTauri() && values.serverAddress.trim() === '') {
+        setErrors({ serverAddress: t('serverAddressRequired') });
 
-      return;
-    }
-
-    if (isTauri()) {
-      setLocalStorageItem(
-        LocalStorageKey.SERVER_ADDRESS,
-        values.serverAddress.trim()
-      );
-    }
-
-    setLoading(true);
-
-    try {
-      const url = getUrlFromServer();
-      const response = await fetch(`${url}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          identity: values.identity,
-          password: values.password,
-          invite: inviteCode
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-
-        setErrors(data.errors || {});
         return;
       }
 
-      const data = (await response.json()) as { token: string };
+      if (intent === 'register' && values.password !== values.confirmPassword) {
+        setError('confirmPassword', t('passwordMismatch'));
 
-      setLocalStorageItem(LocalStorageKey.IDENTITY, values.identity);
+        return;
+      }
 
-      await startSession(data.token);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      if (isTauri()) {
+        setLocalStorageItem(
+          LocalStorageKey.SERVER_ADDRESS,
+          values.serverAddress.trim()
+        );
+      }
 
-      toast.error(t('connectError', { message: errorMessage }));
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    values.identity,
-    values.password,
-    values.serverAddress,
-    setErrors,
-    inviteCode,
-    startSession,
-    t
-  ]);
+      setLoading(true);
+
+      try {
+        const url = getUrlFromServer();
+        const response = await fetch(`${url}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            identity: values.identity,
+            password: values.password,
+            invite: inviteCode,
+            intent
+          })
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+
+          setErrors(data.errors || {});
+          return;
+        }
+
+        const data = (await response.json()) as { token: string };
+
+        setLocalStorageItem(LocalStorageKey.IDENTITY, values.identity);
+
+        await startSession(data.token);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
+        toast.error(t('connectError', { message: errorMessage }));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      values.identity,
+      values.password,
+      values.confirmPassword,
+      values.serverAddress,
+      setErrors,
+      setError,
+      inviteCode,
+      startSession,
+      t
+    ]
+  );
 
   const onFormSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      onConnectClick();
+      onConnectClick(tab);
     },
-    [onConnectClick]
+    [onConnectClick, tab]
   );
 
   const handleSelectServer = useCallback(
@@ -229,22 +271,64 @@ const Connect = memo(() => {
                   />
                 </Group>
               )}
-              <Group label={t('identityLabel')} help={t('identityHelp')}>
-                <Input
-                  {...r('identity')}
-                  autoComplete="username"
-                  data-testid={TestId.CONNECT_IDENTITY_INPUT}
-                />
-              </Group>
-              <Group label={t('passwordLabel')}>
-                <Input
-                  {...r('password')}
-                  type="password"
-                  autoComplete="current-password"
-                  onEnter={onConnectClick}
-                  data-testid={TestId.CONNECT_PASSWORD_INPUT}
-                />
-              </Group>
+              <Tabs value={tab} onValueChange={handleTabChange}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="login" className="flex-1">
+                    {t('loginTab')}
+                  </TabsTrigger>
+                  {canRegister && (
+                    <TabsTrigger value="register" className="flex-1">
+                      {t('registerTab')}
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+                <TabsContent value="login" className="flex flex-col gap-2">
+                  <Group label={t('identityLabel')} help={t('identityHelp')}>
+                    <Input
+                      {...r('identity')}
+                      autoComplete="username"
+                      data-testid={TestId.CONNECT_IDENTITY_INPUT}
+                    />
+                  </Group>
+                  <Group label={t('passwordLabel')}>
+                    <Input
+                      {...r('password')}
+                      type="password"
+                      autoComplete="current-password"
+                      onEnter={() => onConnectClick(tab)}
+                      data-testid={TestId.CONNECT_PASSWORD_INPUT}
+                    />
+                  </Group>
+                </TabsContent>
+                {canRegister && (
+                  <TabsContent value="register" className="flex flex-col gap-2">
+                    <Group label={t('identityLabel')} help={t('identityHelp')}>
+                      <Input
+                        {...r('identity')}
+                        autoComplete="username"
+                        data-testid={TestId.CONNECT_IDENTITY_INPUT}
+                      />
+                    </Group>
+                    <Group label={t('passwordLabel')}>
+                      <Input
+                        {...r('password')}
+                        type="password"
+                        autoComplete="new-password"
+                        onEnter={() => onConnectClick(tab)}
+                        data-testid={TestId.CONNECT_PASSWORD_INPUT}
+                      />
+                    </Group>
+                    <Group label={t('confirmPasswordLabel')}>
+                      <Input
+                        {...r('confirmPassword')}
+                        type="password"
+                        autoComplete="new-password"
+                        onEnter={() => onConnectClick(tab)}
+                      />
+                    </Group>
+                  </TabsContent>
+                )}
+              </Tabs>
             </form>
           )}
 
@@ -271,11 +355,16 @@ const Connect = memo(() => {
               <Button
                 className="w-full"
                 variant="outline"
-                onClick={onConnectClick}
-                disabled={loading || !values.identity || !values.password}
+                onClick={() => onConnectClick(tab)}
+                disabled={
+                  loading ||
+                  !values.identity ||
+                  !values.password ||
+                  (tab === 'register' && !values.confirmPassword)
+                }
                 data-testid={TestId.CONNECT_BUTTON}
               >
-                {t('connectBtn')}
+                {tab === 'register' ? t('registerBtn') : t('loginBtn')}
               </Button>
             )}
 

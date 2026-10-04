@@ -668,4 +668,79 @@ describe('/login', () => {
 
     expect(data.error).toContain(String(config.server.maxRequestBodyBytes));
   });
+
+  describe('intent', () => {
+    const postLogin = (body: Record<string, unknown>) =>
+      fetch(`${testsBaseUrl}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+    test('should refuse an unknown identity with login intent instead of registering', async () => {
+      const response = await postLogin({
+        identity: 'notregisteredbranda-new',
+        password: 'somepassword123',
+        intent: 'login'
+      });
+
+      expect(response.status).toBe(400);
+
+      const data: any = await response.json();
+
+      expect(data.errors).toHaveProperty('identity');
+      expect(data.errors.identity).toMatch(/register/i);
+
+      const ghost = await tdb
+        .select()
+        .from(users)
+        .where(eq(users.identity, 'notregisteredbranda-new'))
+        .get();
+
+      expect(ghost).toBeFalsy();
+    });
+
+    test('should refuse an existing identity with register intent', async () => {
+      const response = await postLogin({
+        identity: 'testowner',
+        password: 'password123',
+        intent: 'register'
+      });
+
+      expect(response.status).toBe(400);
+
+      const data: any = await response.json();
+
+      expect(data.errors).toHaveProperty('identity');
+      expect(data.errors.identity).toMatch(/taken|log in/i);
+    });
+
+    test('should register a new identity with register intent', async () => {
+      const response = await postLogin({
+        identity: 'intentregistered',
+        password: 'somepassword123',
+        intent: 'register'
+      });
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+
+      expect(data).toHaveProperty('success', true);
+      expect(data).toHaveProperty('token');
+    });
+
+    test('should keep legacy auto-register when no intent is sent', async () => {
+      const response = await postLogin({
+        identity: 'legacyregistered',
+        password: 'somepassword123'
+      });
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+
+      expect(data).toHaveProperty('success', true);
+    });
+  });
 });

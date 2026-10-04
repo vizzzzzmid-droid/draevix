@@ -38,7 +38,8 @@ const zBody = z.object({
     .string()
     .min(4, 'Password must be at least 4 characters long')
     .max(128),
-  invite: z.string().optional()
+  invite: z.string().optional(),
+  intent: z.enum(['login', 'register']).optional()
 });
 
 const loginRateLimiter = createRateLimiter({
@@ -106,6 +107,14 @@ const loginRouteHandler = async (
 
   if (!allowed) return;
 
+  // explicit registration intent never logs into an existing account
+  if (data.intent === 'register' && existingUser) {
+    throw new HttpValidationError(
+      'identity',
+      'This identity is already taken. Log in instead.'
+    );
+  }
+
   if (!existingUser) {
     let inviteRoleId: number | null = null;
 
@@ -119,6 +128,21 @@ const loginRouteHandler = async (
       );
 
       throw new HttpValidationError('identity', GENERIC_LOGIN_ERROR);
+    }
+
+    // explicit login intent never creates accounts, unless the caller came
+    // with a valid invite (old invite links land here either way)
+    if (data.intent === 'login' && !result.invite) {
+      await Bun.password.verify('dummy', await getDummyArgon2Hash());
+
+      logger.info(
+        `${chalk.dim('[Auth]')} Login attempt for unknown identity blocked, registration intent required. (IP: ${connectionInfo?.ip || 'unknown'})`
+      );
+
+      throw new HttpValidationError(
+        'identity',
+        'No account found with this identity. Create one on the Register tab.'
+      );
     }
 
     // only consume the invite when one was actually accepted
