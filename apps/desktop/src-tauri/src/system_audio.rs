@@ -28,6 +28,11 @@ pub const OUTPUT_CHANNELS: usize = 2;
 const MAX_BUFFERED_FLOATS: usize = (OUTPUT_SAMPLE_RATE as usize) * OUTPUT_CHANNELS * 2;
 /// Max frames returned by a single poll call (1 second of audio).
 const MAX_POLL_FLOATS: usize = (OUTPUT_SAMPLE_RATE as usize) * OUTPUT_CHANNELS;
+/// Below this peak a packet counts as digital silence (~-120dB). Idle
+/// sessions often deliver zero-filled packets WITHOUT the SILENT flag;
+/// letting those into the min-span mixer throttles every real source
+/// down to the idle cadence (uniform crackle, invisible to all counters).
+const SILENCE_EPSILON: f32 = 1e-6;
 /// Diagnostic WAV dump: first seconds of mixed output, then stop.
 /// Temporary debugging aid, not a feature.
 const WAV_DUMP_SECONDS: usize = 10;
@@ -1307,6 +1312,13 @@ mod windows_impl {
                 let block_peak =
                     cap.scratch.iter().fold(0.0f32, |max, s| max.max(s.abs()));
                 cap.peak = cap.peak.max(block_peak);
+
+                // Digital silence (even as a non-empty packet) neither sounds
+                // nor joins the min-span: otherwise an idle app's zero packets
+                // would throttle every real source to its cadence.
+                if block_peak <= SILENCE_EPSILON {
+                    continue;
+                }
 
                 sounded.push(cap.pid);
                 cap.carry.extend_from_slice(&cap.scratch);
