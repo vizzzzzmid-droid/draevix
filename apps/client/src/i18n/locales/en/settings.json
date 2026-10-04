@@ -111,6 +111,8 @@
   "simulcastUserDesc": "Send separate low, medium, and high-quality layers for your webcam and screen share. This uses more bandwidth and CPU, but helps viewers on slower connections receive a smoother stream. Forces the use of VP8 when enabled.",
   "simulcastDisabledByServerDesc": "Simulcast is disabled on this server.",
   "screenSharingLabel": "Screen Sharing",
+  "minimizeOnShareLabel": "Minimize app while sharing",
+  "minimizeOnShareDesc": "Automatically minimize the app window when screen sharing starts, so it stays out of the shared picture. The window is restored when sharing stops. Desktop app only.",
   "restrictOwnAudioLabel": "Restrict Own Audio",
   "restrictOwnAudioDesc": "Exclude Draevix audio from the audio captured during screen sharing.",
   "restrictOwnAudioUnsupported": "Your browser does not support restricting your own audio during screen sharing. Draevix audio may be captured in the shared stream, which can cause echo or feedback.",

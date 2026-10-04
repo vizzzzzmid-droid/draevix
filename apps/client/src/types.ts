@@ -75,6 +75,7 @@ export type TDeviceSettings = {
   screenCodec: VideoCodec;
   screenBitrate: number;
   screenCursor: ScreenCursor;
+  minimizeOnShare: boolean;
 };
 
 export type TScreenShareSource = 'tab' | 'window' | 'screen';

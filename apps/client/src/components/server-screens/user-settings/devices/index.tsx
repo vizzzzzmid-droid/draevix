@@ -14,6 +14,7 @@ import {
   getRestrictOwnAudioSupport,
   getSuppressLocalAudioPlaybackSupport
 } from '@/helpers/get-display-media-support';
+import { isTauri } from '@/helpers/get-file-url';
 import {
   NoiseSuppression,
   Resolution,
@@ -649,10 +650,25 @@ const Devices = memo(() => {
             />
           </div>
 
+          {isTauri() && (
+            <Group
+              label={t('minimizeOnShareLabel')}
+              description={t('minimizeOnShareDesc')}
+            >
+              <Switch
+                checked={!!values.minimizeOnShare}
+                onCheckedChange={(checked) =>
+                  onChange('minimizeOnShare', checked)
+                }
+              />
+            </Group>
+          )}
+
           <Group
             label={t('restrictOwnAudioLabel')}
             description={t('restrictOwnAudioDesc')}
           >
+            {' '}
             {isRestrictOwnAudioSupported ? (
               <Switch
                 checked={!!values.restrictOwnAudio}

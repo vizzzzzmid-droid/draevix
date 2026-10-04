@@ -28,6 +28,10 @@ import {
   isSystemAudioCaptureSupported,
   startSystemAudioTrack
 } from '@/helpers/system-audio';
+import {
+  minimizeAppWindowForShare,
+  restoreAppWindowAfterShare
+} from '@/helpers/tauri-window';
 import { registerVoiceDebugSource } from '@/helpers/voice-debug';
 import { useScreenShareSupport } from '@/hooks/use-screen-share-support';
 import { getTRPCClient } from '@/lib/trpc';
@@ -850,6 +854,8 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
   const stopScreenShareStream = useCallback(() => {
     logVoice('screen: stopping');
 
+    void restoreAppWindowAfterShare();
+
     if (nativeSystemAudioStopRef.current) {
       nativeSystemAudioStopRef.current();
       nativeSystemAudioStopRef.current = null;
@@ -1149,6 +1155,12 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
             };
           }
 
+          // keep our own window (and the browser sharing pill on it) out of
+          // the shared picture; restored when sharing stops
+          if (devices.minimizeOnShare) {
+            void minimizeAppWindowForShare();
+          }
+
           return videoTrack;
         } else {
           throw new Error('No video track obtained for screen share');
@@ -1185,12 +1197,15 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       devices.suppressLocalAudioPlayback,
       devices.screenCursor,
       devices.shareSystemAudio,
+      devices.minimizeOnShare,
       simulcastEnabled
     ]
   );
 
   const cleanup = useCallback(() => {
     logVoice('session: cleanup');
+
+    void restoreAppWindowAfterShare();
 
     if (nativeSystemAudioStopRef.current) {
       nativeSystemAudioStopRef.current();

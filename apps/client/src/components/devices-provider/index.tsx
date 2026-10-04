@@ -46,7 +46,8 @@ const getDefaultDeviceSettings = (): TDeviceSettings => ({
   screenFramerate: 30,
   screenCodec: VideoCodec.AUTO,
   screenBitrate: DEFAULT_BITRATE,
-  screenCursor: ScreenCursor.ALWAYS
+  screenCursor: ScreenCursor.ALWAYS,
+  minimizeOnShare: true
 });
 
 const resolveDeviceId = (
