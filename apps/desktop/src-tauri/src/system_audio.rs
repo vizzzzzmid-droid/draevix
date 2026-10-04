@@ -77,6 +77,9 @@ struct Session {
 pub struct CaptureEntry {
     pub pid: u32,
     pub exe: String,
+    /// Peak sample magnitude observed since the previous info read.
+    /// Shows which captured processes actually produce sound.
+    pub peak: f32,
 }
 
 #[derive(Clone, Default, serde::Serialize)]
@@ -199,7 +202,15 @@ pub fn system_audio_info(
     session
         .info
         .lock()
-        .map(|info| info.clone())
+        .map(|mut info| {
+            let snapshot = info.clone();
+
+            for entry in info.captures.iter_mut() {
+                entry.peak = 0.0;
+            }
+
+            snapshot
+        })
         .map_err(|_| "audio info poisoned".to_string())
 }
 
@@ -231,12 +242,18 @@ mod windows_impl {
     use super::*;
     use std::ffi::c_void;
     use windows::{
-        core::{Interface, GUID, HRESULT, IUnknown, PCWSTR},
+        core::{w, Interface, GUID, HRESULT, IUnknown, PCWSTR},
         Win32::{
             Foundation::{
                 CloseHandle, HANDLE, WAIT_OBJECT_0, S_OK, E_FAIL, E_NOINTERFACE,
             },
-            Media::Audio::*,
+            Media::{
+                Audio::*,
+                Multimedia::{
+                    AvRevertMmThreadCharacteristics,
+                    AvSetMmThreadCharacteristicsW,
+                },
+            },
             System::{
                 Com::{
                     CoCreateInstance, CoInitializeEx, CoTaskMemFree, CLSCTX_ALL,
@@ -863,6 +880,7 @@ mod windows_impl {
         resampler: Resampler,
         scratch: Vec<f32>,
         carry: Vec<f32>,
+        peak: f32,
     }
 
     fn open_pid_capture(
@@ -909,6 +927,7 @@ mod windows_impl {
             resampler: Resampler::new(mix_rate, channels),
             scratch: Vec::new(),
             carry: Vec::new(),
+            peak: 0.0,
         })
     }
 
@@ -976,6 +995,31 @@ mod windows_impl {
         if com_hr.is_err() {
             return Err(format!("[loopback/com] COM init failed: {com_hr:?}"));
         }
+
+        // MMCSS "Audio" priority, like OBS sets on its capture thread: under
+        // gaming load a normal-priority pump starves, device buffers overrun
+        // (invisible to every counter), and the stream gets uniform holes.
+        struct MmcssGuard(HANDLE);
+        impl Drop for MmcssGuard {
+            fn drop(&mut self) {
+                unsafe {
+                    if !self.0.is_invalid() {
+                        let _ = AvRevertMmThreadCharacteristics(self.0);
+                    }
+                }
+            }
+        }
+
+        let _mmcss_guard = unsafe {
+            let mut task_index: u32 = 0;
+            let handle = AvSetMmThreadCharacteristicsW(w!("Audio"), &mut task_index);
+
+            if handle.is_invalid() {
+                None
+            } else {
+                Some(MmcssGuard(handle))
+            }
+        };
 
         let initial_device = default_endpoint_id()?;
 
@@ -1106,6 +1150,7 @@ mod windows_impl {
                             .get(&cap.pid)
                             .cloned()
                             .unwrap_or_else(|| "?".to_string()),
+                        peak: cap.peak,
                     })
                     .collect();
             }
@@ -1211,6 +1256,10 @@ mod windows_impl {
                 if cap.scratch.is_empty() {
                     continue;
                 }
+
+                let block_peak =
+                    cap.scratch.iter().fold(0.0f32, |max, s| max.max(s.abs()));
+                cap.peak = cap.peak.max(block_peak);
 
                 sounded.push(cap.pid);
                 cap.carry.extend_from_slice(&cap.scratch);
