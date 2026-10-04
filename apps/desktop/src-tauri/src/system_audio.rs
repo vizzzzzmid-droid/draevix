@@ -247,13 +247,7 @@ mod windows_impl {
             Foundation::{
                 CloseHandle, HANDLE, WAIT_OBJECT_0, S_OK, E_FAIL, E_NOINTERFACE,
             },
-            Media::{
-                Audio::*,
-                Multimedia::{
-                    AvRevertMmThreadCharacteristics,
-                    AvSetMmThreadCharacteristicsW,
-                },
-            },
+            Media::Audio::*,
             System::{
                 Com::{
                     CoCreateInstance, CoInitializeEx, CoTaskMemFree, CLSCTX_ALL,
@@ -517,6 +511,16 @@ mod windows_impl {
             completion_handler: *mut c_void,
             activation_operation: *mut *mut c_void,
         ) -> HRESULT;
+    }
+
+    // MMCSS task priority (avrt.dll): only needs PCWSTR/HANDLE shapes.
+    #[link(name = "avrt")]
+    extern "system" {
+        fn AvSetMmThreadCharacteristicsW(
+            task_name: PCWSTR,
+            task_index: *mut u32,
+        ) -> HANDLE;
+        fn AvRevertMmThreadCharacteristics(handle: HANDLE) -> i32;
     }
 
     /// Copies the full mix format (base WAVEFORMATEX plus the extensible
