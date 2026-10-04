@@ -218,6 +218,7 @@ const users = sqliteTable(
     profileColor: text('profile_color')
       .notNull()
       .default(DEFAULT_PROFILE_COLOR),
+    profileEffect: text('profile_effect'),
     lastLoginAt: integer('last_login_at')
       .notNull()
       .$defaultFn(() => Date.now()),

@@ -11,6 +11,7 @@ import {
   DELETED_USER_IDENTITY_AND_NAME,
   Permission,
   PluginSlot,
+  ProfileEffect,
   TestId,
   UserStatus,
   getTrpcError
@@ -26,6 +27,7 @@ import { MessageSquare, ShieldCheck, Trash, UserCog } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { ProfileEffectOverlay } from '../profile-effects';
 import { Protect } from '../protect';
 import { RoleBadge } from '../role-badge';
 import { UserAvatar } from '../user-avatar';
@@ -68,7 +70,10 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
   return (
     <Popover>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start" side="right">
+      <PopoverContent className="relative w-80 p-0" align="start" side="right">
+        {user.profileEffect && (
+          <ProfileEffectOverlay effect={user.profileEffect as ProfileEffect} />
+        )}
         <div className="relative">
           {user.banned && (
             <div className="absolute right-2 top-2 bg-red-500 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1">

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ModViewScreen, useModViewContext } from './context';
 import { Details } from './details';
 import { Header } from './header';
+import { ProfileEffectPicker } from './profile-effect-picker';
 import { ServerActivity } from './server-activity';
 import { Files } from './server-activity/files';
 import { Links } from './server-activity/links';
@@ -72,6 +73,7 @@ const Routing = memo(({ view }: TRoutingProps) => {
     <>
       <ServerActivity />
       <Storage />
+      <ProfileEffectPicker />
       <Details />
     </>
   );
