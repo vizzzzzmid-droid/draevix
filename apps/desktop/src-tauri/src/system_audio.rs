@@ -33,11 +33,6 @@ const MAX_POLL_FLOATS: usize = (OUTPUT_SAMPLE_RATE as usize) * OUTPUT_CHANNELS;
 /// letting those into the min-span mixer throttles every real source
 /// down to the idle cadence (uniform crackle, invisible to all counters).
 const SILENCE_EPSILON: f32 = 1e-6;
-/// Diagnostic WAV dump: first seconds of mixed output, then stop.
-/// Temporary debugging aid, not a feature.
-const WAV_DUMP_SECONDS: usize = 10;
-const WAV_DUMP_SAMPLES: usize =
-    (OUTPUT_SAMPLE_RATE as usize) * OUTPUT_CHANNELS * WAV_DUMP_SECONDS;
 /// Per-client carry cap (1 second of audio). Bounds stale leftovers; normal
 /// flow keeps carries to a quantum or two.
 const CARRY_CAP_FLOATS: usize = (OUTPUT_SAMPLE_RATE as usize) * OUTPUT_CHANNELS;
@@ -96,9 +91,6 @@ pub struct CaptureEntry {
 pub struct CaptureInfo {
     pub format: String,
     pub captures: Vec<CaptureEntry>,
-    /// Local path of the 10s diagnostic WAV dump once written, else empty.
-    /// Temporary debugging aid: lets the user listen to the pre-Opus bytes.
-    pub wav_path: String,
 }
 
 #[derive(Default)]
@@ -575,37 +567,6 @@ mod windows_impl {
         }
 
         (channels, rate, tag, extra, is_float_extensible)
-    }
-
-    /// Writes interleaved stereo i16 samples as a WAV file. Temporary
-    /// diagnostic aid so the mixed pre-Opus bytes can be listened to.
-    fn write_wav_dump(samples: &[i16]) -> Result<String, String> {
-        let data_len = (samples.len() * 2) as u32;
-        let mut file = Vec::with_capacity(44 + samples.len() * 2);
-
-        file.extend_from_slice(b"RIFF");
-        file.extend_from_slice(&(36 + data_len).to_le_bytes());
-        file.extend_from_slice(b"WAVEfmt ");
-        file.extend_from_slice(&16u32.to_le_bytes());
-        file.extend_from_slice(&1u16.to_le_bytes());
-        file.extend_from_slice(&2u16.to_le_bytes());
-        file.extend_from_slice(&OUTPUT_SAMPLE_RATE.to_le_bytes());
-        file.extend_from_slice(&(OUTPUT_SAMPLE_RATE * 2 * 2).to_le_bytes());
-        file.extend_from_slice(&4u16.to_le_bytes());
-        file.extend_from_slice(&16u16.to_le_bytes());
-        file.extend_from_slice(b"data");
-        file.extend_from_slice(&data_len.to_le_bytes());
-
-        for sample in samples {
-            file.extend_from_slice(&sample.to_le_bytes());
-        }
-
-        let path = std::env::temp_dir().join("draevix-screen-audio-sample.wav");
-
-        std::fs::write(&path, &file)
-            .map_err(|e| format!("[loopback/wav] write failed: {e:?}"))?;
-
-        Ok(path.to_string_lossy().into_owned())
     }
 
     /// Reads the default render endpoint's mix format into an owned buffer.
@@ -1223,10 +1184,6 @@ mod windows_impl {
         // dozens of times per second and starve draining. Wall clock it.
         let mut last_resync = Instant::now();
 
-        // Diagnostic WAV accumulator: first seconds of mixed output.
-        let mut wav: Vec<i16> = Vec::new();
-        let mut wav_done = false;
-
         loop {
             if stop.load(Ordering::SeqCst) {
                 for cap in &captures {
@@ -1365,32 +1322,12 @@ mod windows_impl {
 
                             let clamped = sample.clamp(-1.0, 1.0);
                             guard.push_back(clamped);
-
-                            if !wav_done && wav.len() < WAV_DUMP_SAMPLES {
-                                wav.push((clamped * 32767.0) as i16);
-                            }
                         }
                     }
 
                     for cap in captures.iter_mut() {
                         if sounded.contains(&cap.pid) {
                             cap.carry.drain(..mixed_len);
-                        }
-                    }
-
-                    // One-shot diagnostic dump: first seconds of the mix.
-                    if !wav_done && wav.len() >= WAV_DUMP_SAMPLES {
-                        wav_done = true;
-
-                        let path = match write_wav_dump(&wav) {
-                            Ok(path) => path,
-                            Err(error) => error,
-                        };
-
-                        wav.clear();
-
-                        if let Ok(mut snapshot) = info.lock() {
-                            snapshot.wav_path = path;
                         }
                     }
                 }

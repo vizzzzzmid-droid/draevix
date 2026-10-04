@@ -171,7 +171,6 @@ const startSystemAudioTrack = async (options: {
   void invoke<{
     format: string;
     captures: { pid: number; exe: string; peak: number }[];
-    wavPath: string;
   }>('system_audio_info')
     .then((info) => {
       const key = JSON.stringify(info);
@@ -184,8 +183,7 @@ const startSystemAudioTrack = async (options: {
           format: info.format,
           captures: info.captures.map(
             (c) => `${c.exe}(${c.pid}):${c.peak.toFixed(2)}`
-          ),
-          wav: info.wavPath || undefined
+          )
         })
       );
     })
