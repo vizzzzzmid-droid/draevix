@@ -1242,6 +1242,22 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
         routerCodecs: incomingRouterRtpCapabilities.codecs?.length ?? 0
       });
 
+      // one-shot environment readout: on some Linux webviews WebRTC bindings
+      // are missing entirely, and this tells apart a stripped WebKit build
+      // from a context/permission problem without guessing
+      logVoice('session: environment', {
+        userAgent: navigator.userAgent,
+        isSecureContext: window.isSecureContext,
+        rtcPeerConnection: typeof RTCPeerConnection,
+        webkitRTCPeerConnection: typeof (
+          window as unknown as {
+            webkitRTCPeerConnection?: unknown;
+          }
+        ).webkitRTCPeerConnection,
+        mediaDevices: typeof navigator.mediaDevices,
+        getUserMedia: typeof navigator.mediaDevices?.getUserMedia
+      });
+
       cleanup();
 
       try {
