@@ -1,4 +1,3 @@
-import { createSelector } from '@reduxjs/toolkit';
 import {
   OWNER_ROLE_ID,
   PluginCapabilityType,
@@ -6,6 +5,7 @@ import {
   type TJoinedRole,
   type TPluginStoreState
 } from '@draevix/shared';
+import { createSelector } from '@reduxjs/toolkit';
 import { createCachedSelector } from 're-reselect';
 import type { IRootState } from '../store';
 import { categoriesSelector } from './categories/selectors';

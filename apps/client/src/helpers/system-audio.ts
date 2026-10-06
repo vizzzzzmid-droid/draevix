@@ -168,26 +168,26 @@ const startSystemAudioTrack = async (options: {
   const logCaptureInfo = () => {
     if (stopped) return;
 
-  void invoke<{
-    format: string;
-    captures: { pid: number; exe: string; peak: number }[];
-  }>('system_audio_info')
-    .then((info) => {
-      const key = JSON.stringify(info);
+    void invoke<{
+      format: string;
+      captures: { pid: number; exe: string; peak: number }[];
+    }>('system_audio_info')
+      .then((info) => {
+        const key = JSON.stringify(info);
 
-      if (key === lastCaptureKey) return;
-      lastCaptureKey = key;
+        if (key === lastCaptureKey) return;
+        lastCaptureKey = key;
 
-      return import('./browser-logger').then(({ logVoice }) =>
-        logVoice('system audio: capture info', {
-          format: info.format,
-          captures: info.captures.map(
-            (c) => `${c.exe}(${c.pid}):${c.peak.toFixed(2)}`
-          )
-        })
-      );
-    })
-    .catch(() => undefined);
+        return import('./browser-logger').then(({ logVoice }) =>
+          logVoice('system audio: capture info', {
+            format: info.format,
+            captures: info.captures.map(
+              (c) => `${c.exe}(${c.pid}):${c.peak.toFixed(2)}`
+            )
+          })
+        );
+      })
+      .catch(() => undefined);
   };
 
   logCaptureInfo();

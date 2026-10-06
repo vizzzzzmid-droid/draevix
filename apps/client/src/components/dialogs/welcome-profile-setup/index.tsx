@@ -6,7 +6,6 @@ import { uploadImage } from '@/helpers/upload-file';
 import { useFilePicker } from '@/hooks/use-file-picker';
 import { useForm } from '@/hooks/use-form';
 import { getTRPCClient } from '@/lib/trpc';
-import { AvatarImage } from '@radix-ui/react-avatar';
 import { DEFAULT_PROFILE_COLOR, getTrpcError } from '@draevix/shared';
 import {
   Avatar,
@@ -22,6 +21,7 @@ import {
   Input,
   Textarea
 } from '@draevix/ui';
+import { AvatarImage } from '@radix-ui/react-avatar';
 import { Upload, X } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';

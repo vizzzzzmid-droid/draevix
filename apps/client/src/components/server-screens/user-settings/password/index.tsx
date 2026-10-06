@@ -2,13 +2,7 @@ import { SettingsSection } from '@/components/server-screens/settings-shell/sect
 import { useSettingsForm } from '@/components/server-screens/settings-shell/use-settings-form';
 import { useOwnUserPasswordSet } from '@/features/server/users/hooks';
 import { cleanup, getTRPCClient } from '@/lib/trpc';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Group,
-  Input
-} from '@draevix/ui';
+import { Alert, AlertDescription, AlertTitle, Group, Input } from '@draevix/ui';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 

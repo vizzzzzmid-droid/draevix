@@ -1,10 +1,10 @@
 import type { IRootState } from '@/features/store';
-import { createSelector } from '@reduxjs/toolkit';
 import {
   DELETED_USER_IDENTITY_AND_NAME,
   UserStatus,
   type TJoinedPublicUser
 } from '@draevix/shared';
+import { createSelector } from '@reduxjs/toolkit';
 import { createCachedSelector } from 're-reselect';
 
 const STATUS_ORDER: Record<string, number> = {

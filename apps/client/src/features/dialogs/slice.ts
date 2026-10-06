@@ -1,6 +1,6 @@
 import type { Dialog } from '@/components/dialogs/dialogs';
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { TGenericObject } from '@draevix/shared';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 export type TDialogState = {
   openDialog: Dialog | undefined;
