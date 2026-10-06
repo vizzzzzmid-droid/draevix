@@ -25,7 +25,9 @@ import { moveUserRoute } from './move';
 import { pauseWatchRoute } from './pause-watch';
 import { playWatchRoute } from './play-watch';
 import { produceRoute } from './produce';
+import { resolveRutubeRoute } from './resolve-rutube';
 import { seekWatchRoute } from './seek-watch';
+import { selectRutubeWatchRoute } from './select-rutube-watch';
 import { selectWatchFileRoute } from './select-watch-file';
 import { setConsumerQualityRoute } from './set-consumer-quality';
 import { stopWatchRoute } from './stop-watch';
@@ -47,6 +49,8 @@ export const voiceRouter = t.router({
   getProducers: getProducersRoute,
   getWatchState: getWatchStateRoute,
   selectWatchFile: selectWatchFileRoute,
+  resolveRutube: resolveRutubeRoute,
+  selectRutubeWatch: selectRutubeWatchRoute,
   playWatch: playWatchRoute,
   pauseWatch: pauseWatchRoute,
   seekWatch: seekWatchRoute,

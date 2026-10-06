@@ -11,15 +11,34 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Button
+  Button,
+  Input
 } from '@draevix/ui';
-import { Clapperboard, Play, Trash2, Upload } from 'lucide-react';
+import { Clapperboard, Link2, Play, Trash2, Upload } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import type { TDialogBaseProps } from '../types';
 
 type TLibraryVideo = TRouterOutputs['library']['list']['videos'][number];
+
+type TRutubePreview = {
+  videoId: string;
+  title: string;
+  authorName: string;
+  durationSec: number;
+};
+
+const formatRutubeDuration = (totalSec: number): string => {
+  const sec = Math.max(0, Math.floor(totalSec));
+  const hours = Math.floor(sec / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  const rest = sec % 60;
+  const mm = hours > 0 ? String(minutes).padStart(2, '0') : String(minutes);
+  const ss = String(rest).padStart(2, '0');
+
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+};
 
 const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const { t } = useTranslation(['dialogs', 'common']);
@@ -30,6 +49,12 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const [videos, setVideos] = useState<TLibraryVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [rutubeInput, setRutubeInput] = useState('');
+  const [rutubePreview, setRutubePreview] = useState<TRutubePreview | null>(
+    null
+  );
+  const [resolving, setResolving] = useState(false);
+  const [startingRutube, setStartingRutube] = useState(false);
 
   const libraryLocked = info?.watchLibraryLocked ?? true;
   const canManageLibrary = libraryLocked
@@ -63,7 +88,11 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   }, [close, t]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setRutubeInput('');
+      setRutubePreview(null);
+      return;
+    }
 
     setLoading(true);
     void fetchVideos().finally(() => setLoading(false));
@@ -131,6 +160,49 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     },
     [fetchVideos, t]
   );
+
+  const handleResolveRutube = useCallback(async () => {
+    const trimmed = rutubeInput.trim();
+
+    if (!trimmed || resolving) return;
+
+    setResolving(true);
+
+    const trpc = getTRPCClient();
+
+    try {
+      const { video } = await trpc.voice.resolveRutube.query({
+        input: trimmed
+      });
+
+      setRutubePreview(video);
+    } catch (error) {
+      setRutubePreview(null);
+      toast.error(getTrpcError(error, t('common:failedWatchTogether')));
+    } finally {
+      setResolving(false);
+    }
+  }, [rutubeInput, resolving, t]);
+
+  const handleStartRutube = useCallback(async () => {
+    if (!rutubePreview || startingRutube) return;
+
+    setStartingRutube(true);
+
+    const trpc = getTRPCClient();
+
+    try {
+      await trpc.voice.selectRutubeWatch.mutate({
+        videoId: rutubePreview.videoId
+      });
+      toast.success(t('common:watchPartyStarted'));
+      close();
+    } catch (error) {
+      toast.error(getTrpcError(error, t('common:failedWatchTogether')));
+    } finally {
+      setStartingRutube(false);
+    }
+  }, [rutubePreview, startingRutube, close, t]);
 
   return (
     <AlertDialog open={isOpen}>
@@ -201,6 +273,53 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
             </Button>
           </div>
         )}
+        <div className="flex flex-col gap-2 border-t border-border/50 pt-3">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Link2 className="h-4 w-4" />
+            {t('watchRutubeTitle')}
+          </span>
+          <div className="flex items-center gap-2">
+            <Input
+              value={rutubeInput}
+              onChange={(event) => setRutubeInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void handleResolveRutube();
+              }}
+              placeholder={t('watchRutubePlaceholder')}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleResolveRutube()}
+              disabled={resolving || !rutubeInput.trim()}
+            >
+              {t('watchRutubeFind')}
+            </Button>
+          </div>
+          {rutubePreview && (
+            <div className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm">
+              <button
+                type="button"
+                onClick={() => void handleStartRutube()}
+                disabled={startingRutube}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <Play className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{rutubePreview.title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {[
+                      rutubePreview.authorName,
+                      formatRutubeDuration(rutubePreview.durationSec)
+                    ]
+                      .filter(Boolean)
+                      .join(' • ')}
+                  </span>
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={close}>{t('cancel')}</AlertDialogCancel>
         </AlertDialogFooter>

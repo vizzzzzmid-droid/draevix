@@ -188,7 +188,8 @@ const useVoiceEvents = ({
           playing: watch?.playing,
           controllerUserId: watch?.controllerUserId,
           updatedAt: watch?.updatedAt,
-          fileId: watch?.file.id
+          fileId: watch?.file?.id,
+          rutubeVideoId: watch?.rutube?.videoId
         });
         setWatchStateForChannel(channelId, watch);
       },

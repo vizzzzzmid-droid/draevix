@@ -24,8 +24,19 @@ export type TWatchFile = {
   _accessTokenExpiresAt?: number;
 };
 
+export type TRutubeWatchSource = {
+  videoId: string;
+  title: string;
+  authorName: string;
+  durationSec: number;
+  thumbnailUrl: string | null;
+  _accessToken?: string;
+  _accessTokenExpiresAt?: number;
+};
+
 export type TWatchState = {
-  file: TWatchFile;
+  file: TWatchFile | null;
+  rutube: TRutubeWatchSource | null;
   playing: boolean;
   positionSec: number;
   updatedAt: number;
