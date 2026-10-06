@@ -12,8 +12,7 @@ const baseWatch: TWatchState = {
   playing: true,
   positionSec: 100,
   updatedAt: 1_000_000,
-  controllerUserId: 1,
-  rutube: null
+  controllerUserId: 1
 };
 
 describe('getWatchPositionSec', () => {

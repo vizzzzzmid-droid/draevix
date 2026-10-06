@@ -4,7 +4,6 @@ import { useWatchState } from '@/features/server/voice/hooks';
 import { logVoice } from '@/helpers/browser-logger';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
-import { getRutubeStreamUrl } from '@/helpers/get-rutube-url';
 import { getTRPCClient } from '@/lib/trpc';
 import { getTrpcError } from '@draevix/shared';
 import { Button } from '@draevix/ui';
@@ -13,7 +12,6 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactPlayer from 'react-player';
 import { toast } from 'sonner';
-import { HlsVideo } from './hls-video';
 
 type TWatchPartyPanelProps = {
   channelId: number;
@@ -191,12 +189,6 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
   if (!watch) return null;
 
-  const sourceName = watch.rutube
-    ? watch.rutube.authorName
-      ? `${watch.rutube.title} — ${watch.rutube.authorName}`
-      : watch.rutube.title
-    : (watch.file?.originalName ?? '');
-
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-3">
       <div className="flex items-center justify-between">
@@ -207,32 +199,17 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
           })}
         </span>
       </div>
-      {sourceName && (
-        <span className="truncate text-xs text-muted-foreground">
-          {sourceName}
-        </span>
-      )}
       <div className="aspect-video max-h-[45vh] w-full overflow-hidden rounded-md bg-black">
-        {watch.rutube ? (
-          <HlsVideo
-            src={getRutubeStreamUrl(watch.rutube)}
-            playing={watch.playing}
-            videoRef={playerRef}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-          />
-        ) : (
-          <ReactPlayer
-            ref={playerRef}
-            src={getFileUrl(watch.file)}
-            playing={watch.playing}
-            width="100%"
-            height="100%"
-            style={{ colorScheme: 'dark' }}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-          />
-        )}
+        <ReactPlayer
+          ref={playerRef}
+          src={getFileUrl(watch.file)}
+          playing={watch.playing}
+          width="100%"
+          height="100%"
+          style={{ colorScheme: 'dark' }}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+        />
       </div>
       <div className="flex items-center gap-2">
         {watch.playing ? (

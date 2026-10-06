@@ -31,7 +31,6 @@ import { pluginBundleRouteHandler } from './plugin-bundle';
 import { runPluginRoute } from './plugin-route';
 import { pluginsComponentsRouteHandler } from './plugins-components';
 import { publicRouteHandler } from './public';
-import { rutubeRouteHandler } from './rutube';
 import { uploadFileRouteHandler } from './upload';
 
 // parsed once per request and handed to every handler, so nothing below re-parses the url
@@ -86,7 +85,6 @@ const routeHandlers: Partial<
     },
     prefix: {
       '/public': publicRouteHandler,
-      '/rutube': rutubeRouteHandler,
       '/plugin-components': pluginsComponentsRouteHandler,
       '/plugin-bundle': pluginBundleRouteHandler
     }

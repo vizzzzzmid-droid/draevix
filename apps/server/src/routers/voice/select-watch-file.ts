@@ -67,7 +67,6 @@ const selectWatchFileRoute = protectedProcedure
         _accessToken: signed._accessToken,
         _accessTokenExpiresAt: signed._accessTokenExpiresAt
       },
-      rutube: null,
       playing: true,
       positionSec: 0,
       updatedAt: Date.now(),

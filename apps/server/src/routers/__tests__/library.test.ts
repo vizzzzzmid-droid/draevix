@@ -118,7 +118,7 @@ describe('library router', () => {
 
       const { watch } = await caller.voice.getWatchState();
 
-      expect(watch?.file?.id).toBe(entry.fileId);
+      expect(watch?.file.id).toBe(entry.fileId);
     } finally {
       await runtime.destroy();
     }
