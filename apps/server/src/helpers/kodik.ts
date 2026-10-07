@@ -632,7 +632,7 @@ const verifyKodikStream = async (
   if (mp4Url.includes('/s/m/')) {
     throw new KodikError(
       'UPSTREAM',
-      'Kodik limited this server for this title, try another dubbing or title'
+      'Kodik is limiting this server right now, try again later'
     );
   }
 
