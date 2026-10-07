@@ -124,11 +124,13 @@ const HlsVideo = memo(
         video.removeAttribute('src');
         video.load();
       };
-    }, [src, videoRef]);
+    }, [src, videoRef, handleStaleSource]);
 
     // same gating as the file player: only flip the element when it disagrees.
     // browsers block autoplay with sound until the user interacts, so a
-    // rejected play surfaces a tap-to-play overlay instead of a black screen
+    // rejected play surfaces a tap-to-play overlay instead of a black screen.
+    // re-attempts on source/readiness flips so autoplay still lands after the
+    // stream becomes playable without a render loop
     useEffect(() => {
       const video = videoRef.current;
 
@@ -149,7 +151,7 @@ const HlsVideo = memo(
       if (!video.paused && !playing) {
         video.pause();
       }
-    });
+    }, [videoRef, playing, src, canPlay]);
 
     const handlePlaying = useCallback(() => {
       setNeedsGesture(false);
