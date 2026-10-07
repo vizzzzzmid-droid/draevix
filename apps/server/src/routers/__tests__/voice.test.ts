@@ -862,8 +862,9 @@ describe('voice join rejoin', () => {
       await reloadedCaller.voice.join(joinInput);
 
       expect(runtime.getUser(2)).toBeDefined();
-      expect(left).toHaveLength(1);
-      expect(left[0]).toMatchObject({ channelId: VOICE_CHANNEL_ID, userId: 2 });
+      // no leave: the same user rejoins in the same call, and clients treat
+      // their own leave as kicked and would wipe the fresh session
+      expect(left).toHaveLength(0);
       expect(joined).toHaveLength(2);
     } finally {
       leaveSub.unsubscribe();

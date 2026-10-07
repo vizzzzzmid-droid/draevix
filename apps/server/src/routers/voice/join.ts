@@ -80,14 +80,11 @@ const joinVoiceRoute = rateLimitedProcedure(protectedProcedure, {
     // page reload or crashed client: the old socket's close either has not
     // fired yet or was skipped because the new session was already tracked,
     // leaving a dead entry (with dead transports) behind. evict it so the
-    // fresh join starts clean instead of bouncing off it forever
+    // fresh join starts clean instead of bouncing off it forever. no leave
+    // event on purpose: the same user rejoins in this very call, and clients
+    // treat their own leave as kicked and would wipe the fresh session
     if (staleRuntime) {
       staleRuntime.removeUser(ctx.user.id);
-
-      ctx.pubsub.publish(ServerEvents.USER_LEAVE_VOICE, {
-        channelId: staleRuntime.id,
-        userId: ctx.user.id
-      });
 
       logger.info(
         '%s rejoining voice channel %s, evicted stale session',
