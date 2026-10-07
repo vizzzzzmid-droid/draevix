@@ -189,7 +189,6 @@ const useVoiceEvents = ({
           controllerUserId: watch?.controllerUserId,
           updatedAt: watch?.updatedAt,
           fileId: watch?.file?.id,
-          kodikId: watch?.kodik?.kodikId,
           anilibertyReleaseId: watch?.aniliberty?.releaseId
         });
         setWatchStateForChannel(channelId, watch);

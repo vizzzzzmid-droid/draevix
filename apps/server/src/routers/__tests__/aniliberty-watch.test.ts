@@ -135,7 +135,6 @@ describe('watch anilibertySelect', () => {
       const { watch } = await caller.voice.getWatchState();
 
       expect(watch?.file).toBeNull();
-      expect(watch?.kodik).toBeNull();
       expect(watch).toMatchObject({
         aniliberty: {
           releaseId: 413,

@@ -7,7 +7,17 @@ import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { getTRPCClient } from '@/lib/trpc';
 import { getTrpcError } from '@draevix/shared';
 import { Button } from '@draevix/ui';
-import { Pause, Play, Square } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Maximize,
+  Minimize,
+  Pause,
+  Play,
+  Square,
+  Volume2,
+  VolumeX
+} from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactPlayer from 'react-player';
@@ -35,6 +45,16 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [duration, setDuration] = useState(0);
   const [displayPosition, setDisplayPosition] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [episodes, setEpisodes] = useState<
+    { ordinal: number; name: string | null }[]
+  >([]);
+  const [seasons, setSeasons] = useState<
+    { releaseId: number; title: string }[]
+  >([]);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!watch) {
@@ -80,6 +100,70 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
       }
     };
   }, [watch]);
+
+  // volume and mute are per-viewer, never broadcast: applied to whatever
+  // element is mounted (file player or hls) on every render, same as playing
+  useEffect(() => {
+    const player = playerRef.current;
+
+    if (!player) return;
+
+    player.volume = volume;
+    player.muted = muted;
+  });
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement != null);
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
+  }, []);
+
+  // episode and season lists for the in-player switcher; switching re-selects
+  // the title for everyone from the start, like picking it from the dialog
+  useEffect(() => {
+    const releaseId = watch?.aniliberty?.releaseId;
+
+    if (!releaseId) {
+      setEpisodes([]);
+      setSeasons([]);
+      return;
+    }
+
+    let cancelled = false;
+    const trpc = getTRPCClient();
+
+    void Promise.all([
+      trpc.voice.anilibertyDescribe.query({ releaseId }),
+      trpc.voice.anilibertyFranchise.query({ releaseId })
+    ])
+      .then(([described, franchise]) => {
+        if (cancelled) return;
+
+        setEpisodes(
+          described.episodes.map((episode) => ({
+            ordinal: episode.ordinal,
+            name: episode.name
+          }))
+        );
+        setSeasons(
+          franchise.releases.map((release) => ({
+            releaseId: release.releaseId,
+            title: release.title
+          }))
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [watch?.aniliberty?.releaseId]);
 
   const handlePlay = useCallback(async () => {
     const position = playerRef.current?.currentTime ?? displayPosition;
@@ -172,27 +256,62 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
     }
   }, [t]);
 
-  // upstream links carry a timestamp signature that dies within hours: a dead
-  // player re-resolves the same title instead of hanging on a 403
-  const refreshedUrlRef = useRef<string | null>(null);
+  const handleVolumeChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const next = Number(event.target.value);
 
-  const handleKodikError = useCallback(async () => {
-    const mp4Url = watch?.kodik?.mp4Url;
+      setVolume(next);
+      setMuted(next === 0);
+    },
+    []
+  );
 
-    if (!mp4Url || refreshedUrlRef.current === mp4Url) return;
+  const handleMuteToggle = useCallback(() => {
+    setMuted((previous) => !previous);
+  }, []);
 
-    refreshedUrlRef.current = mp4Url;
-
-    logVoice('watch: kodik refresh', { mp4Url });
-
-    const trpc = getTRPCClient();
-
-    try {
-      await trpc.voice.kodikRefresh.mutate();
-    } catch (error) {
-      toast.error(getTrpcError(error, t('failedWatchTogether')));
+  const handleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+      return;
     }
-  }, [watch?.kodik?.mp4Url, t]);
+
+    void panelRef.current?.requestFullscreen().catch(() => {});
+  }, []);
+
+  const handleSwitchEpisode = useCallback(
+    async (episode: number) => {
+      const releaseId = watch?.aniliberty?.releaseId;
+
+      if (!releaseId) return;
+
+      logVoice('watch: switch episode', { releaseId, episode });
+
+      const trpc = getTRPCClient();
+
+      try {
+        await trpc.voice.anilibertySelect.mutate({ releaseId, episode });
+      } catch (error) {
+        toast.error(getTrpcError(error, t('failedWatchTogether')));
+      }
+    },
+    [watch?.aniliberty?.releaseId, t]
+  );
+
+  const handleSwitchSeason = useCallback(
+    async (releaseId: number) => {
+      logVoice('watch: switch season', { releaseId });
+
+      const trpc = getTRPCClient();
+
+      try {
+        await trpc.voice.anilibertySelect.mutate({ releaseId, episode: 1 });
+      } catch (error) {
+        toast.error(getTrpcError(error, t('failedWatchTogether')));
+      }
+    },
+    [t]
+  );
 
   // aniliberty manifest urls die within minutes: a stale player (late join
   // included) re-resolves the same episode instead of giving up
@@ -248,18 +367,23 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
       ]
         .filter(Boolean)
         .join(' — ')
-    : watch.kodik
-      ? [
-          watch.kodik.title,
-          watch.kodik.translationTitle,
-          watch.kodik.episode > 0 ? `E${watch.kodik.episode}` : ''
-        ]
-          .filter(Boolean)
-          .join(' — ')
-      : (watch.file?.originalName ?? '');
+    : (watch.file?.originalName ?? '');
+
+  const currentEpisode = watch.aniliberty?.episode ?? 0;
+  const episodeOrdinals = episodes.map((entry) => entry.ordinal);
+  const episodeIndex = episodeOrdinals.indexOf(currentEpisode);
+  const prevEpisode =
+    episodeIndex > 0 ? (episodeOrdinals[episodeIndex - 1] ?? null) : null;
+  const nextEpisode =
+    episodeIndex >= 0 && episodeIndex < episodeOrdinals.length - 1
+      ? (episodeOrdinals[episodeIndex + 1] ?? null)
+      : null;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-3">
+    <div
+      ref={panelRef}
+      className={`flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-3 ${isFullscreen ? 'h-full justify-center bg-black' : ''}`}
+    >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{t('watchPartyTitle')}</span>
         <span className="text-xs text-muted-foreground">
@@ -273,7 +397,66 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
           {sourceName}
         </span>
       )}
-      <div className="aspect-video max-h-[45vh] w-full overflow-hidden rounded-md bg-black">
+      {watch.aniliberty && episodes.length > 0 && (
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => {
+              if (prevEpisode !== null) void handleSwitchEpisode(prevEpisode);
+            }}
+            disabled={prevEpisode === null}
+            title={t('watchPrevEpisode')}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <select
+            value={currentEpisode}
+            onChange={(event) =>
+              void handleSwitchEpisode(Number(event.target.value))
+            }
+            className="min-w-0 flex-1 truncate rounded-md border border-border/50 bg-background px-2 py-1 text-xs"
+            aria-label={t('watchEpisode')}
+          >
+            {episodes.map((entry) => (
+              <option key={entry.ordinal} value={entry.ordinal}>
+                {t('watchEpisodeN', { episode: entry.ordinal })}
+                {entry.name ? ` — ${entry.name}` : ''}
+              </option>
+            ))}
+          </select>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => {
+              if (nextEpisode !== null) void handleSwitchEpisode(nextEpisode);
+            }}
+            disabled={nextEpisode === null}
+            title={t('watchNextEpisode')}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          {seasons.length > 1 && watch.aniliberty && (
+            <select
+              value={watch.aniliberty.releaseId}
+              onChange={(event) =>
+                void handleSwitchSeason(Number(event.target.value))
+              }
+              className="max-w-40 truncate rounded-md border border-border/50 bg-background px-2 py-1 text-xs"
+              aria-label={t('watchSeason')}
+            >
+              {seasons.map((entry) => (
+                <option key={entry.releaseId} value={entry.releaseId}>
+                  {entry.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+      <div
+        className={`w-full overflow-hidden rounded-md bg-black ${isFullscreen ? 'min-h-0 flex-1' : 'aspect-video max-h-[45vh]'}`}
+      >
         {watch.aniliberty ? (
           <HlsVideo
             src={watch.aniliberty.hlsUrl}
@@ -287,14 +470,13 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
         ) : (
           <ReactPlayer
             ref={playerRef}
-            src={watch.kodik ? watch.kodik.mp4Url : getFileUrl(watch.file)}
+            src={getFileUrl(watch.file)}
             playing={watch.playing}
             width="100%"
             height="100%"
             style={{ colorScheme: 'dark' }}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
-            onError={watch.kodik ? handleKodikError : undefined}
           />
         )}
       </div>
@@ -332,6 +514,40 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
           aria-label={t('watchSeek')}
           className="flex-1"
         />
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleMuteToggle}
+          title={muted ? t('watchUnmute') : t('watchMute')}
+        >
+          {muted || volume === 0 ? (
+            <VolumeX className="h-4 w-4" />
+          ) : (
+            <Volume2 className="h-4 w-4" />
+          )}
+        </Button>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={muted ? 0 : volume}
+          onChange={handleVolumeChange}
+          aria-label={t('watchVolume')}
+          className="w-20"
+        />
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleFullscreen}
+          title={isFullscreen ? t('watchExitFullscreen') : t('watchFullscreen')}
+        >
+          {isFullscreen ? (
+            <Minimize className="h-4 w-4" />
+          ) : (
+            <Maximize className="h-4 w-4" />
+          )}
+        </Button>
         <Button
           size="icon"
           variant="ghost"

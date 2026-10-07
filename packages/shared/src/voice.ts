@@ -24,21 +24,6 @@ export type TWatchFile = {
   _accessTokenExpiresAt?: number;
 };
 
-export type TKodikWatchSource = {
-  kodikId: string;
-  link: string;
-  title: string;
-  titleOrig: string;
-  translationId: string;
-  translationTitle: string;
-  season: number;
-  episode: number;
-  quality: number;
-  mp4Url: string;
-  hlsUrl: string;
-  poster: string | null;
-};
-
 export type TAnilibertyWatchSource = {
   releaseId: number;
   episode: number;
@@ -52,7 +37,6 @@ export type TAnilibertyWatchSource = {
 
 export type TWatchState = {
   file: TWatchFile | null;
-  kodik: TKodikWatchSource | null;
   aniliberty: TAnilibertyWatchSource | null;
   playing: boolean;
   positionSec: number;

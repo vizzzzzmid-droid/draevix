@@ -44,7 +44,6 @@ const anilibertySelectRoute = protectedProcedure
 
       const watch = {
         file: null,
-        kodik: null,
         aniliberty: {
           releaseId: described.releaseId,
           episode: episode.ordinal,

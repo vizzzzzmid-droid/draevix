@@ -22,10 +22,6 @@ import type { TDialogBaseProps } from '../types';
 
 type TLibraryVideo = TRouterOutputs['library']['list']['videos'][number];
 
-type TKodikResult = TRouterOutputs['voice']['kodikSearch']['results'][number];
-
-type TKodikDetails = TRouterOutputs['voice']['kodikDescribe'];
-
 type TAnilibertyResult =
   TRouterOutputs['voice']['anilibertySearch']['results'][number];
 
@@ -40,16 +36,6 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const [videos, setVideos] = useState<TLibraryVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [kodikQuery, setKodikQuery] = useState('');
-  const [kodikResults, setKodikResults] = useState<TKodikResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [picked, setPicked] = useState<TKodikResult | null>(null);
-  const [details, setDetails] = useState<TKodikDetails | null>(null);
-  const [describing, setDescribing] = useState(false);
-  const [translationId, setTranslationId] = useState('');
-  const [season, setSeason] = useState(1);
-  const [episode, setEpisode] = useState(1);
-  const [startingKodik, setStartingKodik] = useState(false);
   const [anilibertyQuery, setAnilibertyQuery] = useState('');
   const [anilibertyResults, setAnilibertyResults] = useState<
     TAnilibertyResult[]
@@ -97,10 +83,6 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
   useEffect(() => {
     if (!isOpen) {
-      setKodikQuery('');
-      setKodikResults([]);
-      setPicked(null);
-      setDetails(null);
       setAnilibertyQuery('');
       setAnilibertyResults([]);
       setPickedRelease(null);
@@ -175,118 +157,6 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     [fetchVideos, t]
   );
 
-  const handleKodikSearch = useCallback(async () => {
-    const trimmed = kodikQuery.trim();
-
-    if (!trimmed || searching) return;
-
-    setSearching(true);
-    setPicked(null);
-    setDetails(null);
-
-    const trpc = getTRPCClient();
-
-    try {
-      const { results } = await trpc.voice.kodikSearch.query({
-        query: trimmed,
-        limit: 10
-      });
-
-      setKodikResults(results);
-    } catch (error) {
-      setKodikResults([]);
-      toast.error(getTrpcError(error, t('common:failedWatchTogether')));
-    } finally {
-      setSearching(false);
-    }
-  }, [kodikQuery, searching, t]);
-
-  const handleKodikPick = useCallback(
-    async (entry: TKodikResult) => {
-      if (entry.blocked) {
-        toast.error(t('watchKodikBlocked'));
-        return;
-      }
-
-      if (entry.kind !== 'serial') {
-        setPicked(entry);
-        setDetails(null);
-        setTranslationId(entry.translation.id);
-        setSeason(1);
-        setEpisode(0);
-        return;
-      }
-
-      setPicked(entry);
-      setDetails(null);
-      setDescribing(true);
-
-      const trpc = getTRPCClient();
-
-      try {
-        const described = await trpc.voice.kodikDescribe.query({
-          link: entry.link
-        });
-
-        setDetails(described);
-
-        const preferred =
-          described.translations.find((tr) => tr.id === entry.translation.id) ??
-          described.translations.find((tr) => tr.selected) ??
-          described.translations[0];
-
-        setTranslationId(preferred?.id ?? '');
-        setSeason(described.seasons[0] ?? 1);
-        setEpisode(1);
-      } catch (error) {
-        setPicked(null);
-        toast.error(getTrpcError(error, t('common:failedWatchTogether')));
-      } finally {
-        setDescribing(false);
-      }
-    },
-    [t]
-  );
-
-  const handleKodikStart = useCallback(async () => {
-    if (!picked || startingKodik) return;
-
-    setStartingKodik(true);
-
-    const trpc = getTRPCClient();
-
-    try {
-      await trpc.voice.kodikSelect.mutate({
-        link: picked.link,
-        kodikId: picked.kodikId,
-        title: picked.title,
-        titleOrig: picked.titleOrig,
-        translationId: translationId || undefined,
-        translationTitle:
-          details?.translations.find((tr) => tr.id === translationId)?.title ??
-          picked.translation.title,
-        season: picked.kind === 'serial' ? season : undefined,
-        episode: picked.kind === 'serial' ? episode : undefined,
-        poster: picked.poster ?? undefined
-      });
-      toast.success(t('common:watchPartyStarted'));
-      close();
-    } catch (error) {
-      toast.error(getTrpcError(error, t('common:failedWatchTogether')));
-    } finally {
-      setStartingKodik(false);
-    }
-  }, [
-    picked,
-    startingKodik,
-    translationId,
-    details,
-    season,
-    episode,
-    close,
-    t
-  ]);
-
   const handleAnilibertySearch = useCallback(async () => {
     const trimmed = anilibertyQuery.trim();
 
@@ -328,7 +198,7 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
         if (described.blocked) {
           setPickedRelease(null);
-          toast.error(t('watchKodikBlocked'));
+          toast.error(t('watchAnilibertyBlocked'));
           return;
         }
 
@@ -437,143 +307,6 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
         <div className="flex flex-col gap-2 border-t border-border/50 pt-3">
           <span className="flex items-center gap-2 text-sm font-medium">
             <MonitorPlay className="h-4 w-4" />
-            {t('watchKodikTitle')}
-          </span>
-          <div className="flex items-center gap-2">
-            <Input
-              value={kodikQuery}
-              onChange={(event) => setKodikQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void handleKodikSearch();
-              }}
-              placeholder={t('watchKodikPlaceholder')}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void handleKodikSearch()}
-              disabled={searching || !kodikQuery.trim()}
-            >
-              {t('watchKodikFind')}
-            </Button>
-          </div>
-          {kodikResults.map((entry) => (
-            <div
-              key={`${entry.kodikId}-${entry.translation.id}`}
-              className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm"
-            >
-              {entry.poster && (
-                <img
-                  src={entry.poster}
-                  alt=""
-                  className="h-10 w-7 shrink-0 rounded object-cover"
-                  loading="lazy"
-                  onError={(event) => {
-                    event.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => void handleKodikPick(entry)}
-                className="flex min-w-0 flex-1 items-center gap-2 text-left"
-              >
-                <Play className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">
-                    {entry.title}
-                    {entry.year ? ` (${entry.year})` : ''}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {[
-                      entry.translation.title,
-                      entry.kind === 'serial' && entry.episodesCount
-                        ? t('watchKodikEpisodes', {
-                            count: entry.episodesCount
-                          })
-                        : '',
-                      entry.quality
-                    ]
-                      .filter(Boolean)
-                      .join(' • ')}
-                  </span>
-                </span>
-              </button>
-            </div>
-          ))}
-          {describing && (
-            <span className="text-sm text-muted-foreground">
-              {t('watchPickerLoading')}
-            </span>
-          )}
-          {picked && !describing && (
-            <div className="flex flex-col gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm">
-              <span className="truncate font-medium">{picked.title}</span>
-              {details && picked.kind === 'serial' && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={translationId}
-                    onChange={(event) => setTranslationId(event.target.value)}
-                    className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-                    aria-label={t('watchKodikTranslation')}
-                  >
-                    {details.translations.map((tr) => (
-                      <option key={tr.id} value={tr.id}>
-                        {tr.title}
-                        {tr.type === 'subtitles' ? ' (sub)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {details.seasons.length > 1 && (
-                    <select
-                      value={season}
-                      onChange={(event) =>
-                        setSeason(Number(event.target.value))
-                      }
-                      className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-                      aria-label={t('watchKodikSeason')}
-                    >
-                      {details.seasons.map((s) => (
-                        <option key={s} value={s}>
-                          {t('watchKodikSeasonN', { season: s })}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <select
-                    value={episode}
-                    onChange={(event) => setEpisode(Number(event.target.value))}
-                    className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-                    aria-label={t('watchKodikEpisode')}
-                  >
-                    {(details.episodes.length > 0
-                      ? details.episodes.map((ep) => ep.episode)
-                      : Array.from(
-                          { length: picked.episodesCount ?? 1 },
-                          (_, i) => i + 1
-                        )
-                    ).map((ep) => (
-                      <option key={ep} value={ep}>
-                        {t('watchKodikEpisodeN', { episode: ep })}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <Button
-                size="sm"
-                onClick={() => void handleKodikStart()}
-                disabled={startingKodik}
-              >
-                <Play className="h-4 w-4" />
-                {t('watchKodikWatch')}
-              </Button>
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col gap-2 border-t border-border/50 pt-3">
-          <span className="flex items-center gap-2 text-sm font-medium">
-            <MonitorPlay className="h-4 w-4" />
             {t('watchAnilibertyTitle')}
           </span>
           <div className="flex items-center gap-2">
@@ -591,65 +324,101 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
               onClick={() => void handleAnilibertySearch()}
               disabled={searchingAniliberty || !anilibertyQuery.trim()}
             >
-              {t('watchKodikFind')}
+              {t('watchAnilibertyFind')}
             </Button>
           </div>
-          {anilibertyResults.map((entry) => (
-            <div
-              key={entry.releaseId}
-              className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm"
-            >
-              {entry.poster && (
-                <img
-                  src={entry.poster}
-                  alt=""
-                  className="h-10 w-7 shrink-0 rounded object-cover"
-                  loading="lazy"
-                  onError={(event) => {
-                    event.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => void handleAnilibertyPick(entry)}
-                className="flex min-w-0 flex-1 items-center gap-2 text-left"
-              >
-                <Play className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">
-                    {entry.title}
-                    {entry.year ? ` (${entry.year})` : ''}
-                  </span>
-                  {entry.episodesTotal ? (
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {t('watchKodikEpisodes', {
-                        count: entry.episodesTotal
-                      })}
-                    </span>
-                  ) : null}
-                </span>
-              </button>
+          {searchingAniliberty && (
+            <span className="text-sm text-muted-foreground">
+              {t('watchPickerLoading')}
+            </span>
+          )}
+          {anilibertyResults.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {anilibertyResults.map((entry) => {
+                const selected = pickedRelease?.releaseId === entry.releaseId;
+
+                return (
+                  <button
+                    key={entry.releaseId}
+                    type="button"
+                    onClick={() => void handleAnilibertyPick(entry)}
+                    className={`group relative overflow-hidden rounded-lg border text-left transition ${
+                      selected
+                        ? 'border-primary ring-2 ring-primary/60'
+                        : 'border-border/50 hover:border-primary/60'
+                    }`}
+                  >
+                    <div className="aspect-[2/3] w-full bg-muted">
+                      {entry.poster && (
+                        <img
+                          src={entry.poster}
+                          alt={entry.title}
+                          className="h-full w-full object-cover transition group-hover:scale-105"
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-1.5 pt-6">
+                      <div className="truncate text-xs font-medium text-white">
+                        {entry.title}
+                      </div>
+                      <div className="truncate text-[11px] text-white/70">
+                        {[
+                          entry.year ? String(entry.year) : '',
+                          entry.episodesTotal
+                            ? t('watchAnilibertyEpisodes', {
+                                count: entry.episodesTotal
+                              })
+                            : ''
+                        ]
+                          .filter(Boolean)
+                          .join(' • ')}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          ))}
+          )}
           {describingRelease && (
             <span className="text-sm text-muted-foreground">
               {t('watchPickerLoading')}
             </span>
           )}
           {pickedRelease && releaseDetails && !describingRelease && (
-            <div className="flex flex-col gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm">
-              <span className="truncate font-medium">
-                {pickedRelease.title}
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-3 rounded-lg border border-primary/40 bg-primary/5 p-2.5">
+              {pickedRelease.poster && (
+                <img
+                  src={pickedRelease.poster}
+                  alt={pickedRelease.title}
+                  className="h-28 w-20 shrink-0 rounded-md object-cover"
+                  loading="lazy"
+                  onError={(event) => {
+                    event.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">
+                    {pickedRelease.title}
+                  </div>
+                  {pickedRelease.titleOrig && (
+                    <div className="truncate text-xs text-muted-foreground">
+                      {pickedRelease.titleOrig}
+                    </div>
+                  )}
+                </div>
                 <select
                   value={anilibertyEpisode}
                   onChange={(event) =>
                     setAnilibertyEpisode(Number(event.target.value))
                   }
-                  className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-                  aria-label={t('watchKodikEpisode')}
+                  className="w-full truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                  aria-label={t('watchAnilibertyEpisode')}
                 >
                   {releaseDetails.episodes.map((ep) => (
                     <option key={ep.ordinal} value={ep.ordinal}>
@@ -658,15 +427,16 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                     </option>
                   ))}
                 </select>
+                <Button
+                  size="sm"
+                  onClick={() => void handleAnilibertyStart()}
+                  disabled={startingAniliberty}
+                  className="w-full"
+                >
+                  <Play className="h-4 w-4" />
+                  {t('watchAnilibertyWatch')}
+                </Button>
               </div>
-              <Button
-                size="sm"
-                onClick={() => void handleAnilibertyStart()}
-                disabled={startingAniliberty}
-              >
-                <Play className="h-4 w-4" />
-                {t('watchKodikWatch')}
-              </Button>
             </div>
           )}
         </div>

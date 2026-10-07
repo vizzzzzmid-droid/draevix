@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   AnilibertyError,
   anilibertyDescribe,
+  anilibertyFranchise,
   anilibertySearch,
   verifyAnilibertyManifest
 } from '../aniliberty';
@@ -141,5 +142,72 @@ describe('verifyAnilibertyManifest', () => {
 
     expect(error).toBeInstanceOf(AnilibertyError);
     expect((error as AnilibertyError).kind).toBe('UNAVAILABLE');
+  });
+});
+
+describe('anilibertyFranchise', () => {
+  const stubFetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+
+    if (url.includes('/anime/franchises/release/')) {
+      return new Response(JSON.stringify([{ id: 'fid-1', name: 'Наруто' }]), {
+        status: 200
+      });
+    }
+
+    if (url.includes('/anime/franchises/fid-1')) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            franchise_releases: [
+              {
+                sort_order: 2,
+                release_id: 2495,
+                release: {
+                  id: 2495,
+                  type: { value: 'MOVIE' },
+                  year: 2015,
+                  name: { main: 'Боруто (Фильм)', english: 'Boruto Movie' }
+                }
+              },
+              {
+                sort_order: 1,
+                release_id: 413,
+                release: {
+                  id: 413,
+                  type: { value: 'TV' },
+                  year: 2007,
+                  name: { main: 'Наруто Ураганные хроники' }
+                }
+              }
+            ]
+          }
+        }),
+        { status: 200 }
+      );
+    }
+
+    return new Response('Not Found', { status: 404 });
+  }) as unknown as typeof fetch;
+
+  test('should list franchise releases in order', async () => {
+    const releases = await anilibertyFranchise(413, stubFetch);
+
+    expect(releases).toHaveLength(2);
+    expect(releases[0]).toMatchObject({
+      releaseId: 413,
+      title: 'Наруто Ураганные хроники',
+      year: 2007,
+      kind: 'TV'
+    });
+    expect(releases[1]).toMatchObject({ releaseId: 2495, kind: 'MOVIE' });
+  });
+
+  test('should return nothing without a franchise', async () => {
+    const empty = (async () => {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await expect(anilibertyFranchise(1, empty)).resolves.toEqual([]);
   });
 });

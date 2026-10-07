@@ -47,6 +47,15 @@ type TAnilibertyDescribe = {
   episodes: TAnilibertyEpisode[];
 };
 
+type TAnilibertyFranchiseRelease = {
+  releaseId: number;
+  title: string;
+  titleOrig: string;
+  year: number | null;
+  kind: string;
+  sortOrder: number;
+};
+
 const anilibertyFetch = async (
   path: string,
   timeoutMs: number,
@@ -274,6 +283,103 @@ const anilibertyDescribe = async (
   };
 };
 
+// seasons of one story live as separate releases under a franchise;
+// one extra hop lists them for the in-player season switcher
+const anilibertyFranchise = async (
+  releaseId: number,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<TAnilibertyFranchiseRelease[]> => {
+  const listResponse = await anilibertyFetch(
+    `/anime/franchises/release/${releaseId}`,
+    PAGE_TIMEOUT_MS,
+    fetchImpl
+  );
+
+  if (!listResponse.ok) {
+    throw new AnilibertyError('UPSTREAM', 'Aniliberty request failed');
+  }
+
+  let listPayload: unknown;
+
+  try {
+    listPayload = await listResponse.json();
+  } catch {
+    throw new AnilibertyError(
+      'UPSTREAM',
+      'Aniliberty returned an invalid response'
+    );
+  }
+
+  const franchises = Array.isArray(listPayload) ? listPayload : [];
+  const franchiseId = franchises
+    .map((entry) => (entry as { id?: unknown }).id)
+    .find((id): id is string => typeof id === 'string');
+
+  if (!franchiseId) return [];
+
+  const detailResponse = await anilibertyFetch(
+    `/anime/franchises/${franchiseId}`,
+    PAGE_TIMEOUT_MS,
+    fetchImpl
+  );
+
+  if (!detailResponse.ok) {
+    throw new AnilibertyError('UPSTREAM', 'Aniliberty request failed');
+  }
+
+  let detailPayload: unknown;
+
+  try {
+    detailPayload = await detailResponse.json();
+  } catch {
+    throw new AnilibertyError(
+      'UPSTREAM',
+      'Aniliberty returned an invalid response'
+    );
+  }
+
+  const detail = (detailPayload as { data?: unknown }).data ?? detailPayload;
+  const entries = (detail as { franchise_releases?: unknown })
+    .franchise_releases;
+
+  if (!Array.isArray(entries)) return [];
+
+  const out: TAnilibertyFranchiseRelease[] = [];
+
+  for (const raw of entries) {
+    const entry = raw as {
+      sort_order?: unknown;
+      release_id?: unknown;
+      release?: {
+        id?: unknown;
+        type?: { value?: unknown };
+        year?: unknown;
+        name?: { main?: unknown; english?: unknown };
+      };
+    };
+    const release = entry.release;
+
+    if (typeof release?.id !== 'number') continue;
+
+    out.push({
+      releaseId: release.id,
+      title:
+        typeof release.name?.main === 'string'
+          ? release.name.main
+          : 'Без названия',
+      titleOrig:
+        typeof release.name?.english === 'string' ? release.name.english : '',
+      year: typeof release.year === 'number' ? release.year : null,
+      kind: typeof release.type?.value === 'string' ? release.type.value : '',
+      sortOrder: typeof entry.sort_order === 'number' ? entry.sort_order : 0
+    });
+  }
+
+  out.sort((a, b) => a.sortOrder - b.sortOrder);
+
+  return out;
+};
+
 // manifests are tiny and sessions are long: a one-time check that the
 // playlist exists and is a playlist keeps dead titles out of the party
 const verifyAnilibertyManifest = async (
@@ -328,10 +434,12 @@ const throwAnilibertyError = (error: unknown): never => {
 export {
   anilibertyDescribe,
   AnilibertyError,
+  anilibertyFranchise,
   anilibertySearch,
   throwAnilibertyError,
   verifyAnilibertyManifest,
   type TAnilibertyDescribe,
   type TAnilibertyEpisode,
+  type TAnilibertyFranchiseRelease,
   type TAnilibertySearchResult
 };

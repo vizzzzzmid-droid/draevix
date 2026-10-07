@@ -66,9 +66,6 @@ const zConfig = z.object({
     announcedAddress: z.string(),
     maxBitrate: z.coerce.number().int().positive()
   }),
-  kodik: z.object({
-    token: z.string().optional()
-  }),
   rateLimiters: z.object({
     sendAndEditMessage: zRateLimiter,
     joinVoiceChannel: zRateLimiter,
@@ -127,9 +124,6 @@ const defaultConfig: TConfig = {
     port: 40000,
     announcedAddress: '',
     maxBitrate: 30_000_000 // 30 Mbps
-  },
-  kodik: {
-    token: undefined
   },
   rateLimiters: {
     sendAndEditMessage: {
@@ -277,8 +271,7 @@ const envOverridesMap: Record<string, string> = {
   'oidc.disableLocalLogin': 'DRAEVIX_OIDC_DISABLE_LOCAL_LOGIN',
   'webRtc.port': 'DRAEVIX_WEBRTC_PORT',
   'webRtc.announcedAddress': 'DRAEVIX_WEBRTC_ANNOUNCED_ADDRESS',
-  'webRtc.maxBitrate': 'DRAEVIX_WEBRTC_MAX_BITRATE',
-  'kodik.token': 'DRAEVIX_KODIK_TOKEN'
+  'webRtc.maxBitrate': 'DRAEVIX_WEBRTC_MAX_BITRATE'
 };
 
 // validated again after the overrides, otherwise an env var could put a value
