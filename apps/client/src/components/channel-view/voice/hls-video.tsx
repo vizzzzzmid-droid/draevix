@@ -1,6 +1,9 @@
+import { logVoice } from '@/helpers/browser-logger';
 import type Hls from 'hls.js';
+import { Play } from 'lucide-react';
 import {
   memo,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -15,7 +18,6 @@ type THlsVideoProps = {
   videoRef: RefObject<HTMLVideoElement | null>;
   onTimeUpdate: (event: SyntheticEvent<HTMLVideoElement>) => void;
   onLoadedMetadata: (event: SyntheticEvent<HTMLVideoElement>) => void;
-  onError?: () => void;
 };
 
 // native <video> + hls.js instead of the react-player hls custom element, so
@@ -27,12 +29,13 @@ const HlsVideo = memo(
     playing,
     videoRef,
     onTimeUpdate,
-    onLoadedMetadata,
-    onError
+    onLoadedMetadata
   }: THlsVideoProps) => {
     const { t } = useTranslation();
     const hlsRef = useRef<Hls | null>(null);
     const [failed, setFailed] = useState(false);
+    const [canPlay, setCanPlay] = useState(false);
+    const [needsGesture, setNeedsGesture] = useState(false);
 
     useEffect(() => {
       const video = videoRef.current;
@@ -43,26 +46,40 @@ const HlsVideo = memo(
       let hls: Hls | null = null;
 
       setFailed(false);
+      setCanPlay(false);
+      setNeedsGesture(false);
+
+      logVoice('hls: loading source', { src: src.slice(0, 80) });
 
       if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = src;
       } else {
-        void import('hls.js').then(({ default: HlsClass }) => {
-          if (cancelled) return;
+        void import('hls.js')
+          .then(({ default: HlsClass }) => {
+            if (cancelled) return;
 
-          if (!HlsClass.isSupported()) {
-            setFailed(true);
-            return;
-          }
+            if (!HlsClass.isSupported()) {
+              setFailed(true);
+              return;
+            }
 
-          hls = new HlsClass();
-          hlsRef.current = hls;
-          hls.on(HlsClass.Events.ERROR, (_, data) => {
-            if (data.fatal) setFailed(true);
+            hls = new HlsClass();
+            hlsRef.current = hls;
+            hls.on(HlsClass.Events.ERROR, (_, data) => {
+              logVoice('hls: player error', {
+                fatal: data.fatal,
+                type: data.type,
+                details: data.details
+              });
+
+              if (data.fatal) setFailed(true);
+            });
+            hls.loadSource(src);
+            hls.attachMedia(video);
+          })
+          .catch(() => {
+            if (!cancelled) setFailed(true);
           });
-          hls.loadSource(src);
-          hls.attachMedia(video);
-        });
       }
 
       return () => {
@@ -74,7 +91,9 @@ const HlsVideo = memo(
       };
     }, [src, videoRef]);
 
-    // same gating as the file player: only flip the element when it disagrees
+    // same gating as the file player: only flip the element when it disagrees.
+    // browsers block autoplay with sound until the user interacts, so a
+    // rejected play surfaces a tap-to-play overlay instead of a black screen
     useEffect(() => {
       const video = videoRef.current;
 
@@ -84,9 +103,11 @@ const HlsVideo = memo(
         try {
           const result = video.play() as unknown as Promise<void> | undefined;
 
-          void result?.catch(() => {});
+          void result?.catch(() => {
+            setNeedsGesture(true);
+          });
         } catch {
-          // autoplay blocked until the user interacts with the page
+          setNeedsGesture(true);
         }
       }
 
@@ -94,6 +115,40 @@ const HlsVideo = memo(
         video.pause();
       }
     });
+
+    const handlePlaying = useCallback(() => {
+      setNeedsGesture(false);
+      setCanPlay(true);
+    }, []);
+
+    const handleCanPlay = useCallback(() => {
+      setCanPlay(true);
+    }, []);
+
+    const handleVideoError = useCallback(() => {
+      logVoice('hls: video element error');
+      setFailed(true);
+    }, []);
+
+    const handleOverlayPlay = useCallback(() => {
+      const video = videoRef.current;
+
+      if (!video) return;
+
+      try {
+        const result = video.play() as unknown as Promise<void> | undefined;
+
+        void result
+          ?.then(() => {
+            setNeedsGesture(false);
+          })
+          .catch(() => {
+            // stays on the overlay for another tap
+          });
+      } catch {
+        // stays on the overlay for another tap
+      }
+    }, [videoRef]);
 
     if (failed) {
       return (
@@ -104,16 +159,39 @@ const HlsVideo = memo(
     }
 
     return (
-      <video
-        ref={videoRef}
-        playsInline
-        width="100%"
-        height="100%"
-        style={{ colorScheme: 'dark', width: '100%', height: '100%' }}
-        onTimeUpdate={onTimeUpdate}
-        onLoadedMetadata={onLoadedMetadata}
-        onError={onError}
-      />
+      <div className="relative h-full w-full">
+        <video
+          ref={videoRef}
+          playsInline
+          width="100%"
+          height="100%"
+          style={{ colorScheme: 'dark', width: '100%', height: '100%' }}
+          onTimeUpdate={onTimeUpdate}
+          onLoadedMetadata={onLoadedMetadata}
+          onPlaying={handlePlaying}
+          onCanPlay={handleCanPlay}
+          onError={handleVideoError}
+        />
+        {!canPlay && !needsGesture && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black">
+            <span className="text-sm text-muted-foreground">
+              {t('watchStreamLoading')}
+            </span>
+          </div>
+        )}
+        {needsGesture && (
+          <button
+            type="button"
+            onClick={handleOverlayPlay}
+            className="absolute inset-0 flex items-center justify-center bg-black/60"
+            aria-label={t('watchPlay')}
+          >
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Play className="h-8 w-8" />
+            </span>
+          </button>
+        )}
+      </div>
     );
   }
 );
