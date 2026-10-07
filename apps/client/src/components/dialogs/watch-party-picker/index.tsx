@@ -341,7 +341,7 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
             </Button>
           </div>
         )}
-        <div className="flex flex-col gap-2 border-t border-border/50 pt-3">
+        <div className="flex min-w-0 flex-col gap-2 border-t border-border/50 pt-3">
           <span className="flex items-center gap-2 text-sm font-medium">
             <MonitorPlay className="h-4 w-4" />
             {t('watchAnilibertyTitle')}
