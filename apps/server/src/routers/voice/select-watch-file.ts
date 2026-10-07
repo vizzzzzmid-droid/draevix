@@ -68,6 +68,7 @@ const selectWatchFileRoute = protectedProcedure
         _accessTokenExpiresAt: signed._accessTokenExpiresAt
       },
       kodik: null,
+      aniliberty: null,
       playing: true,
       positionSec: 0,
       updatedAt: Date.now(),

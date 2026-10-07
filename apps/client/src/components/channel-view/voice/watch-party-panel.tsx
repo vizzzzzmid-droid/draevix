@@ -12,6 +12,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactPlayer from 'react-player';
 import { toast } from 'sonner';
+import { HlsVideo } from './hls-video';
 
 type TWatchPartyPanelProps = {
   channelId: number;
@@ -211,15 +212,24 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
 
   if (!watch) return null;
 
-  const sourceName = watch.kodik
+  const sourceName = watch.aniliberty
     ? [
-        watch.kodik.title,
-        watch.kodik.translationTitle,
-        watch.kodik.episode > 0 ? `E${watch.kodik.episode}` : ''
+        watch.aniliberty.title,
+        watch.aniliberty.episode > 0
+          ? t('watchEpisodeN', { episode: watch.aniliberty.episode })
+          : ''
       ]
         .filter(Boolean)
         .join(' — ')
-    : (watch.file?.originalName ?? '');
+    : watch.kodik
+      ? [
+          watch.kodik.title,
+          watch.kodik.translationTitle,
+          watch.kodik.episode > 0 ? `E${watch.kodik.episode}` : ''
+        ]
+          .filter(Boolean)
+          .join(' — ')
+      : (watch.file?.originalName ?? '');
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-3">
@@ -237,17 +247,27 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
         </span>
       )}
       <div className="aspect-video max-h-[45vh] w-full overflow-hidden rounded-md bg-black">
-        <ReactPlayer
-          ref={playerRef}
-          src={watch.kodik ? watch.kodik.mp4Url : getFileUrl(watch.file)}
-          playing={watch.playing}
-          width="100%"
-          height="100%"
-          style={{ colorScheme: 'dark' }}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onError={watch.kodik ? handleKodikError : undefined}
-        />
+        {watch.aniliberty ? (
+          <HlsVideo
+            src={watch.aniliberty.hlsUrl}
+            playing={watch.playing}
+            videoRef={playerRef}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+          />
+        ) : (
+          <ReactPlayer
+            ref={playerRef}
+            src={watch.kodik ? watch.kodik.mp4Url : getFileUrl(watch.file)}
+            playing={watch.playing}
+            width="100%"
+            height="100%"
+            style={{ colorScheme: 'dark' }}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onError={watch.kodik ? handleKodikError : undefined}
+          />
+        )}
       </div>
       <div className="flex items-center gap-2">
         {watch.playing ? (

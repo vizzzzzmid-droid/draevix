@@ -51,6 +51,7 @@ const kodikSelectRoute = protectedProcedure
 
       const watch = {
         file: null,
+        aniliberty: null,
         kodik: {
           kodikId: input.kodikId,
           link,

@@ -98,6 +98,8 @@
   "watchPause": "Пауза",
   "watchSeek": "Перемотать",
   "watchControlledBy": "Управляет {{name}}",
+  "watchEpisodeN": "Серия {{episode}}",
+  "watchStreamFailed": "Не удалось загрузить поток",
   "watchLibraryEmpty": "Пока нет фильмов. Админ может загрузить.",
   "watchLibraryUploaded": "Фильм добавлен в библиотеку",
   "watchLibraryDeleted": "Фильм удалён из библиотеки",

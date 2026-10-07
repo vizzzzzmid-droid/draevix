@@ -26,6 +26,8 @@
   "watchKodikSeasonN": "Сезон {{season}}",
   "watchKodikEpisode": "Серия",
   "watchKodikEpisodeN": "Серия {{episode}}",
+  "watchAnilibertyTitle": "Aniliberty: аниме с прямыми потоками",
+  "watchAnilibertyPlaceholder": "Название аниме для поиска...",
   "close": "Закрыть",
   "saveChanges": "Сохранить изменения",
   "confirmActionTitle": "Подтвердить действие",

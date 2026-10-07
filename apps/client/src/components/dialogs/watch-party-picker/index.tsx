@@ -26,6 +26,11 @@ type TKodikResult = TRouterOutputs['voice']['kodikSearch']['results'][number];
 
 type TKodikDetails = TRouterOutputs['voice']['kodikDescribe'];
 
+type TAnilibertyResult =
+  TRouterOutputs['voice']['anilibertySearch']['results'][number];
+
+type TAnilibertyDetails = TRouterOutputs['voice']['anilibertyDescribe'];
+
 const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const { t } = useTranslation(['dialogs', 'common']);
   const can = useCan();
@@ -45,6 +50,19 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [startingKodik, setStartingKodik] = useState(false);
+  const [anilibertyQuery, setAnilibertyQuery] = useState('');
+  const [anilibertyResults, setAnilibertyResults] = useState<
+    TAnilibertyResult[]
+  >([]);
+  const [searchingAniliberty, setSearchingAniliberty] = useState(false);
+  const [pickedRelease, setPickedRelease] = useState<TAnilibertyResult | null>(
+    null
+  );
+  const [releaseDetails, setReleaseDetails] =
+    useState<TAnilibertyDetails | null>(null);
+  const [describingRelease, setDescribingRelease] = useState(false);
+  const [anilibertyEpisode, setAnilibertyEpisode] = useState(1);
+  const [startingAniliberty, setStartingAniliberty] = useState(false);
 
   const libraryLocked = info?.watchLibraryLocked ?? true;
   const canManageLibrary = libraryLocked
@@ -83,6 +101,10 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
       setKodikResults([]);
       setPicked(null);
       setDetails(null);
+      setAnilibertyQuery('');
+      setAnilibertyResults([]);
+      setPickedRelease(null);
+      setReleaseDetails(null);
       return;
     }
 
@@ -264,6 +286,84 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     close,
     t
   ]);
+
+  const handleAnilibertySearch = useCallback(async () => {
+    const trimmed = anilibertyQuery.trim();
+
+    if (!trimmed || searchingAniliberty) return;
+
+    setSearchingAniliberty(true);
+    setPickedRelease(null);
+    setReleaseDetails(null);
+
+    const trpc = getTRPCClient();
+
+    try {
+      const { results } = await trpc.voice.anilibertySearch.query({
+        query: trimmed,
+        limit: 10
+      });
+
+      setAnilibertyResults(results);
+    } catch (error) {
+      setAnilibertyResults([]);
+      toast.error(getTrpcError(error, t('common:failedWatchTogether')));
+    } finally {
+      setSearchingAniliberty(false);
+    }
+  }, [anilibertyQuery, searchingAniliberty, t]);
+
+  const handleAnilibertyPick = useCallback(
+    async (entry: TAnilibertyResult) => {
+      setPickedRelease(entry);
+      setReleaseDetails(null);
+      setDescribingRelease(true);
+
+      const trpc = getTRPCClient();
+
+      try {
+        const described = await trpc.voice.anilibertyDescribe.query({
+          releaseId: entry.releaseId
+        });
+
+        if (described.blocked) {
+          setPickedRelease(null);
+          toast.error(t('watchKodikBlocked'));
+          return;
+        }
+
+        setReleaseDetails(described);
+        setAnilibertyEpisode(1);
+      } catch (error) {
+        setPickedRelease(null);
+        toast.error(getTrpcError(error, t('common:failedWatchTogether')));
+      } finally {
+        setDescribingRelease(false);
+      }
+    },
+    [t]
+  );
+
+  const handleAnilibertyStart = useCallback(async () => {
+    if (!pickedRelease || startingAniliberty) return;
+
+    setStartingAniliberty(true);
+
+    const trpc = getTRPCClient();
+
+    try {
+      await trpc.voice.anilibertySelect.mutate({
+        releaseId: pickedRelease.releaseId,
+        episode: anilibertyEpisode
+      });
+      toast.success(t('common:watchPartyStarted'));
+      close();
+    } catch (error) {
+      toast.error(getTrpcError(error, t('common:failedWatchTogether')));
+    } finally {
+      setStartingAniliberty(false);
+    }
+  }, [pickedRelease, startingAniliberty, anilibertyEpisode, close, t]);
 
   return (
     <AlertDialog open={isOpen}>
@@ -464,6 +564,105 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                 size="sm"
                 onClick={() => void handleKodikStart()}
                 disabled={startingKodik}
+              >
+                <Play className="h-4 w-4" />
+                {t('watchKodikWatch')}
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 border-t border-border/50 pt-3">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <MonitorPlay className="h-4 w-4" />
+            {t('watchAnilibertyTitle')}
+          </span>
+          <div className="flex items-center gap-2">
+            <Input
+              value={anilibertyQuery}
+              onChange={(event) => setAnilibertyQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void handleAnilibertySearch();
+              }}
+              placeholder={t('watchAnilibertyPlaceholder')}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleAnilibertySearch()}
+              disabled={searchingAniliberty || !anilibertyQuery.trim()}
+            >
+              {t('watchKodikFind')}
+            </Button>
+          </div>
+          {anilibertyResults.map((entry) => (
+            <div
+              key={entry.releaseId}
+              className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm"
+            >
+              {entry.poster && (
+                <img
+                  src={entry.poster}
+                  alt=""
+                  className="h-10 w-7 shrink-0 rounded object-cover"
+                  loading="lazy"
+                  onError={(event) => {
+                    event.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => void handleAnilibertyPick(entry)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <Play className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">
+                    {entry.title}
+                    {entry.year ? ` (${entry.year})` : ''}
+                  </span>
+                  {entry.episodesTotal ? (
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {t('watchKodikEpisodes', {
+                        count: entry.episodesTotal
+                      })}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            </div>
+          ))}
+          {describingRelease && (
+            <span className="text-sm text-muted-foreground">
+              {t('watchPickerLoading')}
+            </span>
+          )}
+          {pickedRelease && releaseDetails && !describingRelease && (
+            <div className="flex flex-col gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm">
+              <span className="truncate font-medium">
+                {pickedRelease.title}
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={anilibertyEpisode}
+                  onChange={(event) =>
+                    setAnilibertyEpisode(Number(event.target.value))
+                  }
+                  className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+                  aria-label={t('watchKodikEpisode')}
+                >
+                  {releaseDetails.episodes.map((ep) => (
+                    <option key={ep.ordinal} value={ep.ordinal}>
+                      {t('watchEpisodeN', { episode: ep.ordinal })}
+                      {ep.name ? ` — ${ep.name}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => void handleAnilibertyStart()}
+                disabled={startingAniliberty}
               >
                 <Play className="h-4 w-4" />
                 {t('watchKodikWatch')}

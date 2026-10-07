@@ -98,6 +98,8 @@
   "watchPause": "Pause",
   "watchSeek": "Seek",
   "watchControlledBy": "Controlled by {{name}}",
+  "watchEpisodeN": "Episode {{episode}}",
+  "watchStreamFailed": "The stream failed to load",
   "watchLibraryEmpty": "No movies yet. An admin can upload some.",
   "watchLibraryUploaded": "Movie added to the library",
   "watchLibraryDeleted": "Movie removed from the library",

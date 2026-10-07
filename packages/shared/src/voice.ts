@@ -39,9 +39,21 @@ export type TKodikWatchSource = {
   poster: string | null;
 };
 
+export type TAnilibertyWatchSource = {
+  releaseId: number;
+  episode: number;
+  episodeName: string;
+  title: string;
+  titleOrig: string;
+  poster: string | null;
+  durationSec: number;
+  hlsUrl: string;
+};
+
 export type TWatchState = {
   file: TWatchFile | null;
   kodik: TKodikWatchSource | null;
+  aniliberty: TAnilibertyWatchSource | null;
   playing: boolean;
   positionSec: number;
   updatedAt: number;
