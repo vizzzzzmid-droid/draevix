@@ -1,6 +1,6 @@
 import { publishWatchState } from '../../db/publishers';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
-import { kodikResolveStream, throwKodikError } from '../../helpers/kodik';
+import { kodikResolveStream, throwKodikError, verifyKodikStream } from '../../helpers/kodik';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
@@ -23,6 +23,8 @@ const kodikRefreshRoute = protectedProcedure.mutation(async ({ ctx }) => {
       season: current.kodik.season,
       episode: current.kodik.episode || undefined
     });
+
+    await verifyKodikStream(stream);
 
     const quality = stream.maxQuality;
     const mp4Url = stream.mp4[String(quality)];

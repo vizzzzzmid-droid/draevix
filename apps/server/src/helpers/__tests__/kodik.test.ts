@@ -6,15 +6,16 @@ import {
   decryptKodikToken,
   extractPostLink,
   kodikDescribe,
-  KodikError,
   kodikResolveStream,
   kodikSearch,
+  KodikError,
   normalizeKodikLink,
   parseEpisodes,
   parseSeasons,
   parseTranslations,
   parseUrlParams,
-  parseVideoIdentity
+  parseVideoIdentity,
+  verifyKodikStream
 } from '../kodik';
 
 const encryptKodikToken = (token: string): string => {
@@ -352,8 +353,56 @@ describe('kodikResolveStream', () => {
   });
 });
 
-describe('kodikDescribe', () => {
-  const stubFetch = (async () => {
+describe('verifyKodikStream', () => {
+  const stream = {
+    mp4: { '720': 'https://cloud.example.com/up/1/720.mp4' },
+    hls: { '720': 'https://cloud.example.com/up/1/720.mp4:hls:manifest.m3u8' },
+    maxQuality: 720,
+    mediaType: 'video'
+  };
+
+  const stubOk = (async () => {
+    return new Response('x', {
+      status: 206,
+      headers: { 'Content-Type': 'video/mp4' }
+    });
+  }) as unknown as typeof fetch;
+
+  test('should accept a playable file', async () => {
+    await verifyKodikStream(stream, stubOk);
+  });
+
+  test('should reject proxy (/s/m/) links', async () => {
+    const error = await verifyKodikStream(
+      {
+        ...stream,
+        mp4: { '720': 'https://p14.solodcdn.com/s/m/abc/720.mp4' }
+      },
+      stubOk
+    ).catch((err) => err);
+
+    expect(error).toBeInstanceOf(KodikError);
+    expect((error as KodikError).kind).toBe('UPSTREAM');
+  });
+
+  test('should reject dead files', async () => {
+    const stubDead = (async () => {
+      return new Response('<h1>Not Found</h1>', {
+        status: 404,
+        headers: { 'Content-Type': 'text/html' }
+      });
+    }) as unknown as typeof fetch;
+
+    const error = await verifyKodikStream(stream, stubDead).catch(
+      (err) => err
+    );
+
+    expect(error).toBeInstanceOf(KodikError);
+    expect((error as KodikError).kind).toBe('UNAVAILABLE');
+  });
+});
+
+describe('kodikDescribe', () => {  const stubFetch = (async () => {
     return new Response(SERIAL_HTML, { status: 200 });
   }) as unknown as typeof fetch;
 

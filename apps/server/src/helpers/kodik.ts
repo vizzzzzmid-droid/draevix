@@ -346,7 +346,9 @@ const sliceBetween = (
 };
 
 const parseUrlParams = (html: string): Record<string, string> => {
-  const raw = sliceBetween(html, 'urlParams', ';');
+  // the assignment is a single-quoted string, so cut at its end rather than
+  // at the first semicolon inside the payload
+  const raw = sliceBetween(html, 'urlParams', "';");
 
   if (!raw) throw new KodikError('UNAVAILABLE', 'Kodik player data not found');
 
@@ -613,6 +615,51 @@ type TKodikResolved = TKodikStreamUrls & {
   mediaType: string;
 };
 
+// kodik hands out proxy (/s/m/) links when it limits the requesting ip:
+// those never play, so reject them with a clear message instead of a black
+// screen. direct links get a one-byte range probe since dead files (removed
+// or region-locked on the cdn) decode just fine but answer 404/500.
+const verifyKodikStream = async (
+  stream: TKodikResolved,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<void> => {
+  const mp4Url = stream.mp4[String(stream.maxQuality)];
+
+  if (!mp4Url) {
+    throw new KodikError('UNAVAILABLE', 'Kodik has no playable quality');
+  }
+
+  if (mp4Url.includes('/s/m/')) {
+    throw new KodikError(
+      'UPSTREAM',
+      'Kodik limited this server for this title, try another dubbing or title'
+    );
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetchImpl(mp4Url, {
+      signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
+      headers: { 'User-Agent': KODIK_USER_AGENT, Range: 'bytes=0-0' }
+    });
+  } catch {
+    throw new KodikError('UPSTREAM', 'Kodik file is unreachable');
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+
+  if (
+    (response.status !== 200 && response.status !== 206) ||
+    contentType.includes('text/html')
+  ) {
+    throw new KodikError(
+      'UNAVAILABLE',
+      'Kodik file is unavailable right now, try another dubbing or title'
+    );
+  }
+};
+
 const kodikResolveStream = async (
   input: TKodikResolveInput,
   fetchImpl: typeof fetch = globalThis.fetch
@@ -740,5 +787,6 @@ export {
   type TKodikResolved,
   type TKodikSearchResult,
   type TKodikStreamUrls,
-  type TKodikTranslation
+  type TKodikTranslation,
+  verifyKodikStream
 };

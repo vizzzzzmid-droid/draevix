@@ -4,7 +4,8 @@ import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime'
 import {
   kodikResolveStream,
   normalizeKodikLink,
-  throwKodikError
+  throwKodikError,
+  verifyKodikStream
 } from '../../helpers/kodik';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
@@ -36,6 +37,8 @@ const kodikSelectRoute = protectedProcedure
         season: input.season,
         episode: input.episode
       });
+
+      await verifyKodikStream(stream);
 
       const quality = stream.maxQuality;
       const mp4Url = stream.mp4[String(quality)];

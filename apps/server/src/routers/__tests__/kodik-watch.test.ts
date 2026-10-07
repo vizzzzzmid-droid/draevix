@@ -129,6 +129,13 @@ const stubKodik = () => {
       return new Response(SERIAL_HTML, { status: 200 });
     }
 
+    if (url.includes('cloud.example.com')) {
+      return new Response('x', {
+        status: 206,
+        headers: { 'Content-Type': 'video/mp4' }
+      });
+    }
+
     if (url.includes('kodikplayer.com/video/')) {
       return new Response(EMBED_HTML, { status: 200 });
     }
@@ -248,6 +255,43 @@ describe('watch kodikSelect', () => {
         title: 'Test movie'
       })
     ).rejects.toThrow('User is not in a voice channel');
+  });
+
+  test('should refuse a title whose file is dead', async () => {
+    const stubbed = globalThis.fetch;
+    const deadFetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = String(input);
+
+      if (url.includes('cloud.example.com')) {
+        return new Response('<h1>Not Found</h1>', {
+          status: 404,
+          headers: { 'Content-Type': 'text/html' }
+        });
+      }
+
+      return stubbed(input, init);
+    }) as unknown as typeof fetch;
+
+    // swap the stub for one dead probe while keeping everything else
+    globalThis.fetch = deadFetch;
+
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await expect(
+        caller.voice.kodikSelect({
+          link: LINK,
+          kodikId: 'movie-1',
+          title: 'Test movie'
+        })
+      ).rejects.toThrow('unavailable');
+    } finally {
+      globalThis.fetch = stubbed;
+      await runtime.destroy();
+    }
   });
 });
 
