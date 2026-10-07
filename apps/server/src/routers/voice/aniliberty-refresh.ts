@@ -5,6 +5,7 @@ import {
   verifyAnilibertyManifest
 } from '../../helpers/aniliberty';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
+import { logger } from '../../logger';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
@@ -21,6 +22,13 @@ const anilibertyRefreshRoute = protectedProcedure.mutation(async ({ ctx }) => {
   });
 
   try {
+    logger.info(
+      'aniliberty refresh requested by %s: release %s episode %s',
+      ctx.user.name,
+      current.aniliberty.releaseId,
+      current.aniliberty.episode
+    );
+
     const described = await anilibertyDescribe(current.aniliberty.releaseId);
 
     const episode = described.episodes.find(
@@ -51,6 +59,12 @@ const anilibertyRefreshRoute = protectedProcedure.mutation(async ({ ctx }) => {
     runtime.setWatchState(watch);
 
     publishWatchState(channelId, watch);
+
+    logger.info(
+      'aniliberty refresh done for %s: %s',
+      ctx.user.name,
+      hlsUrl.slice(0, 90)
+    );
   } catch (error) {
     throwAnilibertyError(error);
   }
