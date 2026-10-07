@@ -70,14 +70,31 @@ const joinVoiceRoute = rateLimitedProcedure(protectedProcedure, {
       message: 'Cannot join a direct message channel as a voice channel'
     });
 
-    const userAlreadyInVoiceChannel = VoiceRuntime.findRuntimeByUserId(
-      ctx.user.id
-    );
+    const staleRuntime = VoiceRuntime.findRuntimeByUserId(ctx.user.id);
 
-    invariant(!userAlreadyInVoiceChannel, {
+    invariant(!staleRuntime || staleRuntime.id === input.channelId, {
       code: 'BAD_REQUEST',
       message: 'User already in a voice channel'
     });
+
+    // page reload or crashed client: the old socket's close either has not
+    // fired yet or was skipped because the new session was already tracked,
+    // leaving a dead entry (with dead transports) behind. evict it so the
+    // fresh join starts clean instead of bouncing off it forever
+    if (staleRuntime) {
+      staleRuntime.removeUser(ctx.user.id);
+
+      ctx.pubsub.publish(ServerEvents.USER_LEAVE_VOICE, {
+        channelId: staleRuntime.id,
+        userId: ctx.user.id
+      });
+
+      logger.info(
+        '%s rejoining voice channel %s, evicted stale session',
+        ctx.user.name,
+        channel.name
+      );
+    }
 
     await runHook<TBeforeVoiceJoinPayload, never>({
       entries: pluginManager.getHooks('beforeVoiceJoin'),

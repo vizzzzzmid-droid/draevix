@@ -1,5 +1,6 @@
 import {
   ChannelPermission,
+  ChannelType,
   Permission,
   ServerEvents,
   StreamKind
@@ -10,6 +11,7 @@ import { initTest } from '../../__tests__/helpers';
 import { tdb } from '../../__tests__/setup';
 import {
   channelRolePermissions,
+  channels,
   rolePermissions,
   roles
 } from '../../db/schema';
@@ -818,6 +820,94 @@ describe('voice producer subscriptions', () => {
       expect(received).toEqual([]);
     } finally {
       subscription.unsubscribe();
+    }
+  });
+});
+
+describe('voice join rejoin', () => {
+  const VOICE_CHANNEL_ID = 2;
+
+  const joinInput = {
+    channelId: VOICE_CHANNEL_ID,
+    state: { micMuted: false, soundMuted: false }
+  };
+
+  test('should evict a stale session when rejoining the same channel', async () => {
+    const runtime = new VoiceRuntime(VOICE_CHANNEL_ID);
+
+    await runtime.init();
+
+    // same user twice: the second caller is the reloaded page whose
+    // predecessor never got cleaned up (its close was skipped)
+    const { caller } = await initTest(2);
+    const { caller: reloadedCaller } = await initTest(2);
+
+    const left: { channelId: number; userId: number }[] = [];
+    const joined: { channelId: number; userId: number }[] = [];
+    const leaveSub = pubsub.subscribe(ServerEvents.USER_LEAVE_VOICE).subscribe({
+      next: (payload) => {
+        if (payload.channelId === VOICE_CHANNEL_ID) left.push(payload);
+      }
+    });
+    const joinSub = pubsub.subscribe(ServerEvents.USER_JOIN_VOICE).subscribe({
+      next: (payload) => {
+        if (payload.channelId === VOICE_CHANNEL_ID) joined.push(payload);
+      }
+    });
+
+    try {
+      await caller.voice.join(joinInput);
+
+      // must not throw 'User already in a voice channel'
+      await reloadedCaller.voice.join(joinInput);
+
+      expect(runtime.getUser(2)).toBeDefined();
+      expect(left).toHaveLength(1);
+      expect(left[0]).toMatchObject({ channelId: VOICE_CHANNEL_ID, userId: 2 });
+      expect(joined).toHaveLength(2);
+    } finally {
+      leaveSub.unsubscribe();
+      joinSub.unsubscribe();
+      await runtime.destroy();
+    }
+  });
+
+  test('should still refuse joining a different channel while in one', async () => {
+    const runtime = new VoiceRuntime(VOICE_CHANNEL_ID);
+
+    await runtime.init();
+
+    const [extra] = await tdb
+      .insert(channels)
+      .values({
+        type: ChannelType.VOICE,
+        name: 'Voice Two',
+        position: 2,
+        categoryId: 2,
+        topic: '',
+        createdAt: Date.now()
+      })
+      .returning();
+
+    const extraRuntime = new VoiceRuntime(extra!.id);
+
+    await extraRuntime.init();
+
+    const { caller } = await initTest(2);
+
+    try {
+      await caller.voice.join(joinInput);
+
+      await expect(
+        caller.voice.join({
+          channelId: extra!.id,
+          state: { micMuted: false, soundMuted: false }
+        })
+      ).rejects.toThrow('User already in a voice channel');
+    } finally {
+      await runtime.destroy();
+      await extraRuntime.destroy();
+      await tdb.delete(channels).where(eq(channels.id, extra!.id)).execute();
     }
   });
 });
