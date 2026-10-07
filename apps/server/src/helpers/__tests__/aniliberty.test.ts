@@ -47,7 +47,9 @@ const releasePayload = {
       duration: 1400,
       hls_480: null,
       hls_720: null,
-      hls_1080: null
+      hls_1080: null,
+      opening: { start: null, stop: null },
+      ending: { start: null, stop: null }
     }
   ]
 };

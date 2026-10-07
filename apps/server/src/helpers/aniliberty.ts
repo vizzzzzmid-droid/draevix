@@ -171,7 +171,7 @@ const anilibertySearch = async (
 
 const zTimeRange = z
   .object({
-    start: z.number(),
+    start: z.number().nullable().optional(),
     stop: z.number().nullable().optional()
   })
   .partial()
