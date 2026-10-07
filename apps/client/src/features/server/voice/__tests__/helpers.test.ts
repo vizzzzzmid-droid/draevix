@@ -12,7 +12,8 @@ const baseWatch: TWatchState = {
   playing: true,
   positionSec: 100,
   updatedAt: 1_000_000,
-  controllerUserId: 1
+  controllerUserId: 1,
+  kodik: null
 };
 
 describe('getWatchPositionSec', () => {

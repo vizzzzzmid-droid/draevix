@@ -24,8 +24,24 @@ export type TWatchFile = {
   _accessTokenExpiresAt?: number;
 };
 
+export type TKodikWatchSource = {
+  kodikId: string;
+  link: string;
+  title: string;
+  titleOrig: string;
+  translationId: string;
+  translationTitle: string;
+  season: number;
+  episode: number;
+  quality: number;
+  mp4Url: string;
+  hlsUrl: string;
+  poster: string | null;
+};
+
 export type TWatchState = {
-  file: TWatchFile;
+  file: TWatchFile | null;
+  kodik: TKodikWatchSource | null;
   playing: boolean;
   positionSec: number;
   updatedAt: number;

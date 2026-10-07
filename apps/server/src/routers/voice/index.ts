@@ -20,6 +20,10 @@ import {
 import { getProducersRoute } from './get-producers';
 import { getWatchStateRoute } from './get-watch-state';
 import { joinVoiceRoute } from './join';
+import { kodikDescribeRoute } from './kodik-describe';
+import { kodikRefreshRoute } from './kodik-refresh';
+import { kodikSearchRoute } from './kodik-search';
+import { kodikSelectRoute } from './kodik-select';
 import { leaveVoiceRoute } from './leave';
 import { moveUserRoute } from './move';
 import { pauseWatchRoute } from './pause-watch';
@@ -47,6 +51,10 @@ export const voiceRouter = t.router({
   getProducers: getProducersRoute,
   getWatchState: getWatchStateRoute,
   selectWatchFile: selectWatchFileRoute,
+  kodikSearch: kodikSearchRoute,
+  kodikDescribe: kodikDescribeRoute,
+  kodikSelect: kodikSelectRoute,
+  kodikRefresh: kodikRefreshRoute,
   playWatch: playWatchRoute,
   pauseWatch: pauseWatchRoute,
   seekWatch: seekWatchRoute,

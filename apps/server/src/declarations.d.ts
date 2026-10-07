@@ -34,6 +34,7 @@ declare module 'bun' {
     DRAEVIX_WEBRTC_PORT?: string;
     DRAEVIX_WEBRTC_ANNOUNCED_ADDRESS?: string;
     DRAEVIX_DATA_PATH?: string;
+    DRAEVIX_KODIK_TOKEN?: string;
   }
 }
 
