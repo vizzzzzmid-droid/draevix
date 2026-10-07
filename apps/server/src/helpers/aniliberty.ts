@@ -214,7 +214,7 @@ const zRelease = z
     episodes_total: z.number().nullable().optional(),
     is_blocked_by_geo: z.boolean().optional(),
     is_blocked_by_copyrights: z.boolean().optional(),
-    episodes: z.array(z.unknown()).optional()
+    episodes: z.union([z.array(z.unknown()), z.record(z.string(), z.unknown())]).optional()
   })
   .passthrough();
 
@@ -277,7 +277,13 @@ const anilibertyDescribe = async (
   const release = parsed.data;
   const episodes: TAnilibertyEpisode[] = [];
 
-  for (const raw of release.episodes ?? []) {
+  // usually an array, but some releases hand back an ordinal-keyed object
+  const rawEpisodes = release.episodes;
+  const episodeList: unknown[] = Array.isArray(rawEpisodes)
+    ? rawEpisodes
+    : Object.values(rawEpisodes ?? {});
+
+  for (const raw of episodeList) {
     const episode = zEpisode.safeParse(raw);
 
     if (!episode.success) continue;

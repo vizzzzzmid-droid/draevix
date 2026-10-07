@@ -470,30 +470,38 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                     </div>
                   )}
                 </div>
-                <select
-                  value={anilibertyEpisode}
-                  onChange={(event) =>
-                    setAnilibertyEpisode(Number(event.target.value))
-                  }
-                  className="w-full truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                  aria-label={t('watchAnilibertyEpisode')}
-                >
-                  {releaseDetails.episodes.map((ep) => (
-                    <option key={ep.ordinal} value={ep.ordinal}>
-                      {t('watchEpisodeN', { episode: ep.ordinal })}
-                      {ep.name ? ` — ${ep.name}` : ''}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  size="sm"
-                  onClick={() => void handleAnilibertyStart()}
-                  disabled={startingAniliberty}
-                  className="w-full"
-                >
-                  <Play className="h-4 w-4" />
-                  {t('watchAnilibertyWatch')}
-                </Button>
+                {releaseDetails.episodes.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">
+                    {t('watchNoEpisodes')}
+                  </span>
+                ) : (
+                  <>
+                    <select
+                      value={anilibertyEpisode}
+                      onChange={(event) =>
+                        setAnilibertyEpisode(Number(event.target.value))
+                      }
+                      className="w-full truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                      aria-label={t('watchAnilibertyEpisode')}
+                    >
+                      {releaseDetails.episodes.map((ep) => (
+                        <option key={ep.ordinal} value={ep.ordinal}>
+                          {t('watchEpisodeN', { episode: ep.ordinal })}
+                          {ep.name ? ` — ${ep.name}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      size="sm"
+                      onClick={() => void handleAnilibertyStart()}
+                      disabled={startingAniliberty}
+                      className="w-full"
+                    >
+                      <Play className="h-4 w-4" />
+                      {t('watchAnilibertyWatch')}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}

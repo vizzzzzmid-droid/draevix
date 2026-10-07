@@ -23,6 +23,7 @@
   "watchAnilibertyEpisodes": "{{count}} episodes",
   "watchAnilibertyEpisode": "Episode",
   "watchAnilibertyEpisodeN": "Episode {{episode}}",
+  "watchNoEpisodes": "No episodes released yet",
   "watchScrollLeft": "Scroll left",
   "watchScrollRight": "Scroll right",
   "close": "Close",

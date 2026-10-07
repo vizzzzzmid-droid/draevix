@@ -128,6 +128,26 @@ describe('anilibertyDescribe', () => {
     expect(error).toBeInstanceOf(AnilibertyError);
     expect((error as AnilibertyError).kind).toBe('NOT_FOUND');
   });
+
+  test('should accept ordinal-keyed episode objects', async () => {
+    const objectFetch = (async () => {
+      return new Response(
+        JSON.stringify({
+          id: 413,
+          name: { main: 'Test' },
+          episodes: {
+            '1': { ordinal: 1, name: 'One', hls_720: 'https://cdn.example.com/1/720.m3u8' }
+          }
+        }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const described = await anilibertyDescribe(413, objectFetch);
+
+    expect(described.episodes).toHaveLength(1);
+    expect(described.episodes[0]).toMatchObject({ ordinal: 1 });
+  });
 });
 
 describe('verifyAnilibertyManifest', () => {

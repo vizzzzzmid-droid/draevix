@@ -23,6 +23,7 @@
   "watchAnilibertyEpisodes": "Серий: {{count}}",
   "watchAnilibertyEpisode": "Серия",
   "watchAnilibertyEpisodeN": "Серия {{episode}}",
+  "watchNoEpisodes": "Серий пока нет",
   "watchScrollLeft": "Листать влево",
   "watchScrollRight": "Листать вправо",
   "close": "Закрыть",
