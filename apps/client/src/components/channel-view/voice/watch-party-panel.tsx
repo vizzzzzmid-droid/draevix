@@ -34,7 +34,9 @@ type TWatchPartyPanelProps = {
 const POSITION_SYNC_THRESHOLD_SEC = 3;
 
 // a snap aborts the in-flight range download, so back-to-back snaps (scrubbing)
-// would starve the buffer forever: only the settled position gets applied
+// would starve the buffer forever: only the settled position gets applied.
+// snaps also fire when the player gets ready (fresh join), because a timed
+// snap can land before hls even parsed the manifest and get lost
 const SNAP_SETTLE_MS = 700;
 
 const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
@@ -58,6 +60,22 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
   >([]);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
+  const snapToTarget = useCallback(() => {
+    const player = playerRef.current;
+
+    if (!player || seekingRef.current || !watch) return;
+
+    const target = getWatchPositionSec(watch);
+    const current = player.currentTime || 0;
+    const drift = Math.abs(target - current);
+
+    logVoice('watch: reconcile', { target, current, drift });
+
+    if (drift > POSITION_SYNC_THRESHOLD_SEC) {
+      player.currentTime = target;
+    }
+  }, [watch]);
+
   useEffect(() => {
     if (!watch) {
       setDisplayPosition(0);
@@ -80,19 +98,7 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
     settleTimerRef.current = setTimeout(() => {
       settleTimerRef.current = null;
 
-      const player = playerRef.current;
-
-      if (!player || seekingRef.current) return;
-
-      const freshTarget = getWatchPositionSec(watch);
-      const current = player.currentTime || 0;
-      const drift = Math.abs(freshTarget - current);
-
-      logVoice('watch: reconcile', { target: freshTarget, current, drift });
-
-      if (drift > POSITION_SYNC_THRESHOLD_SEC) {
-        player.currentTime = freshTarget;
-      }
+      snapToTarget();
     }, SNAP_SETTLE_MS);
 
     return () => {
@@ -101,7 +107,7 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
         settleTimerRef.current = null;
       }
     };
-  }, [watch]);
+  }, [watch, snapToTarget]);
 
   // volume and mute are per-viewer, never broadcast: applied to whatever
   // element is mounted (file player or hls) on every render, same as playing
@@ -378,9 +384,14 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
   const handleLoadedMetadata = useCallback(
     (event: React.SyntheticEvent<HTMLVideoElement>) => {
       setDuration(event.currentTarget.duration);
+      snapToTarget();
     },
-    []
+    [snapToTarget]
   );
+
+  const handlePlayerReady = useCallback(() => {
+    snapToTarget();
+  }, [snapToTarget]);
 
   const sourceUrl = watch
     ? watch.aniliberty
@@ -547,6 +558,8 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
                 videoRef={playerRef}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
+                onCanPlay={handlePlayerReady}
+                onPlaying={handlePlayerReady}
                 onStaleSource={() => void handleAnilibertyError(false)}
                 onRetry={() => void handleAnilibertyError(true)}
               />
@@ -560,6 +573,8 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
                 style={{ colorScheme: 'dark' }}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
+                onCanPlay={handlePlayerReady}
+                onPlay={handlePlayerReady}
               />
             )}
             {skipTarget !== null && (

@@ -18,6 +18,8 @@ type THlsVideoProps = {
   videoRef: RefObject<HTMLVideoElement | null>;
   onTimeUpdate: (event: SyntheticEvent<HTMLVideoElement>) => void;
   onLoadedMetadata: (event: SyntheticEvent<HTMLVideoElement>) => void;
+  onCanPlay?: () => void;
+  onPlaying?: () => void;
   onStaleSource?: (src: string) => void;
   onRetry?: () => void;
 };
@@ -32,6 +34,8 @@ const HlsVideo = memo(
     videoRef,
     onTimeUpdate,
     onLoadedMetadata,
+    onCanPlay,
+    onPlaying,
     onStaleSource,
     onRetry
   }: THlsVideoProps) => {
@@ -156,11 +160,13 @@ const HlsVideo = memo(
     const handlePlaying = useCallback(() => {
       setNeedsGesture(false);
       setCanPlay(true);
-    }, []);
+      onPlaying?.();
+    }, [onPlaying]);
 
     const handleCanPlay = useCallback(() => {
       setCanPlay(true);
-    }, []);
+      onCanPlay?.();
+    }, [onCanPlay]);
 
     const handleVideoError = useCallback(() => {
       const video = videoRef.current;
