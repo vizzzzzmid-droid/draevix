@@ -51,7 +51,11 @@ const HlsVideo = memo(
 
       logVoice('hls: loading source', { src: src.slice(0, 80) });
 
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      const nativeSupport = video.canPlayType('application/vnd.apple.mpegurl');
+
+      logVoice('hls: native check', { nativeSupport });
+
+      if (nativeSupport) {
         video.src = src;
       } else {
         void import('hls.js')
@@ -73,6 +77,9 @@ const HlsVideo = memo(
               });
 
               if (data.fatal) setFailed(true);
+            });
+            hls.on(HlsClass.Events.MANIFEST_PARSED, () => {
+              logVoice('hls: manifest parsed');
             });
             hls.loadSource(src);
             hls.attachMedia(video);
@@ -126,9 +133,15 @@ const HlsVideo = memo(
     }, []);
 
     const handleVideoError = useCallback(() => {
-      logVoice('hls: video element error');
+      const video = videoRef.current;
+      const code = video?.error?.code ?? -1;
+
+      logVoice('hls: video element error', {
+        code,
+        src: video?.currentSrc?.slice(0, 80) ?? ''
+      });
       setFailed(true);
-    }, []);
+    }, [videoRef]);
 
     const handleOverlayPlay = useCallback(() => {
       const video = videoRef.current;
