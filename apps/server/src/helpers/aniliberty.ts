@@ -219,7 +219,7 @@ const zRelease = z
   .passthrough();
 
 const toTimeRange = (
-  range: { start?: number; stop?: number | null } | undefined
+  range: { start?: number | null; stop?: number | null } | undefined
 ): { start: number; stop: number } | null => {
   if (typeof range?.start !== 'number' || typeof range?.stop !== 'number') {
     return null;
