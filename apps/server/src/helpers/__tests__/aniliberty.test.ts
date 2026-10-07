@@ -22,32 +22,31 @@ const searchPayload = {
   ]
 };
 
+// the detail endpoint returns the release bare, without a data envelope
 const releasePayload = {
-  data: {
-    id: 413,
-    name: { main: 'Наруто Ураганные хроники', english: 'Naruto Shippuuden' },
-    poster: { optimized: { src: '/storage/releases/posters/413/b.webp' } },
-    episodes_total: 500,
-    is_blocked_by_geo: false,
-    episodes: [
-      {
-        ordinal: 1,
-        name: 'Возвращение домой',
-        duration: 1400,
-        hls_480: 'https://cdn.example.com/1/480.m3u8',
-        hls_720: 'https://cdn.example.com/1/720.m3u8',
-        hls_1080: null
-      },
-      {
-        ordinal: 2,
-        name: null,
-        duration: 1400,
-        hls_480: null,
-        hls_720: null,
-        hls_1080: null
-      }
-    ]
-  }
+  id: 413,
+  name: { main: 'Наруто Ураганные хроники', english: 'Naruto Shippuuden' },
+  poster: { optimized: { src: '/storage/releases/posters/413/b.webp' } },
+  episodes_total: 500,
+  is_blocked_by_geo: false,
+  episodes: [
+    {
+      ordinal: 1,
+      name: 'Возвращение домой',
+      duration: 1400,
+      hls_480: 'https://cdn.example.com/1/480.m3u8',
+      hls_720: 'https://cdn.example.com/1/720.m3u8',
+      hls_1080: null
+    },
+    {
+      ordinal: 2,
+      name: null,
+      duration: 1400,
+      hls_480: null,
+      hls_720: null,
+      hls_1080: null
+    }
+  ]
 };
 
 const stubFetch = (async (input: string | URL | Request) => {

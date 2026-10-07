@@ -226,7 +226,12 @@ const anilibertyDescribe = async (
     );
   }
 
-  const data = (payload as { data?: unknown }).data;
+  // the detail endpoint returns the release object bare, without a data
+  // envelope (unlike search and catalog)
+  const data =
+    (payload as { data?: unknown }).data === undefined
+      ? payload
+      : (payload as { data?: unknown }).data;
   const parsed = zRelease.safeParse(data);
 
   if (!parsed.success) {

@@ -57,24 +57,22 @@ const stubAniliberty = (releaseOverrides: Record<string, unknown> = {}) => {
     if (url.includes('/anime/releases/413')) {
       return new Response(
         JSON.stringify({
-          data: {
-            id: 413,
-            name: { main: 'Наруто Ураганные хроники' },
-            poster: { optimized: { src: '/p/413.webp' } },
-            episodes_total: 500,
-            is_blocked_by_geo: false,
-            episodes: [
-              {
-                ordinal: 1,
-                name: 'Возвращение домой',
-                duration: 1400,
-                hls_480: 'https://cdn.example.com/1/480.m3u8',
-                hls_720: 'https://cdn.example.com/1/720.m3u8',
-                hls_1080: null
-              }
-            ],
-            ...releaseOverrides
-          }
+          id: 413,
+          name: { main: 'Наруто Ураганные хроники' },
+          poster: { optimized: { src: '/p/413.webp' } },
+          episodes_total: 500,
+          is_blocked_by_geo: false,
+          episodes: [
+            {
+              ordinal: 1,
+              name: 'Возвращение домой',
+              duration: 1400,
+              hls_480: 'https://cdn.example.com/1/480.m3u8',
+              hls_720: 'https://cdn.example.com/1/720.m3u8',
+              hls_1080: null
+            }
+          ],
+          ...releaseOverrides
         }),
         { status: 200 }
       );
