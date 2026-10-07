@@ -51,22 +51,18 @@ const HlsVideo = memo(
 
       logVoice('hls: loading source', { src: src.slice(0, 80) });
 
-      const nativeSupport = video.canPlayType('application/vnd.apple.mpegurl');
+      // chromium answers 'maybe' to the mpegurl mime check but cannot play
+      // hls itself, so mse support decides: hls.js everywhere it works,
+      // native playback only where mse is missing (ios safari, webkit)
+      void import('hls.js')
+        .then(({ default: HlsClass }) => {
+          if (cancelled) return;
 
-      logVoice('hls: native check', { nativeSupport });
+          logVoice('hls: mse support', {
+            supported: HlsClass.isSupported()
+          });
 
-      if (nativeSupport) {
-        video.src = src;
-      } else {
-        void import('hls.js')
-          .then(({ default: HlsClass }) => {
-            if (cancelled) return;
-
-            if (!HlsClass.isSupported()) {
-              setFailed(true);
-              return;
-            }
-
+          if (HlsClass.isSupported()) {
             hls = new HlsClass();
             hlsRef.current = hls;
             hls.on(HlsClass.Events.ERROR, (_, data) => {
@@ -83,11 +79,19 @@ const HlsVideo = memo(
             });
             hls.loadSource(src);
             hls.attachMedia(video);
-          })
-          .catch(() => {
-            if (!cancelled) setFailed(true);
-          });
-      }
+            return;
+          }
+
+          if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = src;
+            return;
+          }
+
+          setFailed(true);
+        })
+        .catch(() => {
+          if (!cancelled) setFailed(true);
+        });
 
       return () => {
         cancelled = true;
