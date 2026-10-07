@@ -91,7 +91,9 @@ const HlsVideo = memo(
               logVoice('hls: player error', {
                 fatal: data.fatal,
                 type: data.type,
-                details: data.details
+                details: data.details,
+                responseCode: data.response?.code,
+                url: data.url?.slice(0, 80)
               });
 
               if (data.fatal) handleStaleSource();
