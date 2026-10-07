@@ -1,3 +1,4 @@
+import { useOwnUserId } from '@/features/server/users/hooks';
 import {
   logVoice,
   logVoiceError,
@@ -53,6 +54,7 @@ type TUseTransportParams = {
     layers: TStreamQualityLayer[]
   ) => void;
   clearRemoteConsumerMetadata: () => void;
+  addPendingScreenShare: (userId: number) => void;
 };
 
 const useTransports = ({
@@ -62,8 +64,10 @@ const useTransports = ({
   removeExternalStreamTrack,
   setRemoteConsumerType,
   setRemoteStreamQualityLayers,
-  clearRemoteConsumerMetadata
+  clearRemoteConsumerMetadata,
+  addPendingScreenShare
 }: TUseTransportParams) => {
+  const ownUserId = useOwnUserId();
   const producerTransport = useRef<Transport<AppData> | undefined>(undefined);
   const consumerTransport = useRef<Transport<AppData> | undefined>(undefined);
   const consumers = useRef<{
@@ -472,11 +476,19 @@ const useTransports = ({
         });
 
         remoteScreenIds.forEach((remoteId) => {
-          consume(remoteId, StreamKind.SCREEN, rtpCapabilities);
+          if (remoteId === ownUserId) {
+            consume(remoteId, StreamKind.SCREEN, rtpCapabilities);
+          } else {
+            addPendingScreenShare(remoteId);
+          }
         });
 
         remoteScreenAudioIds.forEach((remoteId) => {
-          consume(remoteId, StreamKind.SCREEN_AUDIO, rtpCapabilities);
+          if (remoteId === ownUserId) {
+            consume(remoteId, StreamKind.SCREEN_AUDIO, rtpCapabilities);
+          } else {
+            addPendingScreenShare(remoteId);
+          }
         });
 
         remoteExternalStreamIds.forEach((streamId: number) => {
@@ -493,7 +505,7 @@ const useTransports = ({
         logVoiceError('session: consuming existing producers failed', error);
       }
     },
-    [consume]
+    [consume, addPendingScreenShare, ownUserId]
   );
 
   const getConsumerCodec = useCallback(

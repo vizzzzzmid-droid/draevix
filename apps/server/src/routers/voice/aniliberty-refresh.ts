@@ -52,7 +52,9 @@ const anilibertyRefreshRoute = protectedProcedure.mutation(async ({ ctx }) => {
         ...current.aniliberty,
         episodeName: episode.name ?? current.aniliberty.episodeName,
         durationSec: episode.duration,
-        hlsUrl
+        hlsUrl,
+        opening: episode.opening,
+        ending: episode.ending
       }
     };
 

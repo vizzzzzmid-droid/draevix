@@ -35,6 +35,8 @@ type TAnilibertyEpisode = {
   hls480: string | null;
   hls720: string | null;
   hls1080: string | null;
+  opening: { start: number; stop: number } | null;
+  ending: { start: number; stop: number } | null;
 };
 
 type TAnilibertyDescribe = {
@@ -167,6 +169,14 @@ const anilibertySearch = async (
   return out;
 };
 
+const zTimeRange = z
+  .object({
+    start: z.number(),
+    stop: z.number().nullable().optional()
+  })
+  .partial()
+  .optional();
+
 const zEpisode = z
   .object({
     ordinal: z.number(),
@@ -174,7 +184,9 @@ const zEpisode = z
     duration: z.number().nullable().optional(),
     hls_480: z.string().nullable().optional(),
     hls_720: z.string().nullable().optional(),
-    hls_1080: z.string().nullable().optional()
+    hls_1080: z.string().nullable().optional(),
+    opening: zTimeRange,
+    ending: zTimeRange
   })
   .passthrough();
 
@@ -205,6 +217,18 @@ const zRelease = z
     episodes: z.array(z.unknown()).optional()
   })
   .passthrough();
+
+const toTimeRange = (
+  range: { start?: number; stop?: number | null } | undefined
+): { start: number; stop: number } | null => {
+  if (typeof range?.start !== 'number' || typeof range?.stop !== 'number') {
+    return null;
+  }
+
+  if (range.stop <= range.start) return null;
+
+  return { start: range.start, stop: range.stop };
+};
 
 const anilibertyDescribe = async (
   releaseId: number,
@@ -264,7 +288,9 @@ const anilibertyDescribe = async (
       duration: episode.data.duration ?? 0,
       hls480: episode.data.hls_480 ?? null,
       hls720: episode.data.hls_720 ?? null,
-      hls1080: episode.data.hls_1080 ?? null
+      hls1080: episode.data.hls_1080 ?? null,
+      opening: toTimeRange(episode.data.opening),
+      ending: toTimeRange(episode.data.ending)
     });
   }
 

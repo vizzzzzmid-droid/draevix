@@ -30,6 +30,9 @@ type TEvents = {
   ) => void;
   removeExternalStream: (streamId: number) => void;
   clearRemoteUserStreamsForUser: (userId: number) => void;
+  addPendingScreenShare: (userId: number) => void;
+  removePendingScreenShare: (userId: number) => void;
+  isWatchingScreenShare: (userId: number) => boolean;
   rtpCapabilitiesRef: RefObject<RtpCapabilities | null | undefined>;
   isVoiceSessionActive: boolean;
 };
@@ -40,6 +43,9 @@ const useVoiceEvents = ({
   removeExternalStreamTrack,
   removeExternalStream,
   clearRemoteUserStreamsForUser,
+  addPendingScreenShare,
+  removePendingScreenShare,
+  isWatchingScreenShare,
   rtpCapabilitiesRef,
   isVoiceSessionActive
 }: TEvents) => {
@@ -74,6 +80,44 @@ const useVoiceEvents = ({
           }
 
           logVoice('events: new producer', { remoteId, kind, channelId });
+
+          // someone else's screen share stays believed-but-unseen until the
+          // user taps through: video waits as pending, late audio joins an
+          // already-watched screen straight away
+          if (kind === StreamKind.SCREEN || kind === StreamKind.SCREEN_AUDIO) {
+            const screenRtpCapabilities = rtpCapabilitiesRef.current;
+
+            if (!screenRtpCapabilities) {
+              logVoiceWarn(
+                'events: screen producer ignored, no rtp capabilities',
+                {
+                  remoteId,
+                  kind
+                }
+              );
+
+              return;
+            }
+
+            if (
+              kind === StreamKind.SCREEN_AUDIO &&
+              isWatchingScreenShare(remoteId)
+            ) {
+              try {
+                consume(remoteId, kind, screenRtpCapabilities);
+              } catch (error) {
+                logVoiceError('events: consuming new producer failed', error, {
+                  remoteId,
+                  kind,
+                  channelId
+                });
+              }
+            } else {
+              addPendingScreenShare(remoteId);
+            }
+
+            return;
+          }
 
           const rtpCapabilities = rtpCapabilitiesRef.current;
 
@@ -121,6 +165,13 @@ const useVoiceEvents = ({
             } else {
               removeRemoteUserStream(remoteId, kind);
             }
+
+            if (
+              kind === StreamKind.SCREEN ||
+              kind === StreamKind.SCREEN_AUDIO
+            ) {
+              removePendingScreenShare(remoteId);
+            }
           } catch (error) {
             logVoiceError(
               'events: removing stream for closed producer failed',
@@ -143,6 +194,7 @@ const useVoiceEvents = ({
 
         try {
           clearRemoteUserStreamsForUser(userId);
+          removePendingScreenShare(userId);
         } catch (error) {
           logVoiceError('events: clearing streams for user failed', error, {
             userId
@@ -217,6 +269,9 @@ const useVoiceEvents = ({
     removeExternalStreamTrack,
     removeExternalStream,
     clearRemoteUserStreamsForUser,
+    addPendingScreenShare,
+    removePendingScreenShare,
+    isWatchingScreenShare,
     rtpCapabilitiesRef,
     isVoiceSessionActive
   ]);

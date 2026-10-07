@@ -3,13 +3,16 @@ import { useOwnUserId } from '@/features/server/users/hooks';
 import {
   useHideNonVideoParticipants,
   useHideOwnScreenShare,
+  useVoice,
   useVoiceChannelExternalStreamsList
 } from '@/features/server/voice/hooks';
+import { StreamKind } from '@draevix/shared';
 import { memo, useMemo } from 'react';
 import { ControlsBar } from './controls-bar';
 import { ExternalStreamCard } from './external-stream-card';
 import { usePinCardController } from './hooks/use-pin-card-controller';
 import { ScreenShareCard } from './screen-share-card';
+import { ScreenSharePrompt } from './screen-share-prompt';
 import { VoiceGrid } from './voice-grid';
 import { VoiceUserCard } from './voice-user-card';
 import { WatchPartyPanel } from './watch-party-panel';
@@ -26,6 +29,7 @@ const VoiceChannel = memo(({ channelId }: TChannelProps) => {
   const hideOwnScreenShare = useHideOwnScreenShare();
   const ownUserId = useOwnUserId();
   const isAnyCardPinned = pinnedCard !== undefined;
+  const { pendingScreenShares, remoteUserStreams } = useVoice();
 
   const cards = useMemo(() => {
     const cards: React.ReactNode[] = [];
@@ -64,19 +68,33 @@ const VoiceChannel = memo(({ channelId }: TChannelProps) => {
         hideOwnScreenShare && voiceUser.id === ownUserId;
       if (voiceUser.state.sharingScreen && !shouldHideOwnScreenShare) {
         const screenShareCardId = `screen-share-${voiceUser.id}`;
+        const hasScreenStream =
+          !!remoteUserStreams[voiceUser.id]?.[StreamKind.SCREEN];
 
-        cards.push(
-          <ScreenShareCard
-            key={screenShareCardId}
-            userId={voiceUser.id}
-            isPinned={isPinned(screenShareCardId)}
-            isAnyCardPinned={isAnyCardPinned}
-            cardId={screenShareCardId}
-            onPin={pinCard}
-            onUnpin={unpinCard}
-            showPinControls
-          />
-        );
+        // someone else's screen stays a quiet prompt until tapped through;
+        // own preview and already-consumed streams render straight away
+        if (
+          voiceUser.id !== ownUserId &&
+          !hasScreenStream &&
+          pendingScreenShares[voiceUser.id]
+        ) {
+          cards.push(
+            <ScreenSharePrompt key={screenShareCardId} userId={voiceUser.id} />
+          );
+        } else {
+          cards.push(
+            <ScreenShareCard
+              key={screenShareCardId}
+              userId={voiceUser.id}
+              isPinned={isPinned(screenShareCardId)}
+              isAnyCardPinned={isAnyCardPinned}
+              cardId={screenShareCardId}
+              onPin={pinCard}
+              onUnpin={unpinCard}
+              showPinControls
+            />
+          );
+        }
       }
     });
 
@@ -112,7 +130,9 @@ const VoiceChannel = memo(({ channelId }: TChannelProps) => {
     hideNonVideoParticipants,
     hideOwnScreenShare,
     ownUserId,
-    isAnyCardPinned
+    isAnyCardPinned,
+    pendingScreenShares,
+    remoteUserStreams
   ]);
 
   if (voiceUsers.length === 0) {

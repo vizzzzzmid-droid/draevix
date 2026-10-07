@@ -37,7 +37,9 @@ const releasePayload = {
       duration: 1400,
       hls_480: 'https://cdn.example.com/1/480.m3u8',
       hls_720: 'https://cdn.example.com/1/720.m3u8',
-      hls_1080: null
+      hls_1080: null,
+      opening: { start: 1, stop: 100 },
+      ending: { start: 1300, stop: 1400 }
     },
     {
       ordinal: 2,
@@ -112,7 +114,9 @@ describe('anilibertyDescribe', () => {
       ordinal: 1,
       name: 'Возвращение домой',
       duration: 1400,
-      hls720: 'https://cdn.example.com/1/720.m3u8'
+      hls720: 'https://cdn.example.com/1/720.m3u8',
+      opening: { start: 1, stop: 100 },
+      ending: { start: 1300, stop: 1400 }
     });
   });
 

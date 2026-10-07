@@ -33,6 +33,8 @@ export type TAnilibertyWatchSource = {
   poster: string | null;
   durationSec: number;
   hlsUrl: string;
+  opening: { start: number; stop: number } | null;
+  ending: { start: number; stop: number } | null;
 };
 
 export type TWatchState = {

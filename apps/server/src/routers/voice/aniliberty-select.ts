@@ -52,7 +52,9 @@ const anilibertySelectRoute = protectedProcedure
           titleOrig: described.titleOrig,
           poster: described.poster,
           durationSec: episode.duration,
-          hlsUrl
+          hlsUrl,
+          opening: episode.opening,
+          ending: episode.ending
         },
         playing: true,
         positionSec: 0,

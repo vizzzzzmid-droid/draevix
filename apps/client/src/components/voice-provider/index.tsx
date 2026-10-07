@@ -144,6 +144,8 @@ export type TVoiceProvider = {
     routerRtpCapabilities: RtpCapabilities,
     channelId: number
   ) => Promise<void>;
+  pendingScreenShares: Record<number, true>;
+  watchScreenShare: (userId: number) => Promise<void>;
 } & Pick<
   ReturnType<typeof useLocalStreams>,
   | 'localAudioStream'
@@ -192,7 +194,9 @@ const VoiceProviderContext = createContext<TVoiceProvider>({
   localScreenShareAudioStream: undefined,
 
   remoteUserStreams: {},
-  externalStreams: {}
+  externalStreams: {},
+  pendingScreenShares: {},
+  watchScreenShare: () => Promise.resolve()
 });
 
 type TVoiceProviderProps = {
@@ -215,6 +219,37 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
     useState<TRemoteConsumerTypes>({});
   const [remoteQualityLayers, setRemoteQualityLayers] =
     useState<TRemoteQualityLayers>({});
+
+  // remote screen shares announced but not yet watched: no consumer exists,
+  // so nothing renders or plays until the user taps through
+  const [pendingScreenShares, setPendingScreenShares] = useState<
+    Record<number, true>
+  >({});
+  const watchingScreensRef = useRef<Set<number>>(new Set());
+
+  const addPendingScreenShare = useCallback((userId: number) => {
+    setPendingScreenShares((prev) =>
+      prev[userId] ? prev : { ...prev, [userId]: true }
+    );
+  }, []);
+
+  const removePendingScreenShare = useCallback((userId: number) => {
+    watchingScreensRef.current.delete(userId);
+    setPendingScreenShares((prev) => {
+      if (!prev[userId]) return prev;
+
+      const next = { ...prev };
+
+      delete next[userId];
+
+      return next;
+    });
+  }, []);
+
+  const isWatchingScreenShare = useCallback(
+    (userId: number) => watchingScreensRef.current.has(userId),
+    []
+  );
   const currentVoiceChannelId = useCurrentVoiceChannelId();
   const webRtcSimulcastEnabled = useWebRtcSimulcastEnabled();
   const ownVoiceState = useOwnVoiceState();
@@ -416,8 +451,40 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
     removeRemoteUserStream,
     setRemoteConsumerType,
     setRemoteStreamQualityLayers,
-    clearRemoteConsumerMetadata
+    clearRemoteConsumerMetadata,
+    addPendingScreenShare
   });
+
+  const watchScreenShare = useCallback(
+    async (userId: number) => {
+      watchingScreensRef.current.add(userId);
+
+      const rtpCapabilities = deviceRtpCapabilities.current;
+
+      if (!rtpCapabilities) {
+        logVoiceWarn('screen: watch requested with no rtp capabilities', {
+          userId
+        });
+
+        return;
+      }
+
+      // consume() no-ops when a consumer already exists or is in flight, and
+      // the server refuses kinds with no live producer, so asking for both
+      // up front is safe even when audio shows up later
+      for (const kind of [StreamKind.SCREEN, StreamKind.SCREEN_AUDIO]) {
+        try {
+          await consume(userId, kind, rtpCapabilities);
+        } catch (error) {
+          logVoiceError('screen: watch consume failed', error, {
+            userId,
+            kind
+          });
+        }
+      }
+    },
+    [consume]
+  );
 
   const {
     stats: transportStats,
@@ -1207,6 +1274,9 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
 
     void restoreAppWindowAfterShare();
 
+    watchingScreensRef.current.clear();
+    setPendingScreenShares({});
+
     if (nativeSystemAudioStopRef.current) {
       nativeSystemAudioStopRef.current();
       nativeSystemAudioStopRef.current = null;
@@ -1360,6 +1430,9 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
     removeExternalStreamTrack,
     removeExternalStream,
     clearRemoteUserStreamsForUser,
+    addPendingScreenShare,
+    removePendingScreenShare,
+    isWatchingScreenShare,
     rtpCapabilitiesRef: deviceRtpCapabilities,
     isVoiceSessionActive:
       connectionStatus === ConnectionStatus.CONNECTING ||
@@ -1469,7 +1542,9 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       localScreenShareAudioStream,
 
       remoteUserStreams,
-      externalStreams
+      externalStreams,
+      pendingScreenShares,
+      watchScreenShare
     }),
     [
       loading,
@@ -1494,7 +1569,9 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       localScreenShareStream,
       localScreenShareAudioStream,
       remoteUserStreams,
-      externalStreams
+      externalStreams,
+      pendingScreenShares,
+      watchScreenShare
     ]
   );
 
