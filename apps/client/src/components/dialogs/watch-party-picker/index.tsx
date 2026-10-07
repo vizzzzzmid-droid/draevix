@@ -381,7 +381,7 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
               </Button>
               <div
                 ref={resultsRef}
-                className="flex flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
+                className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
               >
                 {anilibertyResults.map((entry) => {
                   const selected = pickedRelease?.releaseId === entry.releaseId;
