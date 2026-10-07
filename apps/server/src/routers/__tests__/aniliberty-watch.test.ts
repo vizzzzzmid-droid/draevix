@@ -174,3 +174,38 @@ describe('watch anilibertySelect', () => {
     ).rejects.toThrow('User is not in a voice channel');
   });
 });
+
+describe('watch anilibertyRefresh', () => {
+  test('should re-resolve urls keeping position and control', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.anilibertySelect({ releaseId: 413, episode: 1 });
+      await caller.voice.pauseWatch({ positionSec: 42 });
+      await caller.voice.anilibertyRefresh();
+
+      const { watch } = await caller.voice.getWatchState();
+
+      expect(watch).toMatchObject({
+        playing: false,
+        positionSec: 42,
+        controllerUserId: 1,
+        aniliberty: { hlsUrl: 'https://cdn.example.com/1/720.m3u8' }
+      });
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should refuse without an active aniliberty party', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await expect(caller.voice.anilibertyRefresh()).rejects.toThrow(
+        'No active Aniliberty watch party'
+      );
+    } finally {
+      await runtime.destroy();
+    }
+  });
+});

@@ -1,5 +1,6 @@
 import { t } from '../../utils/trpc';
 import { anilibertyDescribeRoute } from './aniliberty-describe';
+import { anilibertyRefreshRoute } from './aniliberty-refresh';
 import { anilibertySearchRoute } from './aniliberty-search';
 import { anilibertySelectRoute } from './aniliberty-select';
 import { closeProducerRoute } from './close-producer';
@@ -56,6 +57,7 @@ export const voiceRouter = t.router({
   selectWatchFile: selectWatchFileRoute,
   anilibertySearch: anilibertySearchRoute,
   anilibertyDescribe: anilibertyDescribeRoute,
+  anilibertyRefresh: anilibertyRefreshRoute,
   anilibertySelect: anilibertySelectRoute,
   kodikSearch: kodikSearchRoute,
   kodikDescribe: kodikDescribeRoute,

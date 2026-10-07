@@ -18,6 +18,8 @@ type THlsVideoProps = {
   videoRef: RefObject<HTMLVideoElement | null>;
   onTimeUpdate: (event: SyntheticEvent<HTMLVideoElement>) => void;
   onLoadedMetadata: (event: SyntheticEvent<HTMLVideoElement>) => void;
+  onStaleSource?: (src: string) => void;
+  onRetry?: () => void;
 };
 
 // native <video> + hls.js instead of the react-player hls custom element, so
@@ -29,13 +31,32 @@ const HlsVideo = memo(
     playing,
     videoRef,
     onTimeUpdate,
-    onLoadedMetadata
+    onLoadedMetadata,
+    onStaleSource,
+    onRetry
   }: THlsVideoProps) => {
     const { t } = useTranslation();
     const hlsRef = useRef<Hls | null>(null);
+    const refreshedUrlRef = useRef<string | null>(null);
+    const onStaleSourceRef = useRef(onStaleSource);
+
+    onStaleSourceRef.current = onStaleSource;
+
     const [failed, setFailed] = useState(false);
     const [canPlay, setCanPlay] = useState(false);
     const [needsGesture, setNeedsGesture] = useState(false);
+
+    // manifest urls carry a short-lived signature: the first failure per url
+    // asks for fresh links instead of giving up, late joiners included
+    const handleStaleSource = useCallback(() => {
+      if (onStaleSourceRef.current && refreshedUrlRef.current !== src) {
+        refreshedUrlRef.current = src;
+        onStaleSourceRef.current(src);
+        return;
+      }
+
+      setFailed(true);
+    }, [src]);
 
     useEffect(() => {
       const video = videoRef.current;
@@ -48,6 +69,7 @@ const HlsVideo = memo(
       setFailed(false);
       setCanPlay(false);
       setNeedsGesture(false);
+      refreshedUrlRef.current = null;
 
       logVoice('hls: loading source', { src: src.slice(0, 80) });
 
@@ -72,7 +94,7 @@ const HlsVideo = memo(
                 details: data.details
               });
 
-              if (data.fatal) setFailed(true);
+              if (data.fatal) handleStaleSource();
             });
             hls.on(HlsClass.Events.MANIFEST_PARSED, () => {
               logVoice('hls: manifest parsed');
@@ -144,8 +166,8 @@ const HlsVideo = memo(
         code,
         src: video?.currentSrc?.slice(0, 80) ?? ''
       });
-      setFailed(true);
-    }, [videoRef]);
+      handleStaleSource();
+    }, [videoRef, handleStaleSource]);
 
     const handleOverlayPlay = useCallback(() => {
       const video = videoRef.current;
@@ -169,8 +191,17 @@ const HlsVideo = memo(
 
     if (failed) {
       return (
-        <div className="flex h-full w-full items-center justify-center p-4 text-center text-sm text-muted-foreground">
-          {t('watchStreamFailed')}
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
+          <span>{t('watchStreamFailed')}</span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-md border border-border px-3 py-1 text-sm"
+            >
+              {t('watchRetry')}
+            </button>
+          )}
         </div>
       );
     }

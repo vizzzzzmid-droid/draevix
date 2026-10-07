@@ -100,6 +100,7 @@
   "watchControlledBy": "Управляет {{name}}",
   "watchEpisodeN": "Серия {{episode}}",
   "watchStreamFailed": "Не удалось загрузить поток",
+  "watchRetry": "Повторить",
   "watchStreamLoading": "Загрузка потока...",
   "watchLibraryEmpty": "Пока нет фильмов. Админ может загрузить.",
   "watchLibraryUploaded": "Фильм добавлен в библиотеку",

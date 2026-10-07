@@ -194,6 +194,33 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
     }
   }, [watch?.kodik?.mp4Url, t]);
 
+  // aniliberty manifest urls die within minutes: a stale player (late join
+  // included) re-resolves the same episode instead of giving up
+  const refreshedHlsUrlRef = useRef<string | null>(null);
+
+  const handleAnilibertyError = useCallback(
+    async (force: boolean) => {
+      const hlsUrl = watch?.aniliberty?.hlsUrl;
+
+      if (!hlsUrl) return;
+
+      if (!force && refreshedHlsUrlRef.current === hlsUrl) return;
+
+      refreshedHlsUrlRef.current = hlsUrl;
+
+      logVoice('watch: aniliberty refresh', { hlsUrl });
+
+      const trpc = getTRPCClient();
+
+      try {
+        await trpc.voice.anilibertyRefresh.mutate();
+      } catch (error) {
+        toast.error(getTrpcError(error, t('failedWatchTogether')));
+      }
+    },
+    [watch?.aniliberty?.hlsUrl, t]
+  );
+
   const handleTimeUpdate = useCallback(
     (event: React.SyntheticEvent<HTMLVideoElement>) => {
       if (!seekingRef.current) {
@@ -254,6 +281,8 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
             videoRef={playerRef}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
+            onStaleSource={() => void handleAnilibertyError(false)}
+            onRetry={() => void handleAnilibertyError(true)}
           />
         ) : (
           <ReactPlayer
