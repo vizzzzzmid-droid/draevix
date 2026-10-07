@@ -14,7 +14,15 @@ import {
   Button,
   Input
 } from '@draevix/ui';
-import { Clapperboard, MonitorPlay, Play, Trash2, Upload } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clapperboard,
+  MonitorPlay,
+  Play,
+  Trash2,
+  Upload
+} from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -49,6 +57,28 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const [describingRelease, setDescribingRelease] = useState(false);
   const [anilibertyEpisode, setAnilibertyEpisode] = useState(1);
   const [startingAniliberty, setStartingAniliberty] = useState(false);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+
+  // vertical wheel over the strip scrolls it horizontally instead of moving
+  // the dialog: native listener, react wheel handlers are passive here
+  useEffect(() => {
+    const strip = resultsRef.current;
+
+    if (!strip) return;
+
+    const onWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+      event.preventDefault();
+      strip.scrollLeft += event.deltaY;
+    };
+
+    strip.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+      strip.removeEventListener('wheel', onWheel);
+    };
+  }, [anilibertyResults.length]);
 
   const libraryLocked = info?.watchLibraryLocked ?? true;
   const canManageLibrary = libraryLocked
@@ -156,6 +186,13 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     },
     [fetchVideos, t]
   );
+
+  const scrollResults = useCallback((direction: 'left' | 'right') => {
+    resultsRef.current?.scrollBy({
+      left: direction === 'left' ? -240 : 240,
+      behavior: 'smooth'
+    });
+  }, []);
 
   const handleAnilibertySearch = useCallback(async () => {
     const trimmed = anilibertyQuery.trim();
@@ -333,54 +370,75 @@ const WatchPartyPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
             </span>
           )}
           {anilibertyResults.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {anilibertyResults.map((entry) => {
-                const selected = pickedRelease?.releaseId === entry.releaseId;
+            <div className="flex items-center gap-1">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => scrollResults('left')}
+                title={t('watchScrollLeft')}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div
+                ref={resultsRef}
+                className="flex flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
+              >
+                {anilibertyResults.map((entry) => {
+                  const selected = pickedRelease?.releaseId === entry.releaseId;
 
-                return (
-                  <button
-                    key={entry.releaseId}
-                    type="button"
-                    onClick={() => void handleAnilibertyPick(entry)}
-                    className={`group relative overflow-hidden rounded-lg border text-left transition ${
-                      selected
-                        ? 'border-primary ring-2 ring-primary/60'
-                        : 'border-border/50 hover:border-primary/60'
-                    }`}
-                  >
-                    <div className="aspect-[2/3] w-full bg-muted">
-                      {entry.poster && (
-                        <img
-                          src={entry.poster}
-                          alt={entry.title}
-                          className="h-full w-full object-cover transition group-hover:scale-105"
-                          loading="lazy"
-                          onError={(event) => {
-                            event.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                    </div>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-1.5 pt-6">
-                      <div className="truncate text-xs font-medium text-white">
-                        {entry.title}
+                  return (
+                    <button
+                      key={entry.releaseId}
+                      type="button"
+                      onClick={() => void handleAnilibertyPick(entry)}
+                      className={`group relative w-28 shrink-0 overflow-hidden rounded-lg border text-left transition ${
+                        selected
+                          ? 'border-primary ring-2 ring-primary/60'
+                          : 'border-border/50 hover:border-primary/60'
+                      }`}
+                    >
+                      <div className="aspect-[2/3] w-full bg-muted">
+                        {entry.poster && (
+                          <img
+                            src={entry.poster}
+                            alt={entry.title}
+                            className="h-full w-full object-cover transition group-hover:scale-105"
+                            loading="lazy"
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
                       </div>
-                      <div className="truncate text-[11px] text-white/70">
-                        {[
-                          entry.year ? String(entry.year) : '',
-                          entry.episodesTotal
-                            ? t('watchAnilibertyEpisodes', {
-                                count: entry.episodesTotal
-                              })
-                            : ''
-                        ]
-                          .filter(Boolean)
-                          .join(' • ')}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-1.5 pt-6">
+                        <div className="truncate text-xs font-medium text-white">
+                          {entry.title}
+                        </div>
+                        <div className="truncate text-[11px] text-white/70">
+                          {[
+                            entry.year ? String(entry.year) : '',
+                            entry.episodesTotal
+                              ? t('watchAnilibertyEpisodes', {
+                                  count: entry.episodesTotal
+                                })
+                              : ''
+                          ]
+                            .filter(Boolean)
+                            .join(' • ')}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => scrollResults('right')}
+                title={t('watchScrollRight')}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           )}
           {describingRelease && (

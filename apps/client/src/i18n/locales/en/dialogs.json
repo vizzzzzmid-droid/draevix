@@ -23,6 +23,8 @@
   "watchAnilibertyEpisodes": "{{count}} episodes",
   "watchAnilibertyEpisode": "Episode",
   "watchAnilibertyEpisodeN": "Episode {{episode}}",
+  "watchScrollLeft": "Scroll left",
+  "watchScrollRight": "Scroll right",
   "close": "Close",
   "saveChanges": "Save Changes",
   "confirmActionTitle": "Confirm Action",

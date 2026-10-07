@@ -23,6 +23,8 @@
   "watchAnilibertyEpisodes": "Серий: {{count}}",
   "watchAnilibertyEpisode": "Серия",
   "watchAnilibertyEpisodeN": "Серия {{episode}}",
+  "watchScrollLeft": "Листать влево",
+  "watchScrollRight": "Листать вправо",
   "close": "Закрыть",
   "saveChanges": "Сохранить изменения",
   "confirmActionTitle": "Подтвердить действие",
