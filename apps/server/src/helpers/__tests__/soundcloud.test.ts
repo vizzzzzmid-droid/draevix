@@ -269,6 +269,64 @@ describe('resolvePlaylistTracks', () => {
     expect(error).toBeInstanceOf(SoundCloudError);
     expect((error as SoundCloudError).kind).toBe('NOT_FOUND');
   });
+
+  test('should retry a truncated resolve', async () => {
+    const full = [trackJson, { ...trackJson, id: 2 }, { ...trackJson, id: 3 }];
+    let calls = 0;
+    const stubFetch = (async () => {
+      calls += 1;
+
+      return new Response(
+        JSON.stringify({
+          kind: 'playlist',
+          id: 99,
+          track_count: 3,
+          tracks: calls === 1 ? full.slice(0, 1) : full
+        }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const tracks = await resolvePlaylistTracks(
+      'https://soundcloud.com/a/sets/mix',
+      stubFetch
+    );
+
+    expect(tracks).toHaveLength(3);
+    expect(calls).toBe(2);
+  });
+
+  test('should top up from the playlist endpoint', async () => {
+    const stubFetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url.includes('/playlists/99')) {
+        return new Response(
+          JSON.stringify({
+            tracks: [{ ...trackJson, id: 3 }]
+          }),
+          { status: 200 }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          kind: 'playlist',
+          id: 99,
+          track_count: 3,
+          tracks: [trackJson, { ...trackJson, id: 2 }]
+        }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const tracks = await resolvePlaylistTracks(
+      'https://soundcloud.com/a/sets/mix',
+      stubFetch
+    );
+
+    expect(tracks.map((entry) => entry.trackId)).toEqual([417474360, 2, 3]);
+  });
 });
 
 describe('verifyStreamUrl', () => {

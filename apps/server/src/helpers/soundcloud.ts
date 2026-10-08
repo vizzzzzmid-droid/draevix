@@ -364,50 +364,118 @@ const resolvePlaylistTracks = async (
   fetchImpl: typeof fetch = globalThis.fetch
 ): Promise<TSoundCloudTrack[]> => {
   return await withClientId(async (clientId) => {
-    const response = await soundcloudFetch(
-      `${SOUNDCLOUD_API}/resolve?${new URLSearchParams({
-        url: playlistUrl,
-        client_id: clientId
-      })}`,
-      SEARCH_TIMEOUT_MS,
-      fetchImpl
-    );
-
-    if (response.status === 404) {
-      throw new SoundCloudError('NOT_FOUND', 'SoundCloud playlist not found');
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      throw new SoundCloudError(
-        'BAD_CLIENT_ID',
-        'SoundCloud refused the connection'
+    const fetchResolved = async (): Promise<{
+      id?: unknown;
+      trackCount?: unknown;
+      tracks: unknown[];
+    }> => {
+      const response = await soundcloudFetch(
+        `${SOUNDCLOUD_API}/resolve?${new URLSearchParams({
+          url: playlistUrl,
+          client_id: clientId
+        })}`,
+        SEARCH_TIMEOUT_MS,
+        fetchImpl
       );
-    }
 
-    if (!response.ok) {
-      throw new SoundCloudError('UPSTREAM', 'SoundCloud resolve failed');
-    }
+      if (response.status === 404) {
+        throw new SoundCloudError('NOT_FOUND', 'SoundCloud playlist not found');
+      }
 
-    let payload: unknown;
+      if (response.status === 401 || response.status === 403) {
+        throw new SoundCloudError(
+          'BAD_CLIENT_ID',
+          'SoundCloud refused the connection'
+        );
+      }
 
-    try {
-      payload = await response.json();
-    } catch {
-      throw new SoundCloudError(
-        'UPSTREAM',
-        'SoundCloud returned an invalid response'
+      if (!response.ok) {
+        throw new SoundCloudError('UPSTREAM', 'SoundCloud resolve failed');
+      }
+
+      let payload: unknown;
+
+      try {
+        payload = await response.json();
+      } catch {
+        throw new SoundCloudError(
+          'UPSTREAM',
+          'SoundCloud returned an invalid response'
+        );
+      }
+
+      const data = payload as {
+        kind?: string;
+        id?: unknown;
+        track_count?: unknown;
+        tracks?: unknown;
+      };
+
+      if (data.kind !== 'playlist' || !Array.isArray(data.tracks)) {
+        throw new SoundCloudError('NOT_FOUND', 'SoundCloud playlist not found');
+      }
+
+      return { id: data.id, trackCount: data.track_count, tracks: data.tracks };
+    };
+
+    const fetchById = async (playlistId: number): Promise<unknown[]> => {
+      const response = await soundcloudFetch(
+        `${SOUNDCLOUD_API}/playlists/${playlistId}?${new URLSearchParams({
+          limit: '200',
+          client_id: clientId
+        })}`,
+        SEARCH_TIMEOUT_MS,
+        fetchImpl
       );
+
+      if (!response.ok) return [];
+
+      let payload: unknown;
+
+      try {
+        payload = await response.json();
+      } catch {
+        return [];
+      }
+
+      const tracks = (payload as { tracks?: unknown }).tracks;
+
+      return Array.isArray(tracks) ? tracks : [];
+    };
+
+    // the resolve endpoint sometimes answers with a truncated track list,
+    // so retry while it reports more than it delivered, then top up from
+    // the playlist endpoint by id
+    const first = await fetchResolved();
+
+    let best = first.tracks;
+    const playlistId = typeof first.id === 'number' ? first.id : null;
+    const expected =
+      typeof first.trackCount === 'number' ? first.trackCount : null;
+
+    for (
+      let attempt = 0;
+      attempt < 2 && expected !== null && best.length < expected;
+      attempt++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const retry = await fetchResolved();
+
+      if (retry.tracks.length > best.length) best = retry.tracks;
     }
 
-    const data = payload as { kind?: string; tracks?: unknown };
+    if (playlistId !== null && (expected === null || best.length < expected)) {
+      const seen = new Set(best.map((entry) => (entry as { id?: unknown }).id));
 
-    if (data.kind !== 'playlist' || !Array.isArray(data.tracks)) {
-      throw new SoundCloudError('NOT_FOUND', 'SoundCloud playlist not found');
+      for (const entry of await fetchById(playlistId)) {
+        if (!seen.has((entry as { id?: unknown }).id)) best.push(entry);
+      }
     }
 
     const out: TSoundCloudTrack[] = [];
 
-    for (const raw of data.tracks) {
+    for (const raw of best) {
       const track = toTrack(raw);
 
       if (track) out.push(track);
