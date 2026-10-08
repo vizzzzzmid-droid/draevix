@@ -12,6 +12,7 @@ import { getTRPCClient } from '@/lib/trpc';
 import {
   getTrpcError,
   type TExternalStream,
+  type TMusicState,
   type TVoiceUserState,
   type TWatchState
 } from '@draevix/shared';
@@ -59,6 +60,13 @@ export const setWatchStateForChannel = (
   store.dispatch(serverSliceActions.setWatchState({ channelId, watch }));
 };
 
+export const setMusicStateForChannel = (
+  channelId: number,
+  music: TMusicState | undefined
+): void => {
+  store.dispatch(serverSliceActions.setMusicState({ channelId, music }));
+};
+
 const clearLocalVoiceSession = (): void => {
   const state = store.getState();
 
@@ -80,6 +88,7 @@ const clearLocalVoiceSession = (): void => {
 
   if (currentVoiceChannelId) {
     setWatchStateForChannel(currentVoiceChannelId, undefined);
+    setMusicStateForChannel(currentVoiceChannelId, undefined);
   }
 };
 
@@ -223,6 +232,14 @@ export const joinVoice = async (
     } catch (error) {
       // the join itself succeeded, a running party syncs over events anyway
       logVoiceError('session: watch state sync failed', error, { channelId });
+    }
+
+    try {
+      const { music } = await client.voice.getMusicState.query();
+
+      setMusicStateForChannel(channelId, music);
+    } catch (error) {
+      logVoiceError('session: music state sync failed', error, { channelId });
     }
 
     return routerRtpCapabilities;

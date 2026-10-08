@@ -9,6 +9,7 @@ import {
   alwaysShowVoiceControlsSelector,
   hideNonVideoParticipantsSelector,
   hideOwnScreenShareSelector,
+  musicStateByChannelIdSelector,
   ownVoiceStateSelector,
   pinnedCardSelector,
   showUserBannersInVoiceSelector,
@@ -45,6 +46,11 @@ export const useOwnVoiceState = () => useSelector(ownVoiceStateSelector);
 export const useWatchState = (channelId: number) =>
   useSelector((state: IRootState) =>
     watchStateByChannelIdSelector(state, channelId)
+  );
+
+export const useMusicState = (channelId: number) =>
+  useSelector((state: IRootState) =>
+    musicStateByChannelIdSelector(state, channelId)
   );
 
 export const usePinnedCard = () => useSelector(pinnedCardSelector);

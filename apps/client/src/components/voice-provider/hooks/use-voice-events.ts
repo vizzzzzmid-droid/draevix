@@ -1,6 +1,9 @@
 import { useCurrentVoiceChannelId } from '@/features/server/channels/hooks';
 import { useOwnUserId } from '@/features/server/users/hooks';
-import { setWatchStateForChannel } from '@/features/server/voice/actions';
+import {
+  setMusicStateForChannel,
+  setWatchStateForChannel
+} from '@/features/server/voice/actions';
 import {
   logVoice,
   logVoiceError,
@@ -250,6 +253,26 @@ const useVoiceEvents = ({
       }
     });
 
+    const onMusicUpdateSub = trpc.voice.onMusicUpdate.subscribe(undefined, {
+      onData: ({ channelId, music }) => {
+        if (currentVoiceChannelId !== channelId || isCleaningUp) return;
+
+        logVoice('events: music updated', {
+          channelId,
+          positionSec: music?.positionSec,
+          playing: music?.playing,
+          controllerUserId: music?.controllerUserId,
+          updatedAt: music?.updatedAt,
+          trackId: music?.current?.trackId,
+          queueLength: music?.queue.length
+        });
+        setMusicStateForChannel(channelId, music);
+      },
+      onError: (error) => {
+        logVoiceError('events: music update subscription error', error);
+      }
+    });
+
     return () => {
       logVoice('events: unsubscribing');
 
@@ -260,6 +283,7 @@ const useVoiceEvents = ({
       onVoiceUserLeaveSub.unsubscribe();
       onVoiceRemoveExternalStreamSub.unsubscribe();
       onWatchUpdateSub.unsubscribe();
+      onMusicUpdateSub.unsubscribe();
     };
   }, [
     currentVoiceChannelId,

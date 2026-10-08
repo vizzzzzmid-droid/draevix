@@ -11,6 +11,7 @@ import { consumeRoute } from './consume';
 import { createConsumerTransportRoute } from './create-consumer-transport';
 import { createProducerTransportRoute } from './create-producer-transport';
 import {
+  onMusicUpdateRoute,
   onUserJoinVoiceRoute,
   onUserLeaveVoiceRoute,
   onUserUpdateVoiceStateRoute,
@@ -22,11 +23,24 @@ import {
   onVoiceUpdateExternalStreamRoute,
   onWatchUpdateRoute
 } from './events';
+import { getMusicStateRoute } from './get-music-state';
 import { getProducersRoute } from './get-producers';
 import { getWatchStateRoute } from './get-watch-state';
 import { joinVoiceRoute } from './join';
 import { leaveVoiceRoute } from './leave';
 import { moveUserRoute } from './move';
+import { musicNextRoute } from './music-next';
+import { musicPauseRoute } from './music-pause';
+import { musicPlayRoute } from './music-play';
+import { musicPlaylistRoute } from './music-playlist';
+import { musicQueueAddRoute } from './music-queue-add';
+import { musicQueueClearRoute } from './music-queue-clear';
+import { musicQueueRemoveRoute } from './music-queue-remove';
+import { musicRefreshRoute } from './music-refresh';
+import { musicResumeRoute } from './music-resume';
+import { musicSearchRoute } from './music-search';
+import { musicSeekRoute } from './music-seek';
+import { musicStopRoute } from './music-stop';
 import { pauseWatchRoute } from './pause-watch';
 import { playWatchRoute } from './play-watch';
 import { produceRoute } from './produce';
@@ -61,6 +75,19 @@ export const voiceRouter = t.router({
   pauseWatch: pauseWatchRoute,
   seekWatch: seekWatchRoute,
   stopWatch: stopWatchRoute,
+  getMusicState: getMusicStateRoute,
+  musicSearch: musicSearchRoute,
+  musicPlaylist: musicPlaylistRoute,
+  musicPlay: musicPlayRoute,
+  musicPause: musicPauseRoute,
+  musicResume: musicResumeRoute,
+  musicSeek: musicSeekRoute,
+  musicStop: musicStopRoute,
+  musicNext: musicNextRoute,
+  musicRefresh: musicRefreshRoute,
+  musicQueueAdd: musicQueueAddRoute,
+  musicQueueRemove: musicQueueRemoveRoute,
+  musicQueueClear: musicQueueClearRoute,
   onJoin: onUserJoinVoiceRoute,
   onLeave: onUserLeaveVoiceRoute,
   onUpdateState: onUserUpdateVoiceStateRoute,
@@ -70,5 +97,6 @@ export const voiceRouter = t.router({
   onAddExternalStream: onVoiceAddExternalStreamRoute,
   onUpdateExternalStream: onVoiceUpdateExternalStreamRoute,
   onRemoveExternalStream: onVoiceRemoveExternalStreamRoute,
-  onWatchUpdate: onWatchUpdateRoute
+  onWatchUpdate: onWatchUpdateRoute,
+  onMusicUpdate: onMusicUpdateRoute
 });

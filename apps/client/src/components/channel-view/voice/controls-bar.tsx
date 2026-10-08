@@ -18,6 +18,7 @@ import {
   Mic,
   MicOff,
   Monitor,
+  Music,
   PhoneOff,
   ScreenShareOff,
   Video,
@@ -63,6 +64,10 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
 
   const handleWatchPartyClick = useCallback(() => {
     openDialog(Dialog.WATCH_PARTY_PICKER);
+  }, []);
+
+  const handleMusicClick = useCallback(() => {
+    openDialog(Dialog.MUSIC_PICKER);
   }, []);
 
   const handlePickScreenSource = useCallback(
@@ -153,6 +158,16 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
           disabledIcon={Clapperboard}
           enabledClassName=""
           onClick={handleWatchPartyClick}
+        />
+
+        <ControlToggleButton
+          enabled={false}
+          enabledLabel={t('listenTogether')}
+          disabledLabel={t('listenTogether')}
+          enabledIcon={Music}
+          disabledIcon={Music}
+          enabledClassName=""
+          onClick={handleMusicClick}
         />
       </div>
       <Tooltip content="Disconnect">

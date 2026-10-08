@@ -11,6 +11,8 @@ import type {
   TJoinedMessage,
   TJoinedPublicUser,
   TJoinedRole,
+  TMusicMap,
+  TMusicState,
   TPluginCapabilityAccessRule,
   TPluginComponentsMap,
   TPluginMetadata,
@@ -66,6 +68,7 @@ export interface IServerState {
   voiceMap: TVoiceMap;
   externalStreamsMap: TExternalStreamsMap;
   watchMap: TWatchMap;
+  musicMap: TMusicMap;
   ownVoiceState: TVoiceUserState;
   pinnedCard: TPinnedCard | undefined;
   channelPermissions: TChannelUserPermissionsMap;
@@ -112,6 +115,7 @@ const initialState: IServerState = {
   voiceMap: {},
   externalStreamsMap: {},
   watchMap: {},
+  musicMap: {},
   ownVoiceState: {
     micMuted: false,
     soundMuted: false,
@@ -875,6 +879,23 @@ export const serverSlice = createSlice({
       }
 
       state.watchMap[channelId] = watch;
+    },
+    setMusicState: (
+      state,
+      action: PayloadAction<{
+        channelId: number;
+        music: TMusicState | undefined;
+      }>
+    ) => {
+      const { channelId, music } = action.payload;
+
+      if (!music) {
+        delete state.musicMap[channelId];
+
+        return;
+      }
+
+      state.musicMap[channelId] = music;
     },
 
     // PLUGINS ------------------------------------------------------------

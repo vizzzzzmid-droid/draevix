@@ -11,6 +11,7 @@ import { memo, useMemo } from 'react';
 import { ControlsBar } from './controls-bar';
 import { ExternalStreamCard } from './external-stream-card';
 import { usePinCardController } from './hooks/use-pin-card-controller';
+import { MusicPanel } from './music-panel';
 import { ScreenShareCard } from './screen-share-card';
 import { ScreenSharePrompt } from './screen-share-prompt';
 import { VoiceGrid } from './voice-grid';
@@ -154,6 +155,7 @@ const VoiceChannel = memo(({ channelId }: TChannelProps) => {
     <div className="flex flex-col size-full relative bg-background overflow-hidden group/voice-stage">
       <VoiceGrid pinnedCardId={pinnedCard?.id}>{cards}</VoiceGrid>
       <WatchPartyPanel channelId={channelId} />
+      <MusicPanel channelId={channelId} />
       <ControlsBar channelId={channelId} />
     </div>
   );

@@ -26,6 +26,7 @@ export enum ServerEvents {
   VOICE_NEW_PRODUCER = 'voiceNewProducer',
   VOICE_PRODUCER_CLOSED = 'voiceProducerClosed',
   WATCH_STATE_UPDATE = 'watchStateUpdate',
+  MUSIC_STATE_UPDATE = 'musicStateUpdate',
 
   EMOJI_CREATE = 'emojiCreate',
   EMOJI_UPDATE = 'emojiUpdate',

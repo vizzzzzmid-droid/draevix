@@ -37,6 +37,25 @@ export type TAnilibertyWatchSource = {
   ending: { start: number; stop: number } | null;
 };
 
+export type TMusicTrack = {
+  trackId: number;
+  title: string;
+  author: string;
+  artworkUrl: string | null;
+  durationSec: number;
+  permalinkUrl: string;
+  mp3Url?: string;
+};
+
+export type TMusicState = {
+  current: TMusicTrack | null;
+  queue: TMusicTrack[];
+  playing: boolean;
+  positionSec: number;
+  updatedAt: number;
+  controllerUserId: number;
+};
+
 export type TWatchState = {
   file: TWatchFile | null;
   aniliberty: TAnilibertyWatchSource | null;
@@ -90,4 +109,8 @@ export type TVoiceProducerInfo = {
 
 export type TWatchMap = {
   [channelId: number]: TWatchState;
+};
+
+export type TMusicMap = {
+  [channelId: number]: TMusicState;
 };

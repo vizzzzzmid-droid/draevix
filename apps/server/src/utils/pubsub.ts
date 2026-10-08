@@ -11,6 +11,7 @@ import type {
   TJoinedPublicUser,
   TJoinedRole,
   TLogEntry,
+  TMusicState,
   TPluginCapabilityAccessRule,
   TPluginMetadata,
   TPluginPushEvent,
@@ -108,6 +109,10 @@ type Events = {
   [ServerEvents.WATCH_STATE_UPDATE]: {
     channelId: number;
     watch: TWatchState | undefined;
+  };
+  [ServerEvents.MUSIC_STATE_UPDATE]: {
+    channelId: number;
+    music: TMusicState | undefined;
   };
 
   [ServerEvents.PLUGIN_LOG]: TLogEntry;

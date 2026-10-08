@@ -3,6 +3,7 @@ import {
   getErrorMessage,
   ServerEvents,
   type TChannelUserPermissionsMap,
+  type TMusicState,
   type TWatchState
 } from '@draevix/shared';
 import { count, eq } from 'drizzle-orm';
@@ -399,6 +400,16 @@ const publishWatchState = (
   });
 };
 
+const publishMusicState = (
+  channelId: number,
+  music: TMusicState | undefined
+) => {
+  pubsub.publishForChannel(channelId, ServerEvents.MUSIC_STATE_UPDATE, {
+    channelId,
+    music
+  });
+};
+
 export {
   publishCapabilityAccess,
   publishCategory,
@@ -409,6 +420,7 @@ export {
   publishEmoji,
   publishHiddenChannelToUser,
   publishMessage,
+  publishMusicState,
   publishReplyCount,
   publishRole,
   publishSettings,

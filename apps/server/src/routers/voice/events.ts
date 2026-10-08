@@ -1,6 +1,7 @@
 import {
   ServerEvents,
   type StreamKind,
+  type TMusicState,
   type TWatchState
 } from '@draevix/shared';
 import { observable } from '@trpc/server/observable';
@@ -98,7 +99,22 @@ const onWatchUpdateRoute = protectedProcedure.subscription(async ({ ctx }) => {
   );
 });
 
+const onMusicUpdateRoute = protectedProcedure.subscription(async ({ ctx }) => {
+  if (!ctx.currentVoiceChannelId) {
+    return observable<{
+      channelId: number;
+      music: TMusicState | undefined;
+    }>(() => () => {});
+  }
+
+  return ctx.pubsub.subscribeForChannel(
+    ctx.currentVoiceChannelId,
+    ServerEvents.MUSIC_STATE_UPDATE
+  );
+});
+
 export {
+  onMusicUpdateRoute,
   onUserJoinVoiceRoute,
   onUserLeaveVoiceRoute,
   onUserUpdateVoiceStateRoute,

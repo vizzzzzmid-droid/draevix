@@ -3,6 +3,7 @@ import {
   StreamKind,
   type TChannelState,
   type TExternalStreamsMap,
+  type TMusicState,
   type TRemoteProducerIds,
   type TStreamQualityLayer,
   type TTransportParams,
@@ -151,6 +152,7 @@ class VoiceRuntime {
   private consumers: TConsumerMap = {};
   private producerQualityLayers: TProducerQualityLayerMap = {};
   private watchState: TWatchState | undefined;
+  private musicState: TMusicState | undefined;
 
   private externalCounter = EXTERNAL_STREAM_ID_BASE;
   private externalStreamsInternal: {
@@ -429,6 +431,7 @@ class VoiceRuntime {
     // the watch party is tied to its audience, an empty channel keeps nothing
     if (this.state.users.length === 0) {
       this.watchState = undefined;
+      this.musicState = undefined;
     }
 
     eventBus.emit('user:left_voice', {
@@ -507,6 +510,30 @@ class VoiceRuntime {
 
   public clearWatchState = () => {
     this.watchState = undefined;
+  };
+
+  public getMusicState = (): TMusicState | undefined => {
+    return this.musicState
+      ? {
+          ...this.musicState,
+          current: this.musicState.current
+            ? { ...this.musicState.current }
+            : null,
+          queue: this.musicState.queue.map((track) => ({ ...track }))
+        }
+      : undefined;
+  };
+
+  public setMusicState = (state: TMusicState) => {
+    this.musicState = {
+      ...state,
+      current: state.current ? { ...state.current } : null,
+      queue: state.queue.map((track) => ({ ...track }))
+    };
+  };
+
+  public clearMusicState = () => {
+    this.musicState = undefined;
   };
 
   public getRouter = (): Router<AppData> => {
