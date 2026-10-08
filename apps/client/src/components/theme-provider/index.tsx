@@ -3,9 +3,14 @@ import {
   LocalStorageKey,
   setLocalStorageItem
 } from '@/helpers/storage';
-import { createContext, useEffect, useState } from 'react';
-
-type Theme = 'dark' | 'light' | 'system';
+import {
+  getPresetTheme,
+  isPresetThemeId,
+  PRESET_THEME_VAR_KEYS,
+  type TPresetThemeId
+} from '@/helpers/themes';
+import { useCallback, useEffect, useState } from 'react';
+import { ThemeProviderContext, type Theme } from './theme-context';
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -13,17 +18,46 @@ type ThemeProviderProps = {
   storageKey?: LocalStorageKey;
 };
 
-type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-};
+const applyTheme = (theme: Theme) => {
+  const root = window.document.documentElement;
 
-const initialState: ThemeProviderState = {
-  theme: 'system',
-  setTheme: () => null
-};
+  root.classList.remove('light', 'dark');
+  root.removeAttribute('data-theme');
 
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
+  for (const key of PRESET_THEME_VAR_KEYS) {
+    root.style.removeProperty(key);
+  }
+
+  if (isPresetThemeId(theme)) {
+    // presets are all dark moods: keep the dark class so dark: variants and
+    // hardcoded dark surfaces stay consistent, then paint over the variables
+    root.classList.add('dark');
+    root.setAttribute('data-theme', theme);
+    root.style.colorScheme = 'dark';
+
+    const vars = getPresetTheme(theme as TPresetThemeId).vars;
+
+    for (const [key, value] of Object.entries(vars)) {
+      root.style.setProperty(key, value);
+    }
+
+    return;
+  }
+
+  root.style.colorScheme = '';
+
+  if (theme === 'system') {
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+      .matches
+      ? 'dark'
+      : 'light';
+
+    root.classList.add(systemTheme);
+    return;
+  }
+
+  root.classList.add(theme);
+};
 
 function ThemeProvider({
   children,
@@ -36,29 +70,20 @@ function ThemeProvider({
   );
 
   useEffect(() => {
-    const root = window.document.documentElement;
-
-    root.classList.remove('light', 'dark');
-
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
-        ? 'dark'
-        : 'light';
-
-      root.classList.add(systemTheme);
-      return;
-    }
-
-    root.classList.add(theme);
+    applyTheme(theme);
   }, [theme]);
+
+  const handleSetTheme = useCallback(
+    (next: Theme) => {
+      setLocalStorageItem(storageKey, next);
+      setTheme(next);
+    },
+    [storageKey]
+  );
 
   const value = {
     theme,
-    setTheme: (theme: Theme) => {
-      setLocalStorageItem(storageKey, theme);
-      setTheme(theme);
-    }
+    setTheme: handleSetTheme
   };
 
   return (
@@ -69,3 +94,4 @@ function ThemeProvider({
 }
 
 export { ThemeProvider };
+export type { Theme };
