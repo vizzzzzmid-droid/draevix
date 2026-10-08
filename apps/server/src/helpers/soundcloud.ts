@@ -459,7 +459,7 @@ const verifyStreamUrl = async (
 const resolvePlayableTrack = async (
   track: TTrackInput,
   fetchImpl: typeof fetch = globalThis.fetch
-): Promise<TMusicTrack> => {
+): Promise<Omit<TMusicTrack, 'addedByUserId'>> => {
   const mp3Url = await resolveStreamUrl(
     { trackId: track.trackId, permalinkUrl: track.permalinkUrl },
     fetchImpl
