@@ -156,7 +156,7 @@ const toTrack = (raw: unknown): TSoundCloudTrack | null => {
     artworkUrl: upgradeArtwork(data.artwork_url),
     durationSec: Math.max(0, Math.round((data.duration ?? 0) / 1000)),
     permalinkUrl: data.permalink_url,
-    streamable: data.streamable === true && data.policy !== 'BLOCK'
+    streamable: data.streamable !== false && data.policy !== 'BLOCK'
   };
 };
 

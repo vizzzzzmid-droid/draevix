@@ -87,6 +87,14 @@ describe('toTrack', () => {
     ).toBe(false);
   });
 
+  test('should trust playlist entries without a streamable flag', () => {
+    const { streamable, ...abbreviated } = trackJson;
+
+    expect(toTrack({ ...abbreviated, policy: 'MONETIZE' })?.streamable).toBe(
+      true
+    );
+  });
+
   test('should drop malformed entries', () => {
     expect(toTrack({ nope: true })).toBeNull();
   });
