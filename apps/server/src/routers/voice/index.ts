@@ -40,6 +40,8 @@ import { musicRefreshRoute } from './music-refresh';
 import { musicResumeRoute } from './music-resume';
 import { musicSearchRoute } from './music-search';
 import { musicSeekRoute } from './music-seek';
+import { musicSetRepeatRoute } from './music-set-repeat';
+import { musicSetShuffleRoute } from './music-set-shuffle';
 import { musicStopRoute } from './music-stop';
 import { pauseWatchRoute } from './pause-watch';
 import { playWatchRoute } from './play-watch';
@@ -82,6 +84,8 @@ export const voiceRouter = t.router({
   musicPause: musicPauseRoute,
   musicResume: musicResumeRoute,
   musicSeek: musicSeekRoute,
+  musicSetRepeat: musicSetRepeatRoute,
+  musicSetShuffle: musicSetShuffleRoute,
   musicStop: musicStopRoute,
   musicNext: musicNextRoute,
   musicRefresh: musicRefreshRoute,

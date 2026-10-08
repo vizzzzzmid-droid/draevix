@@ -51,7 +51,9 @@ const musicQueueAddRoute = protectedProcedure
           playing: true,
           positionSec: 0,
           updatedAt: Date.now(),
-          controllerUserId: ctx.user.id
+          controllerUserId: ctx.user.id,
+          repeatMode: 'off' as const,
+          shuffle: false
         };
 
         runtime.setMusicState(music);

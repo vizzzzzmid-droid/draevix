@@ -263,3 +263,68 @@ describe('watch music controls', () => {
     }
   });
 });
+
+describe('watch music repeat and shuffle', () => {
+  test('should replay the track on repeat-one', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicSetRepeat({ mode: 'one' });
+      await caller.voice.musicNext({ expectTrackId: 417474360 });
+
+      const { music } = await caller.voice.getMusicState();
+
+      expect(music).toMatchObject({
+        playing: true,
+        positionSec: 0,
+        repeatMode: 'one',
+        current: { trackId: 417474360 }
+      });
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should wrap an empty queue on repeat-all', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicSetRepeat({ mode: 'all' });
+      await caller.voice.musicNext({ expectTrackId: 417474360 });
+
+      const { music } = await caller.voice.getMusicState();
+
+      expect(music?.current?.trackId).toBe(417474360);
+      expect(music?.playing).toBe(true);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should pick a random queued track on shuffle', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 2, title: 'Second' }
+      });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 3, title: 'Third' }
+      });
+      await caller.voice.musicSetShuffle({ shuffled: true });
+      await caller.voice.musicNext({ expectTrackId: 417474360 });
+
+      const { music } = await caller.voice.getMusicState();
+
+      expect(music?.current?.trackId).toBeDefined();
+      expect([2, 3]).toContain(music?.current?.trackId ?? -1);
+      expect(music?.queue).toHaveLength(1);
+      expect(music?.shuffle).toBe(true);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+});

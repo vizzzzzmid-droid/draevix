@@ -27,7 +27,9 @@ const musicPlayRoute = protectedProcedure
         playing: true,
         positionSec: 0,
         updatedAt: Date.now(),
-        controllerUserId: ctx.user.id
+        controllerUserId: ctx.user.id,
+        repeatMode: previous?.repeatMode ?? ('off' as const),
+        shuffle: previous?.shuffle ?? false
       };
 
       runtime.setMusicState(music);

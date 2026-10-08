@@ -10,7 +10,7 @@ const musicSearchRoute = protectedProcedure
   .input(
     z.object({
       query: z.string().trim().min(1).max(200),
-      limit: z.number().int().min(1).max(25).optional()
+      limit: z.number().int().min(1).max(100).optional()
     })
   )
   .query(async ({ input }): Promise<{ results: TSoundCloudTrack[] }> => {

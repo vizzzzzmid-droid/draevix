@@ -47,6 +47,8 @@ export type TMusicTrack = {
   mp3Url?: string;
 };
 
+export type TMusicRepeatMode = 'off' | 'all' | 'one';
+
 export type TMusicState = {
   current: TMusicTrack | null;
   queue: TMusicTrack[];
@@ -54,6 +56,8 @@ export type TMusicState = {
   positionSec: number;
   updatedAt: number;
   controllerUserId: number;
+  repeatMode: TMusicRepeatMode;
+  shuffle: boolean;
 };
 
 export type TWatchState = {

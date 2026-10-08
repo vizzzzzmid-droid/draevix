@@ -59,7 +59,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     try {
       const { results } = await trpc.voice.musicSearch.query({
         query: trimmed,
-        limit: 10
+        limit: 50
       });
 
       setResults(results.filter((entry) => entry.streamable));

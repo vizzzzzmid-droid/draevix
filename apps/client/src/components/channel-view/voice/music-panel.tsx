@@ -13,6 +13,9 @@ import {
   ListMusic,
   Pause,
   Play,
+  Repeat,
+  Repeat1,
+  Shuffle,
   SkipForward,
   Trash2,
   Volume2,
@@ -286,6 +289,35 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     }
   }, [t]);
 
+  const handleShuffleToggle = useCallback(async () => {
+    const trpc = getTRPCClient();
+
+    try {
+      await trpc.voice.musicSetShuffle.mutate({
+        shuffled: !(music?.shuffle ?? false)
+      });
+    } catch (error) {
+      toast.error(getTrpcError(error, t('failedMusicTogether')));
+    }
+  }, [music?.shuffle, t]);
+
+  const handleRepeatCycle = useCallback(async () => {
+    const next =
+      music?.repeatMode === 'off'
+        ? 'all'
+        : music?.repeatMode === 'all'
+          ? 'one'
+          : 'off';
+
+    const trpc = getTRPCClient();
+
+    try {
+      await trpc.voice.musicSetRepeat.mutate({ mode: next });
+    } catch (error) {
+      toast.error(getTrpcError(error, t('failedMusicTogether')));
+    }
+  }, [music?.repeatMode, t]);
+
   if (!music?.current) return null;
 
   const track = music.current;
@@ -400,10 +432,41 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
           size="icon"
           variant="ghost"
           onClick={handleSkipNext}
-          disabled={music.queue.length === 0}
+          disabled={
+            music.queue.length === 0 &&
+            !(music.repeatMode === 'all' && music.current)
+          }
           title={t('musicNext')}
         >
           <SkipForward className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleShuffleToggle}
+          title={t('musicShuffle')}
+          className={music.shuffle ? 'text-primary' : ''}
+        >
+          <Shuffle className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleRepeatCycle}
+          title={
+            music.repeatMode === 'off'
+              ? t('musicRepeatOff')
+              : music.repeatMode === 'all'
+                ? t('musicRepeatAll')
+                : t('musicRepeatOne')
+          }
+          className={music.repeatMode !== 'off' ? 'text-primary' : ''}
+        >
+          {music.repeatMode === 'one' ? (
+            <Repeat1 className="h-4 w-4" />
+          ) : (
+            <Repeat className="h-4 w-4" />
+          )}
         </Button>
         <Button
           size="icon"
