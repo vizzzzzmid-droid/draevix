@@ -107,6 +107,8 @@
   "musicQueueEmpty": "Очередь пуста",
   "musicQueueRemove": "Убрать из очереди",
   "musicQueueClear": "Очистить очередь",
+  "musicJoinTitle": "{{name}} начал(а) прослушивание",
+  "musicJoin": "Присоединиться к прослушиванию",
   "failedWatchTogether": "Не удалось начать просмотр",
   "watchPartyStarted": "Просмотр начался",
   "watchPartyTitle": "Совместный просмотр",

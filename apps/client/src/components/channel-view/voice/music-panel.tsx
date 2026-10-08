@@ -1,4 +1,4 @@
-import { useUserById } from '@/features/server/users/hooks';
+import { useOwnUserId, useUserById } from '@/features/server/users/hooks';
 import {
   formatMediaPosition,
   getMusicPositionSec
@@ -11,6 +11,7 @@ import { getTrpcError } from '@draevix/shared';
 import { Button } from '@draevix/ui';
 import {
   ListMusic,
+  Music2,
   Pause,
   Play,
   Repeat,
@@ -40,6 +41,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const { t } = useTranslation();
   const music = useMusicState(channelId);
   const controller = useUserById(music?.controllerUserId ?? -1);
+  const ownUserId = useOwnUserId();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hlsVideoRef = useRef<HTMLVideoElement | null>(null);
   const seekingRef = useRef(false);
@@ -318,9 +320,27 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     }
   }, [music?.repeatMode, t]);
 
+  const trackUrl = music?.current?.mp3Url ?? '';
+
+  // same opt-in as watch and screen shares: someone else's party shows a
+  // join prompt instead of auto-playing. the starter joins implicitly
+  const [joinedUrl, setJoinedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!trackUrl) {
+      setJoinedUrl(null);
+      return;
+    }
+
+    if (music?.controllerUserId === ownUserId) {
+      setJoinedUrl(trackUrl);
+    }
+  }, [trackUrl, music?.controllerUserId, ownUserId]);
+
   if (!music?.current) return null;
 
   const track = music.current;
+  const joined = joinedUrl !== null && joinedUrl === track.mp3Url;
   const seekMax = Math.max(duration, track.durationSec, 0.01);
   const seekRatio = Math.min(1, Math.max(0, displayPosition / seekMax));
 
@@ -364,177 +384,215 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
           <X className="h-4 w-4" />
         </Button>
       </div>
-      {isHls ? (
-        <div className="hidden">
-          <HlsVideo
-            src={currentUrl}
-            playing={music.playing}
-            videoRef={hlsVideoRef}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onStaleSource={() => void handleStaleSource()}
-            onRetry={() => void handleStaleSource()}
-          />
-        </div>
-      ) : (
-        <audio
-          ref={audioRef}
-          src={currentUrl}
-          playsInline
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onPlay={snapToTarget}
-          onEnded={() => void handleEnded()}
-          onError={() => void handleStaleSource()}
-        />
-      )}
-      <div className="flex items-center gap-2">
-        {music.playing ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={handlePause}
-            title={t('musicPause')}
-          >
-            <Pause className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={handlePlay}
-            title={t('musicPlay')}
-          >
-            <Play className="h-4 w-4" />
-          </Button>
-        )}
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {formatMediaPosition(displayPosition)}
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={seekMax}
-          step={0.1}
-          value={Math.min(displayPosition, seekMax)}
-          onChange={handleSeekChange}
-          onPointerUp={() => void handleSeekCommit()}
-          onPointerCancel={handleSeekAbort}
-          onLostPointerCapture={handleSeekAbort}
-          aria-label={t('musicSeek')}
-          className="music-seek flex-1"
-          style={{
-            background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${seekRatio * 100}%, rgb(255 255 255 / 0.2) ${seekRatio * 100}%)`
-          }}
-        />
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {formatMediaPosition(Math.max(duration, track.durationSec, 0))}
-        </span>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={handleSkipNext}
-          disabled={
-            music.queue.length === 0 &&
-            !(music.repeatMode === 'all' && music.current)
-          }
-          title={t('musicNext')}
-        >
-          <SkipForward className="h-4 w-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={handleShuffleToggle}
-          title={t('musicShuffle')}
-          className={
-            music.shuffle ? 'border border-primary ring-2 ring-primary/60' : ''
-          }
-        >
-          <Shuffle className="h-4 w-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={handleRepeatCycle}
-          title={
-            music.repeatMode === 'off'
-              ? t('musicRepeatOff')
-              : music.repeatMode === 'all'
-                ? t('musicRepeatAll')
-                : t('musicRepeatOne')
-          }
-          className={
-            music.repeatMode !== 'off'
-              ? 'border border-primary ring-2 ring-primary/60'
-              : ''
-          }
-        >
-          {music.repeatMode === 'one' ? (
-            <Repeat1 className="h-4 w-4" />
+      {joined ? (
+        <>
+          {isHls ? (
+            <div className="hidden">
+              <HlsVideo
+                src={currentUrl}
+                playing={music.playing}
+                videoRef={hlsVideoRef}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onStaleSource={() => void handleStaleSource()}
+                onRetry={() => void handleStaleSource()}
+              />
+            </div>
           ) : (
-            <Repeat className="h-4 w-4" />
+            <audio
+              ref={audioRef}
+              src={currentUrl}
+              playsInline
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={snapToTarget}
+              onEnded={() => void handleEnded()}
+              onError={() => void handleStaleSource()}
+            />
           )}
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={() => setMuted((muted) => !muted)}
-          title={muted ? t('watchUnmute') : t('watchMute')}
-        >
-          {muted || volume === 0 ? (
-            <VolumeX className="h-4 w-4" />
-          ) : (
-            <Volume2 className="h-4 w-4" />
-          )}
-        </Button>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={muted ? 0 : volume}
-          onChange={handleVolumeChange}
-          aria-label={t('watchVolume')}
-          className="w-20"
-        />
-      </div>
-      {queueOpen && (
-        <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
-          {music.queue.length === 0 && (
-            <span className="text-xs text-muted-foreground">
-              {t('musicQueueEmpty')}
-            </span>
-          )}
-          {music.queue.map((entry, index) => (
-            <div
-              key={`${entry.trackId}-${index}`}
-              className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1 text-sm"
-            >
-              <span className="min-w-0 flex-1 truncate">
-                {entry.title}
-                {entry.author ? ` — ${entry.author}` : ''}
-              </span>
+          <div className="flex items-center gap-2">
+            {music.playing ? (
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => void handleQueueRemove(index)}
-                title={t('musicQueueRemove')}
+                onClick={handlePause}
+                title={t('musicPause')}
               >
-                <Trash2 className="h-4 w-4" />
+                <Pause className="h-4 w-4" />
               </Button>
-            </div>
-          ))}
-          {music.queue.length > 0 && (
+            ) : (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handlePlay}
+                title={t('musicPlay')}
+              >
+                <Play className="h-4 w-4" />
+              </Button>
+            )}
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatMediaPosition(displayPosition)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={seekMax}
+              step={0.1}
+              value={Math.min(displayPosition, seekMax)}
+              onChange={handleSeekChange}
+              onPointerUp={() => void handleSeekCommit()}
+              onPointerCancel={handleSeekAbort}
+              onLostPointerCapture={handleSeekAbort}
+              aria-label={t('musicSeek')}
+              className="music-seek flex-1"
+              style={{
+                background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${seekRatio * 100}%, rgb(255 255 255 / 0.2) ${seekRatio * 100}%)`
+              }}
+            />
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatMediaPosition(Math.max(duration, track.durationSec, 0))}
+            </span>
             <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void handleQueueClear()}
+              size="icon"
+              variant="ghost"
+              onClick={handleSkipNext}
+              disabled={
+                music.queue.length === 0 &&
+                !(music.repeatMode === 'all' && music.current)
+              }
+              title={t('musicNext')}
             >
-              {t('musicQueueClear')}
+              <SkipForward className="h-4 w-4" />
             </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={handleShuffleToggle}
+              title={t('musicShuffle')}
+              className={
+                music.shuffle
+                  ? 'border border-primary ring-2 ring-primary/60'
+                  : ''
+              }
+            >
+              <Shuffle className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={handleRepeatCycle}
+              title={
+                music.repeatMode === 'off'
+                  ? t('musicRepeatOff')
+                  : music.repeatMode === 'all'
+                    ? t('musicRepeatAll')
+                    : t('musicRepeatOne')
+              }
+              className={
+                music.repeatMode !== 'off'
+                  ? 'border border-primary ring-2 ring-primary/60'
+                  : ''
+              }
+            >
+              {music.repeatMode === 'one' ? (
+                <Repeat1 className="h-4 w-4" />
+              ) : (
+                <Repeat className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setMuted((muted) => !muted)}
+              title={muted ? t('watchUnmute') : t('watchMute')}
+            >
+              {muted || volume === 0 ? (
+                <VolumeX className="h-4 w-4" />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
+            </Button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={muted ? 0 : volume}
+              onChange={handleVolumeChange}
+              aria-label={t('watchVolume')}
+              className="w-20"
+            />
+          </div>
+          {queueOpen && (
+            <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
+              {music.queue.length === 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {t('musicQueueEmpty')}
+                </span>
+              )}
+              {music.queue.map((entry, index) => (
+                <div
+                  key={`${entry.trackId}-${index}`}
+                  className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1 text-sm"
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {entry.title}
+                    {entry.author ? ` — ${entry.author}` : ''}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => void handleQueueRemove(index)}
+                    title={t('musicQueueRemove')}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {music.queue.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleQueueClear()}
+                >
+                  {t('musicQueueClear')}
+                </Button>
+              )}
+            </div>
           )}
-        </div>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setJoinedUrl(trackUrl)}
+          className="flex items-center gap-3 rounded-md border border-primary/40 bg-primary/5 p-3 text-left transition hover:bg-primary/10"
+        >
+          {track.artworkUrl ? (
+            <img
+              src={track.artworkUrl}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded object-cover"
+              loading="lazy"
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : (
+            <Music2 className="h-10 w-10 shrink-0 text-muted-foreground" />
+          )}
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-sm font-medium">
+              {t('musicJoinTitle', {
+                name: controller ? getRenderedUsername(controller) : '?'
+              })}
+            </span>
+            <span className="truncate text-xs text-muted-foreground">
+              {track.title}
+              {track.author ? ` — ${track.author}` : ''}
+            </span>
+            <span className="text-sm text-primary">{t('musicJoin')}</span>
+          </span>
+        </button>
       )}
     </div>
   );

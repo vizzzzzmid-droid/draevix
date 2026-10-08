@@ -107,6 +107,8 @@
   "musicQueueEmpty": "The queue is empty",
   "musicQueueRemove": "Remove from queue",
   "musicQueueClear": "Clear queue",
+  "musicJoinTitle": "{{name}} started listening",
+  "musicJoin": "Join the listening party",
   "failedWatchTogether": "Failed to start the watch party",
   "watchPartyStarted": "Watch party started",
   "watchPartyTitle": "Watch party",
