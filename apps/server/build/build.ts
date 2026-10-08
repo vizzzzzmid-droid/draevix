@@ -60,13 +60,23 @@ const viteProc = Bun.spawn(['bun', 'run', 'build'], {
   cwd: clientCwd,
   stdout: 'inherit',
   stderr: 'inherit',
-  stdin: 'inherit'
+  stdin: 'inherit',
+  // the client bundle is huge (hls/dash chunks) and the stock node heap does
+  // not fit it on small hosts: back the build with swap instead of dying
+  env: {
+    ...process.env,
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=3072`.trim()
+  }
 });
 await viteProc.exited;
 
-if (viteProc.exitCode !== 0) {
-  console.error('Client build failed');
-  process.exit(viteProc.exitCode);
+// a signal death (oom-killer, abort) leaves exitCode null: without the signal
+// check a half-built dist gets zipped and deployed as a green build
+if (viteProc.exitCode !== 0 || viteProc.signalCode) {
+  console.error(
+    `Client build failed (exit ${viteProc.exitCode}, signal ${viteProc.signalCode})`
+  );
+  process.exit(viteProc.exitCode ?? 1);
 }
 
 console.log('Client build finished, output at:', viteDistPath);
