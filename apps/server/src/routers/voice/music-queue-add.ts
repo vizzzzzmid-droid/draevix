@@ -9,7 +9,7 @@ import {
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
-const MAX_QUEUE_LENGTH = 100;
+const MAX_QUEUE_LENGTH = 500;
 
 const musicQueueAddRoute = protectedProcedure
   .input(

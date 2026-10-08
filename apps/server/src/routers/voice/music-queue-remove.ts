@@ -7,7 +7,7 @@ import { protectedProcedure } from '../../utils/trpc';
 const musicQueueRemoveRoute = protectedProcedure
   .input(
     z.object({
-      index: z.number().int().min(0).max(99)
+      index: z.number().int().min(0).max(499)
     })
   )
   .mutation(async ({ input, ctx }) => {
