@@ -445,7 +445,9 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
           variant="ghost"
           onClick={handleShuffleToggle}
           title={t('musicShuffle')}
-          className={music.shuffle ? 'text-primary' : ''}
+          className={
+            music.shuffle ? 'border border-primary ring-2 ring-primary/60' : ''
+          }
         >
           <Shuffle className="h-4 w-4" />
         </Button>
@@ -460,7 +462,11 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
                 ? t('musicRepeatAll')
                 : t('musicRepeatOne')
           }
-          className={music.repeatMode !== 'off' ? 'text-primary' : ''}
+          className={
+            music.repeatMode !== 'off'
+              ? 'border border-primary ring-2 ring-primary/60'
+              : ''
+          }
         >
           {music.repeatMode === 'one' ? (
             <Repeat1 className="h-4 w-4" />
