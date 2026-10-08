@@ -6,7 +6,6 @@ import {
   Headphones,
   KeyRound,
   Package,
-  Palette,
   SlidersHorizontal,
   User
 } from 'lucide-react';
@@ -15,7 +14,6 @@ import { useTranslation } from 'react-i18next';
 import type { TServerScreenBaseProps } from '../screens';
 import { SettingsShell } from '../settings-shell';
 import type { TSettingsEntry } from '../settings-shell/types';
-import { Appearance } from './appearance';
 import { Devices } from './devices';
 import { Notifications } from './notifications';
 import { Others } from './others';
@@ -54,12 +52,6 @@ const UserSettings = memo(({ close }: TUserSettingsProps) => {
         label: t('notificationsTab'),
         icon: Bell,
         content: <Notifications />
-      },
-      {
-        id: 'appearance',
-        label: t('appearanceTab'),
-        icon: Palette,
-        content: <Appearance />
       },
       {
         id: 'others',
