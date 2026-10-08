@@ -41,7 +41,7 @@ import type { TDialogBaseProps } from '../types';
 type TSoundCloudResult =
   TRouterOutputs['voice']['musicSearch']['results'][number];
 
-type TMusicTab = 'search' | 'playlists' | 'queue';
+type TMusicTab = 'search' | 'queue';
 
 const toQueueInput = (entry: TSoundCloudResult) => ({
   trackId: entry.trackId,
@@ -59,7 +59,6 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const [{ volume, muted }, setMusicVolume] = useMusicVolume();
   const [tab, setTab] = useState<TMusicTab>('search');
   const [query, setQuery] = useState('');
-  const [playlistUrl, setPlaylistUrl] = useState('');
   const [results, setResults] = useState<TSoundCloudResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [resolvingPlaylist, setResolvingPlaylist] = useState(false);
@@ -73,7 +72,6 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   useEffect(() => {
     if (!isOpen) {
       setQuery('');
-      setPlaylistUrl('');
       setResults([]);
       setTab('search');
     }
@@ -96,10 +94,54 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const seekRatio = Math.min(100, (shownPosition / durationMax) * 100);
   const current = music?.current;
 
+  const handlePlaylistAdd = useCallback(
+    async (playlistLink: string) => {
+      const trimmed = playlistLink.trim();
+
+      if (!trimmed || resolvingPlaylist) return;
+
+      setResolvingPlaylist(true);
+
+      const trpc = getTRPCClient();
+
+      try {
+        const { tracks } = await trpc.voice.musicPlaylist.query({
+          url: trimmed
+        });
+        const playable = tracks.filter((entry) => entry.streamable);
+
+        if (playable.length === 0) {
+          toast.error(t('musicPlaylistEmpty'));
+          return;
+        }
+
+        const [first, ...rest] = playable;
+
+        await trpc.voice.musicQueueAdd.mutate({
+          track: toQueueInput(first!),
+          tracks: rest.map(toQueueInput)
+        });
+        toast.success(t('common:musicQueued'));
+        setTab('queue');
+      } catch (error) {
+        toast.error(getTrpcError(error, t('common:failedMusicTogether')));
+      } finally {
+        setResolvingPlaylist(false);
+      }
+    },
+    [resolvingPlaylist, t]
+  );
+
   const handleSearch = useCallback(async () => {
     const trimmed = query.trim();
 
     if (!trimmed || searching) return;
+
+    // a playlist link in the search box resolves straight into the queue
+    if (/soundcloud\.com\/[^/]+\/sets(\/|$|\?)/i.test(trimmed)) {
+      await handlePlaylistAdd(trimmed);
+      return;
+    }
 
     setSearching(true);
 
@@ -118,7 +160,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     } finally {
       setSearching(false);
     }
-  }, [query, searching, t]);
+  }, [query, searching, handlePlaylistAdd, t]);
 
   const handlePlayNow = useCallback(
     async (entry: TSoundCloudResult) => {
@@ -159,41 +201,6 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     },
     [busyTrackId, t]
   );
-
-  const handlePlaylistAdd = useCallback(async () => {
-    const trimmed = playlistUrl.trim();
-
-    if (!trimmed || resolvingPlaylist) return;
-
-    setResolvingPlaylist(true);
-
-    const trpc = getTRPCClient();
-
-    try {
-      const { tracks } = await trpc.voice.musicPlaylist.query({
-        url: trimmed
-      });
-      const playable = tracks.filter((entry) => entry.streamable);
-
-      if (playable.length === 0) {
-        toast.error(t('musicPlaylistEmpty'));
-        return;
-      }
-
-      const [first, ...rest] = playable;
-
-      await trpc.voice.musicQueueAdd.mutate({
-        track: toQueueInput(first!),
-        tracks: rest.map(toQueueInput)
-      });
-      toast.success(t('common:musicQueued'));
-      setTab('queue');
-    } catch (error) {
-      toast.error(getTrpcError(error, t('common:failedMusicTogether')));
-    } finally {
-      setResolvingPlaylist(false);
-    }
-  }, [playlistUrl, resolvingPlaylist, t]);
 
   const handleTogglePlay = useCallback(async () => {
     if (!music?.current) return;
@@ -284,7 +291,6 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
   const tabs: { id: TMusicTab; label: string }[] = [
     { id: 'search', label: t('musicTabSearch') },
-    { id: 'playlists', label: t('musicTabPlaylists') },
     {
       id: 'queue',
       label: `${t('musicTabQueue')}${
@@ -295,7 +301,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
   return (
     <AlertDialog open={isOpen}>
-      <AlertDialogContent className="max-w-2xl">
+      <AlertDialogContent className="inset-0 m-auto h-fit max-h-[85vh] w-full max-w-2xl translate-x-0 translate-y-0 overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle>{t('musicPickerTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
@@ -333,22 +339,6 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
           >
             YouTube
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled
-            title={t('musicSourceSoon')}
-          >
-            Spotify
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled
-            title={t('musicSourceSoon')}
-          >
-            {t('musicSourceLocal')}
-          </Button>
         </div>
 
         {tab === 'search' && (
@@ -366,11 +356,14 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                 size="sm"
                 variant="outline"
                 onClick={() => void handleSearch()}
-                disabled={searching || !query.trim()}
+                disabled={searching || resolvingPlaylist || !query.trim()}
               >
                 {t('musicFind')}
               </Button>
             </div>
+            <span className="text-xs text-muted-foreground">
+              {t('musicPlaylistHint')}
+            </span>
             <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
               {searching && (
                 <span className="text-sm text-muted-foreground">
@@ -429,32 +422,6 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {tab === 'playlists' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <Input
-                value={playlistUrl}
-                onChange={(event) => setPlaylistUrl(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') void handlePlaylistAdd();
-                }}
-                placeholder={t('musicPlaylistPlaceholder')}
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void handlePlaylistAdd()}
-                disabled={resolvingPlaylist || !playlistUrl.trim()}
-              >
-                {t('musicPlaylistAdd')}
-              </Button>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {t('musicPlaylistHint')}
-            </span>
           </div>
         )}
 
