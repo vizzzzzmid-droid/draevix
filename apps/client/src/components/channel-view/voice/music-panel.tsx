@@ -321,6 +321,8 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   if (!music?.current) return null;
 
   const track = music.current;
+  const seekMax = Math.max(duration, track.durationSec, 0.01);
+  const seekRatio = Math.min(1, Math.max(0, displayPosition / seekMax));
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-3">
@@ -412,18 +414,18 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
         <input
           type="range"
           min={0}
-          max={Math.max(duration, track.durationSec, 0.01)}
+          max={seekMax}
           step={0.1}
-          value={Math.min(
-            displayPosition,
-            Math.max(duration, track.durationSec, 0.01)
-          )}
+          value={Math.min(displayPosition, seekMax)}
           onChange={handleSeekChange}
           onPointerUp={() => void handleSeekCommit()}
           onPointerCancel={handleSeekAbort}
           onLostPointerCapture={handleSeekAbort}
           aria-label={t('musicSeek')}
-          className="flex-1"
+          className="music-seek flex-1"
+          style={{
+            background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${seekRatio * 100}%, rgb(255 255 255 / 0.2) ${seekRatio * 100}%)`
+          }}
         />
         <span className="text-xs tabular-nums text-muted-foreground">
           {formatMediaPosition(Math.max(duration, track.durationSec, 0))}

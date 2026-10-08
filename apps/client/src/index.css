@@ -128,6 +128,56 @@
   }
 }
 
+/* black-white-red seek bar for the music player: the filled part is painted
+   from js (see background below), the thumb stays white with a red ring */
+input[type='range'].music-seek {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type='range'].music-seek::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+input[type='range'].music-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -4px;
+  height: 12px;
+  width: 12px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid #dc2626;
+  box-shadow: 0 0 6px rgb(220 38 38 / 0.8);
+}
+
+input[type='range'].music-seek::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.2);
+}
+
+input[type='range'].music-seek::-moz-range-progress {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #7f1d1d, #ef4444);
+}
+
+input[type='range'].music-seek::-moz-range-thumb {
+  height: 12px;
+  width: 12px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid #dc2626;
+  box-shadow: 0 0 6px rgb(220 38 38 / 0.8);
+}
+
 html,
 body,
 [data-overlay-container='true'] {
