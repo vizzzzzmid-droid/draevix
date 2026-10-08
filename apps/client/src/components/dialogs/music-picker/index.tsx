@@ -495,7 +495,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                       )
                     }
                     aria-label={t('musicSeek')}
-                    className="music-seek flex-1"
+                    className="music-seek min-w-0 flex-1"
                     style={{
                       background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${seekRatio}%, rgb(255 255 255 / 0.2) ${seekRatio}%)`
                     }}
@@ -588,7 +588,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                   setMusicVolume(next, next === 0);
                 }}
                 aria-label={t('watchVolume')}
-                className="music-seek w-24"
+                className="music-seek w-24 min-w-0"
                 style={{
                   background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${(muted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(muted ? 0 : volume) * 100}%)`
                 }}
