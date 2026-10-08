@@ -607,20 +607,23 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
                 <Play className="h-4 w-4" />
               </Button>
             )}
-            <input
-              type="range"
-              min={0}
-              max={Math.max(duration, 0.01)}
-              step={0.1}
-              value={Math.min(displayPosition, Math.max(duration, 0.01))}
-              onChange={handleSeekChange}
-              onPointerUp={handleSeekCommit}
-              onPointerCancel={handleSeekAbort}
-              onLostPointerCapture={handleSeekAbort}
-              onKeyUp={handleSeekKeyUp}
-              aria-label={t('watchSeek')}
-              className="flex-1"
-            />
+        <input
+          type="range"
+          min={0}
+          max={Math.max(duration, 0.01)}
+          step={0.1}
+          value={Math.min(displayPosition, Math.max(duration, 0.01))}
+          onChange={handleSeekChange}
+          onPointerUp={handleSeekCommit}
+          onPointerCancel={handleSeekAbort}
+          onLostPointerCapture={handleSeekAbort}
+          onKeyUp={handleSeekKeyUp}
+          aria-label={t('watchSeek')}
+          className="music-seek flex-1"
+          style={{
+            background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${Math.min(100, (displayPosition / Math.max(duration, 0.01)) * 100)}%, rgb(255 255 255 / 0.2) ${Math.min(100, (displayPosition / Math.max(duration, 0.01)) * 100)}%)`
+          }}
+        />
             <Button
               size="icon"
               variant="ghost"
@@ -633,16 +636,19 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
                 <Volume2 className="h-4 w-4" />
               )}
             </Button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={muted ? 0 : volume}
-              onChange={handleVolumeChange}
-              aria-label={t('watchVolume')}
-              className="w-20"
-            />
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={muted ? 0 : volume}
+          onChange={handleVolumeChange}
+          aria-label={t('watchVolume')}
+          className="music-seek w-20"
+          style={{
+            background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${(muted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(muted ? 0 : volume) * 100}%)`
+          }}
+        />
             <Button
               size="icon"
               variant="ghost"
