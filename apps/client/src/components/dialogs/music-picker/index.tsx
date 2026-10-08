@@ -448,7 +448,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
         )}
 
         {current && (
-          <div className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-primary/5 p-3">
+          <div className="sticky bottom-0 flex flex-col gap-2 rounded-lg border border-primary/40 bg-card p-3 shadow-[0_-8px_24px_rgb(0_0_0/0.45)]">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t('musicNowPlaying')}
             </span>
