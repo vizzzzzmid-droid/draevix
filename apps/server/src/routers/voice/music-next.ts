@@ -40,7 +40,10 @@ const musicNextRoute = protectedProcedure
 
         const music = {
           ...current,
-          current: playable,
+          current: {
+            ...playable,
+            addedByUserId: current.current.addedByUserId
+          },
           playing: true,
           positionSec: 0,
           updatedAt: Date.now(),
@@ -70,7 +73,10 @@ const musicNextRoute = protectedProcedure
 
           const music = {
             ...current,
-            current: playable,
+            current: {
+              ...playable,
+              addedByUserId: current.current.addedByUserId
+            },
             playing: true,
             positionSec: 0,
             updatedAt: Date.now(),
@@ -95,7 +101,7 @@ const musicNextRoute = protectedProcedure
 
       const music = {
         ...current,
-        current: playable,
+        current: { ...playable, addedByUserId: next.addedByUserId },
         queue: rest,
         playing: true,
         positionSec: 0,

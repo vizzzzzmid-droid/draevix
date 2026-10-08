@@ -6,6 +6,7 @@ import {
 import { useMusicState } from '@/features/server/voice/hooks';
 import { logVoice } from '@/helpers/browser-logger';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
+import { useMusicVolume } from '@/helpers/music-volume';
 import { getTRPCClient } from '@/lib/trpc';
 import { getTrpcError } from '@draevix/shared';
 import { Button } from '@draevix/ui';
@@ -49,8 +50,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const refreshedUrlRef = useRef<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [displayPosition, setDisplayPosition] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(false);
+  const [{ volume, muted }, setMusicVolume] = useMusicVolume();
   const [queueOpen, setQueueOpen] = useState(false);
 
   const currentUrl = music?.current?.mp3Url ?? '';
@@ -193,11 +193,14 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const next = Number(event.target.value);
 
-      setVolume(next);
-      setMuted(next === 0);
+      setMusicVolume(next, next === 0);
     },
-    []
+    [setMusicVolume]
   );
+
+  const handleMuteToggle = useCallback(() => {
+    setMusicVolume(volume, !muted);
+  }, [setMusicVolume, volume, muted]);
 
   const handleStop = useCallback(async () => {
     const trpc = getTRPCClient();
@@ -503,7 +506,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
             <Button
               size="icon"
               variant="ghost"
-              onClick={() => setMuted((muted) => !muted)}
+              onClick={handleMuteToggle}
               title={muted ? t('watchUnmute') : t('watchMute')}
             >
               {muted || volume === 0 ? (
@@ -512,19 +515,19 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
                 <Volume2 className="h-4 w-4" />
               )}
             </Button>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={muted ? 0 : volume}
-          onChange={handleVolumeChange}
-          aria-label={t('watchVolume')}
-          className="music-seek w-20"
-          style={{
-            background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${(muted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(muted ? 0 : volume) * 100}%)`
-          }}
-        />
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={muted ? 0 : volume}
+              onChange={handleVolumeChange}
+              aria-label={t('watchVolume')}
+              className="music-seek w-20"
+              style={{
+                background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${(muted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(muted ? 0 : volume) * 100}%)`
+              }}
+            />
           </div>
           {queueOpen && (
             <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">

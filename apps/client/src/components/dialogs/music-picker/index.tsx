@@ -1,4 +1,11 @@
-import { formatMediaPosition } from '@/features/server/voice/helpers';
+import { useCurrentVoiceChannelId } from '@/features/server/channels/hooks';
+import { useUserById } from '@/features/server/users/hooks';
+import {
+  formatMediaPosition,
+  getMusicPositionSec
+} from '@/features/server/voice/helpers';
+import { useMusicState } from '@/features/server/voice/hooks';
+import { useMusicVolume } from '@/helpers/music-volume';
 import { getTRPCClient, type TRouterOutputs } from '@/lib/trpc';
 import { getTrpcError } from '@draevix/shared';
 import {
@@ -12,14 +19,29 @@ import {
   Button,
   Input
 } from '@draevix/ui';
-import { ListMusic, Music2, Play, Plus } from 'lucide-react';
-import { memo, useCallback, useEffect, useState } from 'react';
+import {
+  Music2,
+  Pause,
+  Play,
+  Plus,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  SkipForward,
+  Trash2,
+  Volume2,
+  VolumeX
+} from 'lucide-react';
+import { memo, useCallback, useEffect, useReducer, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { UserAvatar } from '../../user-avatar';
 import type { TDialogBaseProps } from '../types';
 
 type TSoundCloudResult =
   TRouterOutputs['voice']['musicSearch']['results'][number];
+
+type TMusicTab = 'search' | 'playlists' | 'queue';
 
 const toQueueInput = (entry: TSoundCloudResult) => ({
   trackId: entry.trackId,
@@ -32,6 +54,10 @@ const toQueueInput = (entry: TSoundCloudResult) => ({
 
 const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const { t } = useTranslation(['dialogs', 'common']);
+  const channelId = useCurrentVoiceChannelId();
+  const music = useMusicState(channelId ?? -1);
+  const [{ volume, muted }, setMusicVolume] = useMusicVolume();
+  const [tab, setTab] = useState<TMusicTab>('search');
   const [query, setQuery] = useState('');
   const [playlistUrl, setPlaylistUrl] = useState('');
   const [results, setResults] = useState<TSoundCloudResult[]>([]);
@@ -39,13 +65,36 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const [resolvingPlaylist, setResolvingPlaylist] = useState(false);
   const [busyTrackId, setBusyTrackId] = useState<number | null>(null);
 
+  // progress ticks locally while playing; seeks commit through the server
+  const [, forceTick] = useReducer((value: number) => value + 1, 0);
+  const [seeking, setSeeking] = useState(false);
+  const [seekValue, setSeekValue] = useState(0);
+
   useEffect(() => {
     if (!isOpen) {
       setQuery('');
       setPlaylistUrl('');
       setResults([]);
+      setTab('search');
     }
   }, [isOpen]);
+
+  const isPlaying = music?.playing === true;
+  const currentTrackId = music?.current?.trackId;
+
+  useEffect(() => {
+    if (!isPlaying || currentTrackId === undefined) return;
+
+    const timer = setInterval(forceTick, 500);
+
+    return () => clearInterval(timer);
+  }, [isPlaying, currentTrackId]);
+
+  const position = music ? getMusicPositionSec(music) : 0;
+  const shownPosition = seeking ? seekValue : position;
+  const durationMax = Math.max(music?.current?.durationSec ?? 0.01, 0.01);
+  const seekRatio = Math.min(100, (shownPosition / durationMax) * 100);
+  const current = music?.current;
 
   const handleSearch = useCallback(async () => {
     const trimmed = query.trim();
@@ -82,14 +131,13 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
       try {
         await trpc.voice.musicPlay.mutate({ track: toQueueInput(entry) });
         toast.success(t('common:musicPartyStarted'));
-        close();
       } catch (error) {
         toast.error(getTrpcError(error, t('common:failedMusicTogether')));
       } finally {
         setBusyTrackId(null);
       }
     },
-    [busyTrackId, close, t]
+    [busyTrackId, t]
   );
 
   const handleQueueAdd = useCallback(
@@ -139,123 +187,452 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
         tracks: rest.map(toQueueInput)
       });
       toast.success(t('common:musicQueued'));
-      close();
+      setTab('queue');
     } catch (error) {
       toast.error(getTrpcError(error, t('common:failedMusicTogether')));
     } finally {
       setResolvingPlaylist(false);
     }
-  }, [playlistUrl, resolvingPlaylist, close, t]);
+  }, [playlistUrl, resolvingPlaylist, t]);
+
+  const handleTogglePlay = useCallback(async () => {
+    if (!music?.current) return;
+
+    const trpc = getTRPCClient();
+
+    try {
+      if (music.playing) {
+        await trpc.voice.musicPause.mutate({
+          positionSec: getMusicPositionSec(music)
+        });
+      } else {
+        await trpc.voice.musicResume.mutate({
+          positionSec: getMusicPositionSec(music)
+        });
+      }
+    } catch (error) {
+      toast.error(getTrpcError(error, t('common:failedMusicTogether')));
+    }
+  }, [music, t]);
+
+  const handleSeekCommit = useCallback(
+    async (value: number) => {
+      setSeeking(false);
+
+      const trpc = getTRPCClient();
+
+      try {
+        await trpc.voice.musicSeek.mutate({ positionSec: value });
+      } catch (error) {
+        toast.error(getTrpcError(error, t('common:failedMusicTogether')));
+      }
+    },
+    [t]
+  );
+
+  const handleSkipNext = useCallback(async () => {
+    const trpc = getTRPCClient();
+
+    try {
+      await trpc.voice.musicNext.mutate({});
+    } catch (error) {
+      toast.error(getTrpcError(error, t('common:failedMusicTogether')));
+    }
+  }, [t]);
+
+  const handleShuffleToggle = useCallback(async () => {
+    const trpc = getTRPCClient();
+
+    try {
+      await trpc.voice.musicSetShuffle.mutate({
+        shuffled: !(music?.shuffle ?? false)
+      });
+    } catch (error) {
+      toast.error(getTrpcError(error, t('common:failedMusicTogether')));
+    }
+  }, [music?.shuffle, t]);
+
+  const handleRepeatCycle = useCallback(async () => {
+    const next =
+      music?.repeatMode === 'off'
+        ? 'all'
+        : music?.repeatMode === 'all'
+          ? 'one'
+          : 'off';
+
+    const trpc = getTRPCClient();
+
+    try {
+      await trpc.voice.musicSetRepeat.mutate({ mode: next });
+    } catch (error) {
+      toast.error(getTrpcError(error, t('common:failedMusicTogether')));
+    }
+  }, [music?.repeatMode, t]);
+
+  const handleQueueRemove = useCallback(
+    async (index: number) => {
+      const trpc = getTRPCClient();
+
+      try {
+        await trpc.voice.musicQueueRemove.mutate({ index });
+      } catch (error) {
+        toast.error(getTrpcError(error, t('common:failedMusicTogether')));
+      }
+    },
+    [t]
+  );
+
+  const tabs: { id: TMusicTab; label: string }[] = [
+    { id: 'search', label: t('musicTabSearch') },
+    { id: 'playlists', label: t('musicTabPlaylists') },
+    {
+      id: 'queue',
+      label: `${t('musicTabQueue')}${
+        music && music.queue.length > 0 ? ` (${music.queue.length})` : ''
+      }`
+    }
+  ];
 
   return (
     <AlertDialog open={isOpen}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-2xl">
         <AlertDialogHeader>
           <AlertDialogTitle>{t('musicPickerTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
             {t('musicPickerDesc')}
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        <div className="flex items-center gap-1 border-b border-border/50 pb-2">
+          {tabs.map((entry) => (
+            <Button
+              key={entry.id}
+              size="sm"
+              variant={tab === entry.id ? 'default' : 'ghost'}
+              onClick={() => setTab(entry.id)}
+            >
+              {entry.label}
+            </Button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-2">
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void handleSearch();
-            }}
-            placeholder={t('musicSearchPlaceholder')}
-          />
+          <Button
+            size="sm"
+            variant="default"
+            disabled
+            title={t('musicSourceSoon')}
+          >
+            SoundCloud
+          </Button>
           <Button
             size="sm"
             variant="outline"
-            onClick={() => void handleSearch()}
-            disabled={searching || !query.trim()}
+            disabled
+            title={t('musicSourceSoon')}
           >
-            {t('musicFind')}
+            YouTube
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled
+            title={t('musicSourceSoon')}
+          >
+            Spotify
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled
+            title={t('musicSourceSoon')}
+          >
+            {t('musicSourceLocal')}
           </Button>
         </div>
-        <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">
-          {searching && (
-            <span className="text-sm text-muted-foreground">
-              {t('musicSearching')}
+
+        {tab === 'search' && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void handleSearch();
+                }}
+                placeholder={t('musicSearchPlaceholder')}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void handleSearch()}
+                disabled={searching || !query.trim()}
+              >
+                {t('musicFind')}
+              </Button>
+            </div>
+            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
+              {searching && (
+                <span className="text-sm text-muted-foreground">
+                  {t('musicSearching')}
+                </span>
+              )}
+              {results.map((entry) => (
+                <div
+                  key={entry.trackId}
+                  className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm"
+                >
+                  {entry.artworkUrl ? (
+                    <img
+                      src={entry.artworkUrl}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded object-cover"
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <Music2 className="h-10 w-10 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{entry.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[
+                        entry.author,
+                        entry.durationSec
+                          ? formatMediaPosition(entry.durationSec)
+                          : ''
+                      ]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    </span>
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => void handleQueueAdd(entry)}
+                    disabled={busyTrackId !== null}
+                    title={t('musicQueueAdd')}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => void handlePlayNow(entry)}
+                    disabled={busyTrackId !== null}
+                    title={t('musicPlayNow')}
+                  >
+                    <Play className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'playlists' && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Input
+                value={playlistUrl}
+                onChange={(event) => setPlaylistUrl(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void handlePlaylistAdd();
+                }}
+                placeholder={t('musicPlaylistPlaceholder')}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void handlePlaylistAdd()}
+                disabled={resolvingPlaylist || !playlistUrl.trim()}
+              >
+                {t('musicPlaylistAdd')}
+              </Button>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {t('musicPlaylistHint')}
             </span>
-          )}
-          {results.map((entry) => (
-            <div
-              key={entry.trackId}
-              className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm"
-            >
-              {entry.artworkUrl ? (
+          </div>
+        )}
+
+        {tab === 'queue' && (
+          <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+            {(music?.queue.length ?? 0) === 0 && (
+              <span className="text-sm text-muted-foreground">
+                {t('musicQueueEmpty')}
+              </span>
+            )}
+            {(music?.queue ?? []).map((entry, index) => (
+              <QueueRow
+                key={`${entry.trackId}-${index}`}
+                index={index}
+                title={entry.title}
+                author={entry.author}
+                artworkUrl={entry.artworkUrl}
+                addedByUserId={entry.addedByUserId}
+                onRemove={() => void handleQueueRemove(index)}
+              />
+            ))}
+          </div>
+        )}
+
+        {current && (
+          <div className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-primary/5 p-3">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('musicNowPlaying')}
+            </span>
+            <div className="flex items-center gap-3">
+              {current.artworkUrl ? (
                 <img
-                  src={entry.artworkUrl}
+                  src={current.artworkUrl}
                   alt=""
-                  className="h-10 w-10 shrink-0 rounded object-cover"
+                  className="h-16 w-16 shrink-0 rounded-md object-cover"
                   loading="lazy"
                   onError={(event) => {
                     event.currentTarget.style.display = 'none';
                   }}
                 />
               ) : (
-                <Music2 className="h-10 w-10 shrink-0 text-muted-foreground" />
+                <Music2 className="h-16 w-16 shrink-0 text-muted-foreground" />
               )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">{entry.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {[
-                    entry.author,
-                    entry.durationSec
-                      ? formatMediaPosition(entry.durationSec)
-                      : ''
-                  ]
-                    .filter(Boolean)
-                    .join(' • ')}
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-sm font-medium">
+                  {current.title}
                 </span>
-              </span>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => void handleQueueAdd(entry)}
-                disabled={busyTrackId !== null}
-                title={t('musicQueueAdd')}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => void handlePlayNow(entry)}
-                disabled={busyTrackId !== null}
-                title={t('musicPlayNow')}
-              >
-                <Play className="h-4 w-4" />
-              </Button>
+                <span className="truncate text-xs text-muted-foreground">
+                  {[current.author, 'SoundCloud'].filter(Boolean).join(' • ')}
+                </span>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {formatMediaPosition(shownPosition)}
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(current.durationSec, shownPosition, 0.01)}
+                    step={0.1}
+                    value={Math.min(
+                      shownPosition,
+                      Math.max(current.durationSec, 0.01)
+                    )}
+                    onChange={(event) => {
+                      setSeeking(true);
+                      setSeekValue(Number(event.target.value));
+                    }}
+                    onPointerUp={(event) =>
+                      void handleSeekCommit(
+                        Number((event.target as HTMLInputElement).value)
+                      )
+                    }
+                    aria-label={t('musicSeek')}
+                    className="music-seek flex-1"
+                    style={{
+                      background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${seekRatio}%, rgb(255 255 255 / 0.2) ${seekRatio}%)`
+                    }}
+                  />
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {formatMediaPosition(current.durationSec)}
+                  </span>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-        <div className="flex flex-col gap-2 border-t border-border/50 pt-3">
-          <span className="flex items-center gap-2 text-sm font-medium">
-            <ListMusic className="h-4 w-4" />
-            {t('musicPlaylistTitle')}
-          </span>
-          <div className="flex items-center gap-2">
-            <Input
-              value={playlistUrl}
-              onChange={(event) => setPlaylistUrl(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void handlePlaylistAdd();
-              }}
-              placeholder={t('musicPlaylistPlaceholder')}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void handlePlaylistAdd()}
-              disabled={resolvingPlaylist || !playlistUrl.trim()}
-            >
-              {t('musicPlaylistAdd')}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleShuffleToggle}
+                title={t('musicShuffle')}
+                className={
+                  music?.shuffle
+                    ? 'border border-primary ring-2 ring-primary/60'
+                    : ''
+                }
+              >
+                <Shuffle className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleTogglePlay}
+                title={music?.playing ? t('musicPause') : t('musicPlay')}
+              >
+                {music?.playing ? (
+                  <Pause className="h-5 w-5" />
+                ) : (
+                  <Play className="h-5 w-5" />
+                )}
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleSkipNext}
+                disabled={(music?.queue.length ?? 0) === 0}
+                title={t('musicNext')}
+              >
+                <SkipForward className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleRepeatCycle}
+                title={
+                  music?.repeatMode === 'off'
+                    ? t('musicRepeatOff')
+                    : music?.repeatMode === 'all'
+                      ? t('musicRepeatAll')
+                      : t('musicRepeatOne')
+                }
+                className={
+                  music && music.repeatMode !== 'off'
+                    ? 'border border-primary ring-2 ring-primary/60'
+                    : ''
+                }
+              >
+                {music?.repeatMode === 'one' ? (
+                  <Repeat1 className="h-4 w-4" />
+                ) : (
+                  <Repeat className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setMusicVolume(volume, !muted)}
+                title={muted ? t('watchUnmute') : t('watchMute')}
+              >
+                {muted || volume === 0 ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={muted ? 0 : volume}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+
+                  setMusicVolume(next, next === 0);
+                }}
+                aria-label={t('watchVolume')}
+                className="music-seek w-24"
+                style={{
+                  background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${(muted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(muted ? 0 : volume) * 100}%)`
+                }}
+              />
+              <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">
+                {Math.round((muted ? 0 : volume) * 100)}%
+              </span>
+            </div>
           </div>
-        </div>
+        )}
+
         <AlertDialogFooter>
           <AlertDialogCancel onClick={close}>{t('cancel')}</AlertDialogCancel>
         </AlertDialogFooter>
@@ -263,5 +640,65 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     </AlertDialog>
   );
 });
+
+const QueueRow = memo(
+  ({
+    index,
+    title,
+    author,
+    artworkUrl,
+    addedByUserId,
+    onRemove
+  }: {
+    index: number;
+    title: string;
+    author: string;
+    artworkUrl: string | null;
+    addedByUserId: number | null;
+    onRemove: () => void;
+  }) => {
+    const { t } = useTranslation(['dialogs', 'common']);
+    const addedBy = useUserById(addedByUserId ?? -1);
+
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-border/50 px-2 py-1.5 text-sm">
+        <span className="w-5 shrink-0 text-center text-xs tabular-nums text-muted-foreground">
+          {index + 1}
+        </span>
+        {artworkUrl ? (
+          <img
+            src={artworkUrl}
+            alt=""
+            className="h-8 w-8 shrink-0 rounded object-cover"
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+            }}
+          />
+        ) : (
+          <Music2 className="h-8 w-8 shrink-0 text-muted-foreground" />
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">
+            {title}
+            {author ? ` — ${author}` : ''}
+          </span>
+          <span className="block truncate text-xs text-muted-foreground">
+            SoundCloud
+          </span>
+        </span>
+        {addedBy && <UserAvatar userId={addedBy.id} />}
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={onRemove}
+          title={t('musicQueueRemove')}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+);
 
 export { MusicPickerDialog };

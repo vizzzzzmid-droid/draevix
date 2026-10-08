@@ -28,7 +28,8 @@ const musicQueueAddRoute = protectedProcedure
         author: track.author ?? '',
         artworkUrl: track.artworkUrl ?? null,
         durationSec: track.durationSec ?? 0,
-        permalinkUrl: track.permalinkUrl
+        permalinkUrl: track.permalinkUrl,
+        addedByUserId: ctx.user.id
       }));
 
       const current = runtime.getMusicState();
@@ -46,7 +47,7 @@ const musicQueueAddRoute = protectedProcedure
         const playable = await resolvePlayableTrack(first);
 
         const music = {
-          current: playable,
+          current: { ...playable, addedByUserId: first.addedByUserId },
           queue: rest.slice(0, MAX_QUEUE_LENGTH),
           playing: true,
           positionSec: 0,

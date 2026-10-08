@@ -44,6 +44,7 @@ export type TMusicTrack = {
   artworkUrl: string | null;
   durationSec: number;
   permalinkUrl: string;
+  addedByUserId: number | null;
   mp3Url?: string;
 };
 

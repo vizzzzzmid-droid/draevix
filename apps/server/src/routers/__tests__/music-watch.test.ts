@@ -149,7 +149,8 @@ describe('watch musicPlay', () => {
         current: {
           trackId: 417474360,
           title: 'Chill Study Beats',
-          mp3Url: 'https://cf-media.example.com/x.mp3'
+          mp3Url: 'https://cf-media.example.com/x.mp3',
+          addedByUserId: 1
         },
         queue: [],
         playing: true,

@@ -22,7 +22,7 @@ const musicPlayRoute = protectedProcedure
       const previous = runtime.getMusicState();
 
       const music = {
-        current,
+        current: { ...current, addedByUserId: ctx.user.id },
         queue: previous?.queue ?? [],
         playing: true,
         positionSec: 0,
