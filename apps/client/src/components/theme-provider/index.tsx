@@ -31,9 +31,17 @@ function ThemeProvider({
   storageKey = LocalStorageKey.VITE_UI_THEME,
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (getLocalStorageItem(storageKey) as Theme) || defaultTheme
-  );
+  // stale values from removed experiments (preset ids) fall back to default
+  // instead of adding a meaningless class and landing on the light theme
+  const [theme, setTheme] = useState<Theme>(() => {
+    const stored = getLocalStorageItem(storageKey);
+
+    if (stored === 'dark' || stored === 'light' || stored === 'system') {
+      return stored;
+    }
+
+    return defaultTheme;
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
