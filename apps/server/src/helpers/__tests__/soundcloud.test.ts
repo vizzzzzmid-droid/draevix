@@ -327,6 +327,37 @@ describe('resolvePlaylistTracks', () => {
 
     expect(tracks.map((entry) => entry.trackId)).toEqual([417474360, 2, 3]);
   });
+
+  test('should hydrate minimal entries via the batch endpoint', async () => {
+    const stubFetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url.includes('/tracks?ids=')) {
+        return new Response(
+          JSON.stringify([{ ...trackJson, id: 7, title: 'Hydrated Seven' }]),
+          { status: 200 }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          kind: 'playlist',
+          id: 99,
+          track_count: 2,
+          tracks: [trackJson, { id: 7, kind: 'track', policy: 'MONETIZE' }]
+        }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const tracks = await resolvePlaylistTracks(
+      'https://soundcloud.com/a/sets/mix',
+      stubFetch
+    );
+
+    expect(tracks.map((entry) => entry.trackId)).toEqual([417474360, 7]);
+    expect(tracks[1]).toMatchObject({ title: 'Hydrated Seven' });
+  });
 });
 
 describe('verifyStreamUrl', () => {

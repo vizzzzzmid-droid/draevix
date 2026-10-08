@@ -473,9 +473,11 @@ const resolvePlaylistTracks = async (
       }
     }
 
+    const hydrated = await hydrateMinimalTracks(best, clientId, fetchImpl);
+
     const out: TSoundCloudTrack[] = [];
 
-    for (const raw of best) {
+    for (const raw of hydrated) {
       const track = toTrack(raw);
 
       if (track) out.push(track);
@@ -483,6 +485,76 @@ const resolvePlaylistTracks = async (
 
     return out;
   }, fetchImpl);
+};
+
+// playlist entries often arrive minimal ({id, kind, policy}) without title
+// or link: hydrate them in batches, full entries pass through untouched
+const hydrateMinimalTracks = async (
+  entries: unknown[],
+  clientId: string,
+  fetchImpl: typeof fetch
+): Promise<unknown[]> => {
+  const needsHydration = (entry: unknown): number | null => {
+    const data = entry as {
+      id?: unknown;
+      title?: unknown;
+      permalink_url?: unknown;
+    };
+
+    if (typeof data.id !== 'number') return null;
+    if (
+      typeof data.title === 'string' &&
+      typeof data.permalink_url === 'string'
+    ) {
+      return null;
+    }
+
+    return data.id;
+  };
+
+  const ids = entries
+    .map(needsHydration)
+    .filter((id): id is number => id !== null);
+
+  if (ids.length === 0) return entries;
+
+  const full = new Map<number, unknown>();
+
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    const response = await soundcloudFetch(
+      `${SOUNDCLOUD_API}/tracks?${new URLSearchParams({
+        ids: chunk.join(','),
+        client_id: clientId
+      })}`,
+      SEARCH_TIMEOUT_MS,
+      fetchImpl
+    );
+
+    if (!response.ok) continue;
+
+    let payload: unknown;
+
+    try {
+      payload = await response.json();
+    } catch {
+      continue;
+    }
+
+    const list = Array.isArray(payload) ? payload : [];
+
+    for (const item of list) {
+      const id = (item as { id?: unknown }).id;
+
+      if (typeof id === 'number') full.set(id, item);
+    }
+  }
+
+  return entries.map((entry) => {
+    const id = (entry as { id?: unknown }).id;
+
+    return typeof id === 'number' && full.has(id) ? full.get(id) : entry;
+  });
 };
 
 const looksLikePlaylistUrl = (input: string): boolean =>
