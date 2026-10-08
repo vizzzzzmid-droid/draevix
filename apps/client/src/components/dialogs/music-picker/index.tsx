@@ -301,7 +301,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
   return (
     <AlertDialog open={isOpen}>
-      <AlertDialogContent className="inset-0 m-auto h-fit max-h-[85vh] w-full max-w-2xl translate-x-0 translate-y-0 overflow-x-clip overflow-y-auto">
+      <AlertDialogContent className="max-h-[85vh] w-full max-w-2xl overflow-x-clip overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle>{t('musicPickerTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
@@ -601,7 +601,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
           </div>
         )}
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="sticky bottom-0 -mx-6 -mb-6 bg-background px-6 pb-6 pt-3">
           <AlertDialogCancel onClick={close}>{t('cancel')}</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
