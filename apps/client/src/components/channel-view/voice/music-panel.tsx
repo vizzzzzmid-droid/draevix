@@ -512,16 +512,19 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
                 <Volume2 className="h-4 w-4" />
               )}
             </Button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={muted ? 0 : volume}
-              onChange={handleVolumeChange}
-              aria-label={t('watchVolume')}
-              className="w-20"
-            />
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={muted ? 0 : volume}
+          onChange={handleVolumeChange}
+          aria-label={t('watchVolume')}
+          className="music-seek w-20"
+          style={{
+            background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${(muted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(muted ? 0 : volume) * 100}%)`
+          }}
+        />
           </div>
           {queueOpen && (
             <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
