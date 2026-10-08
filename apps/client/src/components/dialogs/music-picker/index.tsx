@@ -301,7 +301,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
   return (
     <AlertDialog open={isOpen}>
-      <AlertDialogContent className="inset-0 m-auto h-fit max-h-[85vh] w-full max-w-2xl translate-x-0 translate-y-0 overflow-y-auto">
+      <AlertDialogContent className="inset-0 m-auto h-fit max-h-[85vh] w-full max-w-2xl translate-x-0 translate-y-0 overflow-x-clip overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle>{t('musicPickerTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
@@ -343,7 +343,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
         {tab === 'search' && (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -351,6 +351,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                   if (event.key === 'Enter') void handleSearch();
                 }}
                 placeholder={t('musicSearchPlaceholder')}
+                className="min-w-0"
               />
               <Button
                 size="sm"
