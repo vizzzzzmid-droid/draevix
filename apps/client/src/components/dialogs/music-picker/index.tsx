@@ -301,7 +301,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
   return (
     <AlertDialog open={isOpen}>
-      <AlertDialogContent className="max-h-[85vh] w-full max-w-2xl overflow-x-clip overflow-y-auto">
+      <AlertDialogContent className="max-h-[85vh] w-full max-w-2xl overflow-x-clip overflow-y-auto sm:max-w-2xl">
         <AlertDialogHeader>
           <AlertDialogTitle>{t('musicPickerTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
@@ -448,23 +448,20 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
         )}
 
         {current && (
-          <div className="sticky bottom-0 flex flex-col gap-2 rounded-lg border border-primary/40 bg-card p-3 shadow-[0_-8px_24px_rgb(0_0_0/0.45)]">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('musicNowPlaying')}
-            </span>
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-card p-2.5">
+            <div className="flex items-center gap-2">
               {current.artworkUrl ? (
                 <img
                   src={current.artworkUrl}
                   alt=""
-                  className="h-16 w-16 shrink-0 rounded-md object-cover"
+                  className="h-12 w-12 shrink-0 rounded-md object-cover"
                   loading="lazy"
                   onError={(event) => {
                     event.currentTarget.style.display = 'none';
                   }}
                 />
               ) : (
-                <Music2 className="h-16 w-16 shrink-0 text-muted-foreground" />
+                <Music2 className="h-12 w-12 shrink-0 text-muted-foreground" />
               )}
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-medium">
@@ -473,54 +470,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                 <span className="truncate text-xs text-muted-foreground">
                   {[current.author, 'SoundCloud'].filter(Boolean).join(' • ')}
                 </span>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {formatMediaPosition(shownPosition)}
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={Math.max(current.durationSec, shownPosition, 0.01)}
-                    step={0.1}
-                    value={Math.min(
-                      shownPosition,
-                      Math.max(current.durationSec, 0.01)
-                    )}
-                    onChange={(event) => {
-                      setSeeking(true);
-                      setSeekValue(Number(event.target.value));
-                    }}
-                    onPointerUp={(event) =>
-                      void handleSeekCommit(
-                        Number((event.target as HTMLInputElement).value)
-                      )
-                    }
-                    aria-label={t('musicSeek')}
-                    className="music-seek min-w-0 flex-1"
-                    style={{
-                      background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${seekRatio}%, rgb(255 255 255 / 0.2) ${seekRatio}%)`
-                    }}
-                  />
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {formatMediaPosition(current.durationSec)}
-                  </span>
-                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={handleShuffleToggle}
-                title={t('musicShuffle')}
-                className={
-                  music?.shuffle
-                    ? 'border border-primary ring-2 ring-primary/60'
-                    : ''
-                }
-              >
-                <Shuffle className="h-4 w-4" />
-              </Button>
               <Button
                 size="icon"
                 variant="ghost"
@@ -541,6 +491,51 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                 title={t('musicNext')}
               >
                 <SkipForward className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {formatMediaPosition(shownPosition)}
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={Math.max(current.durationSec, shownPosition, 0.01)}
+                step={0.1}
+                value={Math.min(
+                  shownPosition,
+                  Math.max(current.durationSec, 0.01)
+                )}
+                onChange={(event) => {
+                  setSeeking(true);
+                  setSeekValue(Number(event.target.value));
+                }}
+                onPointerUp={(event) =>
+                  void handleSeekCommit(
+                    Number((event.target as HTMLInputElement).value)
+                  )
+                }
+                aria-label={t('musicSeek')}
+                className="music-seek min-w-0 flex-1"
+                style={{
+                  background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${seekRatio}%, rgb(255 255 255 / 0.2) ${seekRatio}%)`
+                }}
+              />
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {formatMediaPosition(current.durationSec)}
+              </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleShuffleToggle}
+                title={t('musicShuffle')}
+                className={
+                  music?.shuffle
+                    ? 'border border-primary ring-2 ring-primary/60'
+                    : ''
+                }
+              >
+                <Shuffle className="h-4 w-4" />
               </Button>
               <Button
                 size="icon"
@@ -589,19 +584,19 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                   setMusicVolume(next, next === 0);
                 }}
                 aria-label={t('watchVolume')}
-                className="music-seek w-24 min-w-0"
+                className="music-seek w-20 min-w-0"
                 style={{
                   background: `linear-gradient(to right, #7f1d1d 0%, #ef4444 ${(muted ? 0 : volume) * 100}%, rgb(255 255 255 / 0.2) ${(muted ? 0 : volume) * 100}%)`
                 }}
               />
-              <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">
+              <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
                 {Math.round((muted ? 0 : volume) * 100)}%
               </span>
             </div>
           </div>
         )}
 
-        <AlertDialogFooter className="sticky bottom-0 -mx-6 -mb-6 bg-background px-6 pb-6 pt-3">
+        <AlertDialogFooter>
           <AlertDialogCancel onClick={close}>{t('cancel')}</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
