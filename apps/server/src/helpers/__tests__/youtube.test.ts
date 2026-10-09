@@ -307,6 +307,15 @@ describe('resolveYoutubeEntry', () => {
     ).rejects.toMatchObject({ kind: 'NOT_FOUND' });
   });
 
+  test('auto-generated mix throws UNAVAILABLE with a clear message', async () => {
+    await expect(
+      resolveYoutubeEntry(
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDCLeZyIID9Bo',
+        stubYoutube()
+      )
+    ).rejects.toMatchObject({ kind: 'UNAVAILABLE' });
+  });
+
   test('non-youtube link throws NOT_FOUND', async () => {
     await expect(
       resolveYoutubeEntry('https://soundcloud.com/a/b', stubYoutube())

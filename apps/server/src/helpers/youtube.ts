@@ -450,6 +450,14 @@ const resolveYoutubeEntry = async (
   const listId = extractListId(url);
 
   if (listId) {
+    // auto-generated mixes cannot be browsed, only regular playlists
+    if (/^RD/i.test(listId)) {
+      throw new YouTubeError(
+        'UNAVAILABLE',
+        'YouTube mixes are not supported, paste a regular playlist'
+      );
+    }
+
     const payload = await youtubeFetch(
       'browse',
       { browseId: `VL${listId}` },
