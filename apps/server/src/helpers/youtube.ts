@@ -502,6 +502,56 @@ const resolveYoutubeEntry = async (
   ];
 };
 
+// stream urls carry the server ip inside the signature, so browsers on
+// other networks get a 403: clients never see them. the shared state keeps
+// a stable proxy marker instead, every listener streams through
+// /music-audio with their own token, and the server pipes googlevideo bytes.
+const MUSIC_AUDIO_PATH = '/music-audio';
+
+const musicAudioMarker = (videoId: string): string =>
+  `${MUSIC_AUDIO_PATH}?videoId=${videoId}`;
+
+// resolved stream urls are cached by video id: <audio> fires a burst of
+// range requests and must not trigger a player call per request
+const streamUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+const rememberStreamUrl = (videoId: string, streamUrl: string): void => {
+  const expireParam = new URL(streamUrl).searchParams.get('expire');
+  const expireAt = expireParam ? Number(expireParam) * 1000 : NaN;
+  const ttl = Number.isFinite(expireAt)
+    ? Math.min(Math.max(expireAt - Date.now() - 300_000, 60_000), 6 * 3600_000)
+    : 3600_000;
+
+  streamUrlCache.set(videoId, { url: streamUrl, expiresAt: Date.now() + ttl });
+};
+
+const getYoutubeStreamUrl = async (
+  videoId: string,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<string> => {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    throw new YouTubeError('NOT_FOUND', 'Invalid YouTube video');
+  }
+
+  const cached = streamUrlCache.get(videoId);
+
+  if (cached && cached.expiresAt > Date.now()) return cached.url;
+
+  streamUrlCache.delete(videoId);
+
+  const video = await fetchYoutubeVideo(videoId, fetchImpl);
+
+  await verifyStreamUrl(video.streamUrl, fetchImpl);
+
+  rememberStreamUrl(videoId, video.streamUrl);
+
+  return video.streamUrl;
+};
+
+const invalidateYoutubeStreamUrl = (videoId: string): void => {
+  streamUrlCache.delete(videoId);
+};
+
 // stream urls are signed and short-lived, so they are minted fresh on every
 // play, never stored in the queue: queue entries carry metadata only
 const resolveYoutubePlayableTrack = async (
@@ -518,6 +568,9 @@ const resolveYoutubePlayableTrack = async (
 
   await verifyStreamUrl(video.streamUrl, fetchImpl);
 
+  // prime the proxy cache so the first bytes flow without another player call
+  rememberStreamUrl(videoId, video.streamUrl);
+
   return {
     trackId: youtubeTrackId(video.videoId),
     title: video.title,
@@ -527,7 +580,7 @@ const resolveYoutubePlayableTrack = async (
     permalinkUrl: permalinkFor(video.videoId),
     source: 'youtube',
     sourceId: video.videoId,
-    mp3Url: video.streamUrl
+    mp3Url: musicAudioMarker(video.videoId)
   };
 };
 
@@ -552,14 +605,19 @@ const throwYouTubeError = (error: unknown): never => {
 export {
   extractListId,
   extractVideoId,
+  getYoutubeStreamUrl,
+  invalidateYoutubeStreamUrl,
   looksLikeYoutubePlaylistUrl,
   looksLikeYoutubeUrl,
+  MUSIC_AUDIO_PATH,
+  musicAudioMarker,
   resolveYoutubeEntry,
   resolveYoutubePlayableTrack,
   throwYouTubeError,
   YouTubeError,
   youtubeSearch,
   youtubeTrackId,
+  YT_USER_AGENT,
   type TYoutubeTrack,
   type TYoutubeVideo
 };

@@ -5,7 +5,12 @@ import {
 } from '@/features/server/voice/helpers';
 import { useMusicState } from '@/features/server/voice/hooks';
 import { logVoice } from '@/helpers/browser-logger';
+import { getUrlFromServer } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
+import {
+  getSessionStorageItem,
+  SessionStorageKey
+} from '@/helpers/storage';
 import { useMusicVolume } from '@/helpers/music-volume';
 import { getTRPCClient } from '@/lib/trpc';
 import { getTrpcError } from '@draevix/shared';
@@ -54,7 +59,13 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const [queueOpen, setQueueOpen] = useState(false);
 
   const currentUrl = music?.current?.mp3Url ?? '';
-  const isHls = isHlsUrl(currentUrl);
+  // youtube stream urls are signed to the server ip, so every listener
+  // streams through /music-audio with their own session token instead
+  const playerSrc =
+    music?.current?.source === 'youtube'
+      ? `${getUrlFromServer()}/music-audio?videoId=${music.current.sourceId}&token=${encodeURIComponent(getSessionStorageItem(SessionStorageKey.TOKEN) ?? '')}`
+      : currentUrl;
+  const isHls = isHlsUrl(playerSrc);
   const playerRef = isHls ? hlsVideoRef : audioRef;
 
   const snapToTarget = useCallback(() => {
@@ -245,6 +256,8 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     [snapToTarget]
   );
 
+  const isYoutubeTrack = music?.current?.source === 'youtube';
+
   const handleStaleSource = useCallback(async () => {
     if (!currentUrl || refreshedUrlRef.current === currentUrl) return;
 
@@ -259,7 +272,13 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     } catch (error) {
       toast.error(getTrpcError(error, t('failedMusicTogether')));
     }
-  }, [currentUrl, t]);
+
+    // youtube plays through the proxy under a stable url: re-request the
+    // element so it picks up the freshly resolved stream
+    if (isYoutubeTrack) {
+      playerRef.current?.load();
+    }
+  }, [currentUrl, isYoutubeTrack, playerRef, t]);
 
   const handleQueueRemove = useCallback(
     async (index: number) => {
@@ -392,7 +411,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
           {isHls ? (
             <div className="hidden">
               <HlsVideo
-                src={currentUrl}
+                src={playerSrc}
                 playing={music.playing}
                 videoRef={hlsVideoRef}
                 onTimeUpdate={handleTimeUpdate}
@@ -404,7 +423,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
           ) : (
             <audio
               ref={audioRef}
-              src={currentUrl}
+              src={playerSrc}
               playsInline
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}

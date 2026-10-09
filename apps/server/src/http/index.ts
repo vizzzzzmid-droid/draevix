@@ -23,6 +23,7 @@ import { infoRouteHandler } from './info';
 import { interfaceRouteHandler } from './interface';
 import { loginRouteHandler } from './login';
 import { manifestRouteHandler } from './manifest';
+import { musicAudioRouteHandler } from './music-audio';
 import { oidcBackchannelLogoutRouteHandler } from './oidc/backchannel-logout';
 import { oidcCallbackRouteHandler } from './oidc/callback';
 import { oidcExchangeRouteHandler } from './oidc/exchange';
@@ -80,6 +81,7 @@ const routeHandlers: Partial<
       '/healthz': healthRouteHandler,
       '/info': infoRouteHandler,
       '/manifest.json': manifestRouteHandler,
+      '/music-audio': musicAudioRouteHandler,
       '/oidc/login': oidcLoginRouteHandler,
       '/oidc/callback': oidcCallbackRouteHandler
     },

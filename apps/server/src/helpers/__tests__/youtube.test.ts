@@ -3,6 +3,8 @@ import { describe, expect, test } from 'bun:test';
 import {
   extractListId,
   extractVideoId,
+  getYoutubeStreamUrl,
+  invalidateYoutubeStreamUrl,
   looksLikeYoutubePlaylistUrl,
   looksLikeYoutubeUrl,
   resolveYoutubeEntry,
@@ -324,15 +326,15 @@ describe('resolveYoutubeEntry', () => {
 });
 
 describe('resolveYoutubePlayableTrack', () => {
-  test('prefers m4a over opus and verifies the stream', async () => {
+  test('prefers m4a over opus and stores a proxy marker', async () => {
     const track = await resolveYoutubePlayableTrack(
       { sourceId: VIDEO_ID },
       stubYoutube()
     );
 
-    expect(track.mp3Url).toBe(
-      'https://rr1---example.googlevideo.com/videoplayback?audio=m4a'
-    );
+    // browsers on other networks get a 403 on the signed url, so the state
+    // keeps a proxy marker and every listener streams through /music-audio
+    expect(track.mp3Url).toBe(`/music-audio?videoId=${VIDEO_ID}`);
     expect(track).toMatchObject({
       title: 'Never Gonna Give You Up',
       source: 'youtube',
@@ -367,6 +369,75 @@ describe('resolveYoutubePlayableTrack', () => {
     await expect(
       resolveYoutubePlayableTrack({ sourceId: 'nope' }, stubYoutube())
     ).rejects.toMatchObject({ kind: 'NOT_FOUND' });
+  });
+});
+
+describe('stream url cache', () => {
+  const CACHE_VIDEO_ID = 'ddddddddddd';
+
+  const stubCounting = (counter: { playerCalls: number }) => {
+    const stub: typeof fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const url = String(input);
+
+      if (url.includes('/youtubei/v1/player')) {
+        counter.playerCalls += 1;
+
+        const body = JSON.parse(String(init?.body)) as { videoId: string };
+
+        return new Response(
+          JSON.stringify({
+            playabilityStatus: { status: 'OK' },
+            videoDetails: {
+              videoId: body.videoId,
+              title: 'Cached',
+              author: 'Author',
+              lengthSeconds: '100'
+            },
+            streamingData: {
+              adaptiveFormats: [
+                {
+                  mimeType: 'audio/mp4',
+                  bitrate: 128000,
+                  url: `https://rr1---example.googlevideo.com/v?x=${body.videoId}&expire=${Math.floor(Date.now() / 1000) + 21600}`
+                }
+              ]
+            }
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (url.includes('googlevideo.com')) {
+        return new Response('x', {
+          status: 206,
+          headers: { 'Content-Type': 'audio/mp4' }
+        });
+      }
+
+      throw new Error(`unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    return stub;
+  };
+
+  test('second resolve within ttl does not hit the player again', async () => {
+    const counter = { playerCalls: 0 };
+    const stub = stubCounting(counter);
+
+    const first = await getYoutubeStreamUrl(CACHE_VIDEO_ID, stub);
+    const second = await getYoutubeStreamUrl(CACHE_VIDEO_ID, stub);
+
+    expect(first).toBe(second);
+    expect(counter.playerCalls).toBe(1);
+
+    invalidateYoutubeStreamUrl(CACHE_VIDEO_ID);
+
+    await getYoutubeStreamUrl(CACHE_VIDEO_ID, stub);
+
+    expect(counter.playerCalls).toBe(2);
   });
 });
 
