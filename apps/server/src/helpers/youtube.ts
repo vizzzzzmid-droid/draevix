@@ -245,15 +245,17 @@ const toTrack = (renderer: unknown): TYoutubeTrack | null => {
 };
 
 // walks the nested section/item structure, collecting every videoRenderer
+// breadth-first so results keep the ranking order of the response
 const collectVideoRenderers = (payload: unknown): unknown[] => {
   const out: unknown[] = [];
-  const stack: unknown[] = [payload];
+  const queue: unknown[] = [payload];
+  let head = 0;
 
-  while (stack.length > 0) {
-    const node = stack.pop();
+  while (head < queue.length) {
+    const node = queue[head++];
 
     if (Array.isArray(node)) {
-      stack.push(...node);
+      queue.push(...node);
       continue;
     }
 
@@ -261,11 +263,14 @@ const collectVideoRenderers = (payload: unknown): unknown[] => {
 
     const record = node as Record<string, unknown>;
 
+    // search answers with videoRenderer on web clients and
+    // compactVideoRenderer on android: both carry the same video fields
     if (record.videoRenderer) out.push(record.videoRenderer);
+    if (record.compactVideoRenderer) out.push(record.compactVideoRenderer);
     if (record.playlistVideoRenderer) out.push(record.playlistVideoRenderer);
 
     for (const value of Object.values(record)) {
-      if (typeof value === 'object' && value !== null) stack.push(value);
+      if (typeof value === 'object' && value !== null) queue.push(value);
     }
   }
 

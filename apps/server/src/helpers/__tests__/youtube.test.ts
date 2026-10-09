@@ -33,6 +33,15 @@ const searchPayload = () => ({
                     }
                   },
                   {
+                    // android search answers with compactVideoRenderer
+                    compactVideoRenderer: {
+                      videoId: 'ccccccccccc',
+                      title: { simpleText: 'Compact Hit' },
+                      shortBylineText: { runs: [{ text: 'Compact Author' }] },
+                      lengthText: { runs: [{ text: '4:20' }] }
+                    }
+                  },
+                  {
                     videoRenderer: {
                       videoId: 'aaaaaaaaaaa',
                       title: { runs: [{ text: 'Live now' }] },
@@ -237,7 +246,7 @@ describe('youtubeSearch', () => {
   test('maps videos, skips live streams, channels and playlists', async () => {
     const results = await youtubeSearch('rick astley', 10, stubYoutube());
 
-    expect(results).toHaveLength(1);
+    expect(results).toHaveLength(2);
     expect(results[0]).toMatchObject({
       title: 'Never Gonna Give You Up',
       author: 'Rick Astley',
@@ -247,6 +256,11 @@ describe('youtubeSearch', () => {
       streamable: true
     });
     expect(results[0]!.trackId).toBeLessThan(0);
+    expect(results[1]).toMatchObject({
+      title: 'Compact Hit',
+      author: 'Compact Author',
+      durationSec: 260
+    });
   });
 
   test('respects the limit', async () => {
