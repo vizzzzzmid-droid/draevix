@@ -3,9 +3,9 @@ import { publishMusicState } from '../../db/publishers';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
 import {
   resolvePlayableTrack,
-  throwSoundCloudError,
+  throwMusicError,
   zTrackInput
-} from '../../helpers/soundcloud';
+} from '../../helpers/music';
 import { protectedProcedure } from '../../utils/trpc';
 
 const musicPlayRoute = protectedProcedure
@@ -36,7 +36,7 @@ const musicPlayRoute = protectedProcedure
 
       publishMusicState(channelId, music);
     } catch (error) {
-      throw throwSoundCloudError(error);
+      throw throwMusicError(error);
     }
   });
 

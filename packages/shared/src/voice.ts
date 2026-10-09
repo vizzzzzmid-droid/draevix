@@ -37,6 +37,23 @@ export type TAnilibertyWatchSource = {
   ending: { start: number; stop: number } | null;
 };
 
+export type TMusicSource = 'soundcloud' | 'youtube';
+
+// search results and queue entries carry their source explicitly: soundcloud
+// ids are positive api ids, youtube ids are negative hashes of the video id,
+// so the two namespaces never collide in expectTrackId guards and react keys
+export type TMusicSearchResult = {
+  trackId: number;
+  title: string;
+  author: string;
+  artworkUrl: string | null;
+  durationSec: number;
+  permalinkUrl: string;
+  streamable: boolean;
+  source: TMusicSource;
+  sourceId: string;
+};
+
 export type TMusicTrack = {
   trackId: number;
   title: string;
@@ -46,6 +63,8 @@ export type TMusicTrack = {
   permalinkUrl: string;
   addedByUserId: number | null;
   mp3Url?: string;
+  source: TMusicSource;
+  sourceId: string;
 };
 
 export type TMusicRepeatMode = 'off' | 'all' | 'one';

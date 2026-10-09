@@ -1,9 +1,6 @@
 import { publishMusicState } from '../../db/publishers';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
-import {
-  resolvePlayableTrack,
-  throwSoundCloudError
-} from '../../helpers/soundcloud';
+import { resolvePlayableTrack, throwMusicError } from '../../helpers/music';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
@@ -30,7 +27,7 @@ const musicRefreshRoute = protectedProcedure.mutation(async ({ ctx }) => {
 
     publishMusicState(channelId, music);
   } catch (error) {
-    throw throwSoundCloudError(error);
+    throw throwMusicError(error);
   }
 });
 
