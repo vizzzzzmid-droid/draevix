@@ -112,7 +112,13 @@ const musicAudioRouteHandler = async (
 
   try {
     upstream = await fetchUpstream(streamUrl, range);
-  } catch {
+  } catch (error) {
+    logger.error(
+      'YouTube audio fetch failed for %s: %s',
+      videoId,
+      error instanceof Error ? error.message : String(error)
+    );
+
     sendJsonError(res, 502, 'Audio source is unreachable');
     return;
   }
@@ -120,12 +126,23 @@ const musicAudioRouteHandler = async (
   // the cached url died between resolve and first byte: drop it and mint a
   // fresh one once before giving up
   if (upstream.status === 401 || upstream.status === 403) {
+    logger.error(
+      'YouTube audio forbidden for %s on cached url, re-resolving',
+      videoId
+    );
+
     invalidateYoutubeStreamUrl(videoId);
 
     try {
       streamUrl = await getYoutubeStreamUrl(videoId);
       upstream = await fetchUpstream(streamUrl, range);
-    } catch {
+    } catch (error) {
+      logger.error(
+        'YouTube audio refetch failed for %s: %s',
+        videoId,
+        error instanceof Error ? error.message : String(error)
+      );
+
       sendJsonError(res, 502, 'Audio source is unreachable');
       return;
     }
@@ -136,6 +153,12 @@ const musicAudioRouteHandler = async (
     upstream.status !== 206 &&
     upstream.status !== 416
   ) {
+    logger.error(
+      'YouTube audio bad status for %s: %s',
+      videoId,
+      upstream.status
+    );
+
     sendJsonError(res, 502, 'Audio source is unavailable');
     return;
   }
