@@ -11,6 +11,7 @@ import { Files } from './server-activity/files';
 import { Links } from './server-activity/links';
 import { Messages } from './server-activity/messages';
 import { Storage } from './storage';
+import { UsernameStylePicker } from './username-style-picker';
 
 type TWrapperProps = {
   children: React.ReactNode;
@@ -74,6 +75,7 @@ const Routing = memo(({ view }: TRoutingProps) => {
       <ServerActivity />
       <Storage />
       <ProfileEffectPicker />
+      <UsernameStylePicker />
       <Details />
     </>
   );

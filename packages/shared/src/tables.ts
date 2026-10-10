@@ -103,6 +103,8 @@ type TPublicUser = Pick<
   | 'name'
   | 'profileColor'
   | 'profileEffect'
+  | 'usernameEffect'
+  | 'usernameFont'
   | 'bio'
   | 'avatar'
   | 'avatarId'

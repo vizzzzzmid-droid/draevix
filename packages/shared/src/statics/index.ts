@@ -4,6 +4,7 @@ export * from './permissions';
 export * from './profile-effects';
 export * from './storage';
 export * from './upload';
+export * from './username-style';
 
 export const DEFAULT_MESSAGES_LIMIT = 100;
 export const MESSAGE_MAX_LENGTH = 10_000;

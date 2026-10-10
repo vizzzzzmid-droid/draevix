@@ -1,6 +1,7 @@
 import { PluginAvatar } from '@/components/plugin-avatar';
 import { RelativeTime } from '@/components/relative-time';
 import { UserAvatar } from '@/components/user-avatar';
+import { Username } from '@/components/username';
 import { usePluginMetadata } from '@/features/server/plugins/hooks';
 import { useIsOwnUser, useUserById } from '@/features/server/users/hooks';
 import { cn } from '@/lib/utils';
@@ -64,15 +65,16 @@ const MessagesGroup = memo(
         )}
         <div className="flex min-w-0 flex-col w-full">
           <div className="flex gap-2 items-baseline pl-1 select-none">
-            <span
+            <Username
+              name={authorName}
+              effect={user?.usernameEffect}
+              font={user?.usernameFont}
               className={cn(
                 isOwnUser && 'font-bold',
                 isDeletedUser && 'line-through text-muted-foreground',
                 isPluginMessage && 'text-primary/80'
               )}
-            >
-              {authorName}
-            </span>
+            />
             {isPluginMessage && (
               <span className="inline-flex items-center rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary/60 uppercase tracking-wide">
                 bot

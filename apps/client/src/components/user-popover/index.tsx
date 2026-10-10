@@ -32,6 +32,7 @@ import { Protect } from '../protect';
 import { RoleBadge } from '../role-badge';
 import { UserAvatar } from '../user-avatar';
 import { UserStatusBadge } from '../user-status';
+import { Username } from '../username';
 
 type TUserPopoverProps = {
   userId: number;
@@ -113,9 +114,12 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
 
         <div className="px-4 pt-12 pb-4">
           <div className="mb-3">
-            <span className="text-lg font-semibold text-foreground truncate mb-1">
-              {getRenderedUsername(user)}
-            </span>
+            <Username
+              name={getRenderedUsername(user)}
+              effect={user.usernameEffect}
+              font={user.usernameFont}
+              className="text-lg font-semibold text-foreground truncate mb-1"
+            />
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2">
                 <UserStatusBadge

@@ -1,4 +1,5 @@
 import { UserAvatar } from '@/components/user-avatar';
+import { Username } from '@/components/username';
 import { useStreamVolumeControl } from '@/components/voice-provider/hooks/use-stream-volume-control';
 import { useCan } from '@/features/server/hooks';
 import type { TVoiceUser } from '@/features/server/types';
@@ -58,9 +59,12 @@ const VoiceUser = memo(({ user, isOwnChannel = false }: TVoiceUserProps) => {
         showStatusBadge={false}
       />
 
-      <span className="flex-1 text-muted-foreground truncate text-xs">
-        {user.name}
-      </span>
+      <Username
+        name={user.name}
+        effect={user.usernameEffect}
+        font={user.usernameFont}
+        className="flex-1 text-muted-foreground truncate text-xs"
+      />
 
       <div className="flex items-center gap-1 opacity-60">
         {shouldShowMuteIndicator && (

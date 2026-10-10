@@ -430,6 +430,120 @@ body {
   animation: speaking-glow-high 0.8s ease-in-out infinite;
 }
 
+/* nickname effects (see Username component) */
+
+.username-effect-fire,
+.username-effect-frost,
+.username-effect-rainbow,
+.username-effect-gold {
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* burning: yellow to deep red with a flickering ember glow */
+.username-effect-fire {
+  background-image: linear-gradient(180deg, #fde047, #fb923c 45%, #dc2626);
+  animation: username-fire-flicker 1.6s ease-in-out infinite;
+}
+
+@keyframes username-fire-flicker {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgb(249, 115, 22, 0.55));
+  }
+  50% {
+    filter: drop-shadow(0 0 9px rgb(249, 115, 22, 0.85));
+  }
+}
+
+/* frozen: pale ice gradient with a cold glow and slow shimmer */
+.username-effect-frost {
+  background-image: linear-gradient(180deg, #f0f9ff, #7dd3fc 55%, #0284c7);
+  background-size: 100% 220%;
+  animation: username-frost-shimmer 4s ease-in-out infinite;
+}
+
+@keyframes username-frost-shimmer {
+  0%,
+  100% {
+    background-position: 50% 0%;
+    filter: drop-shadow(0 0 4px rgb(56, 189, 248, 0.5));
+  }
+  50% {
+    background-position: 50% 100%;
+    filter: drop-shadow(0 0 8px rgb(56, 189, 248, 0.8));
+  }
+}
+
+/* neon sign: solid magenta with layered glow, readable on both themes */
+.username-effect-neon {
+  color: #d946ef;
+  animation: username-neon-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes username-neon-pulse {
+  0%,
+  100% {
+    text-shadow:
+      0 0 4px rgb(217, 70, 239, 0.8),
+      0 0 12px rgb(217, 70, 239, 0.5);
+  }
+  50% {
+    text-shadow:
+      0 0 6px rgb(217, 70, 239, 1),
+      0 0 20px rgb(217, 70, 239, 0.7);
+  }
+}
+
+/* animated rainbow gradient sweeping across the name */
+.username-effect-rainbow {
+  background-image: linear-gradient(
+    90deg,
+    #f87171,
+    #fb923c,
+    #facc15,
+    #4ade80,
+    #38bdf8,
+    #c084fc,
+    #f87171
+  );
+  background-size: 200% 100%;
+  animation: username-rainbow-slide 5s linear infinite;
+}
+
+@keyframes username-rainbow-slide {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+/* gold: metallic gradient with a shine sweep */
+.username-effect-gold {
+  background-image: linear-gradient(
+    100deg,
+    #a16207 0%,
+    #facc15 25%,
+    #fefce8 50%,
+    #facc15 75%,
+    #a16207 100%
+  );
+  background-size: 220% 100%;
+  animation: username-gold-shine 3.5s linear infinite;
+}
+
+@keyframes username-gold-shine {
+  0% {
+    background-position: 110% 50%;
+  }
+  100% {
+    background-position: -110% 50%;
+  }
+}
+
 .media-masonry-grid {
   --masonry-max-width: 56rem;
   --masonry-gutter: 8px;
