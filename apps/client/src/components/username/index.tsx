@@ -41,6 +41,9 @@ const FROST_PARTICLES = 7;
 // glyph, never as an emoji
 const SNOWFLAKE = '❄︎';
 
+// four-pointed star (U+2726) in text presentation, used for gold glints
+const SPARKLE = '✦︎';
+
 // styled nickname: admin-assigned effect plus font. unknown values coming
 // from the server fall back to plain text, never to an arbitrary class
 const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
@@ -83,6 +86,23 @@ const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
             {SNOWFLAKE}
           </i>
         ))}
+      </span>
+    );
+  }
+
+  if (validEffect === UsernameEffect.GOLD) {
+    return (
+      <span className="username-fx username-fx-gold">
+        {text}
+        <i style={{ left: '8%' }} aria-hidden="true">
+          {SPARKLE}
+        </i>
+        <i style={{ left: '52%', top: '1.1em' }} aria-hidden="true">
+          {SPARKLE}
+        </i>
+        <i style={{ left: '88%' }} aria-hidden="true">
+          {SPARKLE}
+        </i>
       </span>
     );
   }
