@@ -110,33 +110,22 @@ const showMessageToast = (
     (message.pluginId && plugin ? plugin.name : user?.name) ?? 'Unknown user';
   const channelLabel = isDm ? 'DM' : `#${channel?.name ?? 'unknown'}`;
 
-  // TEMP-DEBUG: remove after the notification investigation
-  console.log('[NOTIF-DEBUG] showing toast', {
-    authorName,
-    channelLabel,
-    messageId: message.id
-  });
-
-  try {
-    toast.custom(
-      (toastId) => (
-        <MessageNotificationToast
-          message={message}
-          authorName={authorName}
-          authorEffect={user?.usernameEffect}
-          authorFont={user?.usernameFont}
-          channelLabel={channelLabel}
-          onNavigate={() => {
-            toast.dismiss(toastId);
-            openChannelAtMessage(channelId, message.id, isDm);
-          }}
-        />
-      ),
-      { duration: 8000 }
-    );
-  } catch (error) {
-    console.log('[NOTIF-DEBUG] toast.custom threw', String(error));
-  }
+  toast.custom(
+    (toastId) => (
+      <MessageNotificationToast
+        message={message}
+        authorName={authorName}
+        authorEffect={user?.usernameEffect}
+        authorFont={user?.usernameFont}
+        channelLabel={channelLabel}
+        onNavigate={() => {
+          toast.dismiss(toastId);
+          openChannelAtMessage(channelId, message.id, isDm);
+        }}
+      />
+    ),
+    { duration: 8000 }
+  );
 };
 
 const typingTimeouts: { [key: string]: NodeJS.Timeout } = {};
@@ -233,22 +222,6 @@ export const addMessages = (
       (targetMessage.userId != null &&
         mutedNotificationUserIdsSelector(state).includes(targetMessage.userId));
 
-    // TEMP-DEBUG: remove after the notification investigation
-    console.log('[NOTIF-DEBUG] gate check', {
-      userId: targetMessage.userId,
-      ownUserId,
-      isFromOwnUser: !!isFromOwnUser,
-      masterMuted: notificationsMutedSelector(state),
-      mutedIds: mutedNotificationUserIdsSelector(state),
-      isNotificationMuted,
-      toggles: {
-        all: hasBrowserNotificationsEnabled,
-        mentions: notificationsForMentionsOnly,
-        dms: browserNotificationsForDmsSelector(state),
-        replies: browserNotificationsForRepliesSelector(state)
-      }
-    });
-
     if (!isFromOwnUser && !isNotificationMuted) {
       const isThreadReply = !!targetMessage.parentMessageId;
 
@@ -279,28 +252,19 @@ export const addMessages = (
           !!targetMessage.replyToMessageId &&
           targetMessage.replyTo?.userId === ownUserId;
 
+        // 'all messages' dominates: the specific toggles only narrow down
+        // when it is off, so enabling mentions can never silence everything
         let shouldNotify = false;
 
-        if (isDmChannel && hasDmNotificationsEnabled) {
+        if (hasBrowserNotificationsEnabled) {
           shouldNotify = true;
-        } else if (notificationsForMentionsOnly) {
-          shouldNotify = isMentioned;
-        } else if (hasBrowserNotificationsEnabled) {
+        } else if (notificationsForMentionsOnly && isMentioned) {
           shouldNotify = true;
-        } else if (hasRepliesNotificationsEnabled) {
-          shouldNotify = isReplyToOwnMessage;
+        } else if (isDmChannel && hasDmNotificationsEnabled) {
+          shouldNotify = true;
+        } else if (hasRepliesNotificationsEnabled && isReplyToOwnMessage) {
+          shouldNotify = true;
         }
-
-        // TEMP-DEBUG: remove after the notification investigation
-        console.log('[NOTIF-DEBUG] decision', {
-          channelId,
-          isDmChannel,
-          isMentioned,
-          isReplyToOwnMessage,
-          isChannelTextVisible,
-          isWindowHidden,
-          shouldNotify
-        });
 
         if (shouldNotify) {
           showMessageToast(targetMessage, channelId, isDmChannel);

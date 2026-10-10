@@ -65,7 +65,7 @@
   "mentionsOnlyLabel": "Mentions Only",
   "mentionsOnlyDesc": "Send a notification only when mentioned. Ignored if 'All Messages' is enabled.",
   "dmNotificationsLabel": "Direct Messages",
-  "dmNotificationsDesc": "Send a notification for every new direct message.",
+  "dmNotificationsDesc": "Send a notification for every new direct message. Ignored if 'All Messages' is enabled.",
   "repliesNotificationsLabel": "Replies to Me",
   "repliesNotificationsDesc": "Send a notification when someone replies to your message. Ignored if 'All Messages' is enabled.",
   "muteAllLabel": "Mute everything",
