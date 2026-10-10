@@ -60,7 +60,14 @@ type TYtApi = {
       };
     }
   ) => TYtPlayer;
-  PlayerState: { PLAYING: number; PAUSED: number; ENDED: number };
+  PlayerState: {
+    UNSTARTED: number;
+    ENDED: number;
+    PLAYING: number;
+    PAUSED: number;
+    BUFFERING: number;
+    CUED: number;
+  };
 };
 
 declare global {
