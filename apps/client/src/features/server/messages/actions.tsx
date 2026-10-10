@@ -264,10 +264,11 @@ export const addMessages = (
         }
 
         if (shouldNotify) {
-          // minimized or in background: OS-level notification, the in-app
-          // toast would sit unseen. window open in front: rich in-app toast
-          // with navigation instead of a duplicate system one
-          if (isWindowHidden || !document.hasFocus()) {
+          // hidden window (minimized, background tab): OS-level
+          // notification. visible window: rich in-app toast with navigation
+          // instead of a duplicate system one. focus is deliberately not
+          // checked: devtools or another focused pane must not reroute
+          if (isWindowHidden) {
             sendBrowserNotification(targetMessage, channelId, isDmChannel);
           } else {
             showMessageToast(targetMessage, channelId, isDmChannel);
