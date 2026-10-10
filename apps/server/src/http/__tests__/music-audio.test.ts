@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { login } from '../../__tests__/helpers';
 import { testsBaseUrl } from '../../__tests__/setup';
 
-const VIDEO_ID = 'dQw4w9WgXcQ';
+const VIDEO_ID = 'aBcDeFgHiJk';
 const BYTES = 'hello-audio-bytes';
 
 const realFetch = globalThis.fetch;
@@ -16,11 +16,13 @@ const stubYoutubeUpstream = () => {
     const url = String(input);
 
     if (url.includes('/youtubei/v1/player')) {
+      const body = JSON.parse(String(init?.body)) as { videoId: string };
+
       return new Response(
         JSON.stringify({
           playabilityStatus: { status: 'OK' },
           videoDetails: {
-            videoId: VIDEO_ID,
+            videoId: body.videoId,
             title: 'Never Gonna Give You Up',
             author: 'Rick Astley',
             lengthSeconds: String(BYTES.length)

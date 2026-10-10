@@ -1,76 +1,13 @@
 import http from 'http';
 import { getUserByToken } from '../db/queries/users';
-import {
-  getYoutubeStreamUrl,
-  invalidateYoutubeStreamUrl,
-  YT_USER_AGENT
-} from '../helpers/youtube';
+import { YouTubeError } from '../helpers/youtube';
+import { ensureYoutubeAudio } from '../helpers/youtube-audio';
 import { logger } from '../logger';
-import { sendJsonError } from './helpers';
+import { sendFile, sendJsonError } from './helpers';
 
-// youtube signs stream urls to the server ip, so browsers on other networks
-// get a 403: this endpoint pipes googlevideo bytes through the server with
-// the listener's own session token. range requests are forwarded, so seeking
-// works like a plain file.
-const FORWARDED_HEADERS = [
-  'content-type',
-  'content-length',
-  'content-range',
-  'accept-ranges'
-];
-
-const fetchUpstream = (streamUrl: string, range: string | null) =>
-  fetch(streamUrl, {
-    headers: {
-      'User-Agent': YT_USER_AGENT,
-      ...(range ? { Range: range } : {})
-    }
-  });
-
-const pipeUpstream = async (
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  upstream: Response
-): Promise<void> => {
-  const headers: Record<string, string> = { 'Cache-Control': 'no-store' };
-
-  for (const name of FORWARDED_HEADERS) {
-    const value = upstream.headers.get(name);
-
-    if (value) headers[name] = value;
-  }
-
-  res.writeHead(upstream.status, headers);
-
-  if (!upstream.body) {
-    res.end();
-    return;
-  }
-
-  const reader = upstream.body.getReader();
-
-  req.on('close', () => {
-    reader.cancel().catch(() => undefined);
-  });
-
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-
-      if (done) break;
-
-      if (!res.write(value)) {
-        await new Promise<void>((resolve) => res.once('drain', resolve));
-      }
-    }
-  } catch {
-    // listener went away mid-stream, nothing to report
-  } finally {
-    reader.releaseLock();
-    res.end();
-  }
-};
-
+// youtube only serves small sequential ranges to our network, so the server
+// downloads every track once into a disk cache and serves listeners from it
+// with full range support, like watch party files do.
 const musicAudioRouteHandler = async (
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -92,78 +29,29 @@ const musicAudioRouteHandler = async (
     return;
   }
 
-  let streamUrl: string;
-
   try {
-    streamUrl = await getYoutubeStreamUrl(videoId);
+    const audio = await ensureYoutubeAudio(videoId);
+
+    await sendFile(req, res, audio.filePath, {
+      cacheControl: 'public, max-age=31536000, immutable',
+      contentType: audio.mimeType,
+      contentDisposition: 'inline',
+      notFoundMessage: 'Audio cache is missing'
+    });
   } catch (error) {
     logger.error(
-      'Failed to resolve youtube audio for %s: %s',
+      'YouTube audio failed for %s: %s',
       videoId,
       error instanceof Error ? error.message : String(error)
     );
 
-    sendJsonError(res, 502, 'Audio source is unavailable');
-    return;
-  }
-
-  const range = req.headers.range ?? null;
-  let upstream: Response;
-
-  try {
-    upstream = await fetchUpstream(streamUrl, range);
-  } catch (error) {
-    logger.error(
-      'YouTube audio fetch failed for %s: %s',
-      videoId,
-      error instanceof Error ? error.message : String(error)
-    );
-
-    sendJsonError(res, 502, 'Audio source is unreachable');
-    return;
-  }
-
-  // the cached url died between resolve and first byte: drop it and mint a
-  // fresh one once before giving up
-  if (upstream.status === 401 || upstream.status === 403) {
-    logger.error(
-      'YouTube audio forbidden for %s on cached url, re-resolving',
-      videoId
-    );
-
-    invalidateYoutubeStreamUrl(videoId);
-
-    try {
-      streamUrl = await getYoutubeStreamUrl(videoId);
-      upstream = await fetchUpstream(streamUrl, range);
-    } catch (error) {
-      logger.error(
-        'YouTube audio refetch failed for %s: %s',
-        videoId,
-        error instanceof Error ? error.message : String(error)
-      );
-
-      sendJsonError(res, 502, 'Audio source is unreachable');
+    if (error instanceof YouTubeError && error.kind === 'NOT_FOUND') {
+      sendJsonError(res, 404, 'Unknown track');
       return;
     }
-  }
-
-  if (
-    upstream.status !== 200 &&
-    upstream.status !== 206 &&
-    upstream.status !== 416
-  ) {
-    logger.error(
-      'YouTube audio bad status for %s: %s',
-      videoId,
-      upstream.status
-    );
 
     sendJsonError(res, 502, 'Audio source is unavailable');
-    return;
   }
-
-  await pipeUpstream(req, res, upstream);
 };
 
 export { musicAudioRouteHandler };
