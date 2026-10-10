@@ -13,7 +13,7 @@ import {
   threadSidebarDataSelector
 } from '@/features/app/selectors';
 import { store } from '@/features/store';
-import { getFileUrl } from '@/helpers/get-file-url';
+import { getFileUrl, isTauri as isTauriApp } from '@/helpers/get-file-url';
 import { playSound } from '@/helpers/sounds';
 import { sendSystemNotification } from '@/helpers/system-notifications';
 import {
@@ -266,9 +266,17 @@ export const addMessages = (
         if (shouldNotify) {
           // hidden window (minimized, background tab): OS-level
           // notification. visible window: rich in-app toast with navigation
-          // instead of a duplicate system one. focus is deliberately not
-          // checked: devtools or another focused pane must not reroute
-          if (isWindowHidden) {
+          // instead of a duplicate system one. on desktop the unfocused
+          // window also routes to OS: production builds have no devtools,
+          // so a focus loss always means the user looks elsewhere (second
+          // monitor, alt-tab). in browsers focus is ignored on purpose, a
+          // focused devtools pane must not reroute while the page is visible
+          const windowUnfocused =
+            isTauriApp && typeof document.hasFocus === 'function'
+              ? !document.hasFocus()
+              : false;
+
+          if (isWindowHidden || windowUnfocused) {
             sendBrowserNotification(targetMessage, channelId, isDmChannel);
           } else {
             showMessageToast(targetMessage, channelId, isDmChannel);
