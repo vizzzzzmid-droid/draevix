@@ -33,6 +33,7 @@
   "musicPlayNow": "Play now",
   "musicPlaylistEmpty": "No playable tracks in this playlist",
   "musicPlaylistHint": "You can also paste a link like soundcloud.com/artist/sets/mix — the first track starts, the rest queues up.",
+  "musicSearchHintAudius": "Search by track title, artist or genre.",
   "musicTabSearch": "Search",
   "musicTabQueue": "Queue",
   "musicNowPlaying": "Now playing",
