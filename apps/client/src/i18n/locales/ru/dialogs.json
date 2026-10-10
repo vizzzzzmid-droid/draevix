@@ -33,6 +33,7 @@
   "musicPlayNow": "Играть сейчас",
   "musicPlaylistEmpty": "В плейлисте нет играбельных треков",
   "musicPlaylistHint": "Можно вставить ссылку вида soundcloud.com/artist/sets/mix — первый трек заиграет, остальные встанут в очередь.",
+  "musicSearchHintAudius": "Ищите по названию трека, исполнителю или жанру.",
   "musicTabSearch": "Поиск",
   "musicTabQueue": "Очередь",
   "musicNowPlaying": "Сейчас играет",

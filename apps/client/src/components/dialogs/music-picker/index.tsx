@@ -370,7 +370,11 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
               </Button>
             </div>
             <span className="text-xs text-muted-foreground">
-              {t('musicPlaylistHint')}
+              {t(
+                source === 'audius'
+                  ? 'musicSearchHintAudius'
+                  : 'musicPlaylistHint'
+              )}
             </span>
             <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
               {searching && (
