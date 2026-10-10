@@ -11,6 +11,7 @@ fn main() {
     // "Could not start video source"). WebView2 shows its own permission
     // prompt once per profile instead, then remembers the grant.
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(SystemAudioState::default())
         .invoke_handler(tauri::generate_handler![

@@ -15,6 +15,7 @@ import {
 import { store } from '@/features/store';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { playSound } from '@/helpers/sounds';
+import { sendSystemNotification } from '@/helpers/system-notifications';
 import {
   getPlainTextFromHtml,
   hasMention,
@@ -39,10 +40,6 @@ const sendBrowserNotification = (
   channelId: number,
   isDm = false
 ) => {
-  if (!('Notification' in window) || Notification.permission !== 'granted') {
-    return;
-  }
-
   const state = store.getState();
 
   const user = userByIdSelector(state, message.userId);
@@ -64,7 +61,7 @@ const sendBrowserNotification = (
   const body = textContent ? textContent : 'Sent an attachment';
   const icon = user?.avatar ? getFileUrl(user.avatar) : undefined;
 
-  new Notification(title, { body, icon });
+  void sendSystemNotification(title, body, icon);
 };
 
 const openChannelAtMessage = (

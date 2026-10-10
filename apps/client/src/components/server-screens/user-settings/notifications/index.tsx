@@ -19,6 +19,7 @@ import {
   useNotificationsMuted
 } from '@/features/app/hooks';
 import { useUserById } from '@/features/server/users/hooks';
+import { isTauri } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { Button, Group, Switch } from '@draevix/ui';
 import { memo, useCallback, useState } from 'react';
@@ -129,19 +130,21 @@ const Notifications = memo(() => {
       title={t('notificationsTitle')}
       description={t('notificationsDesc')}
     >
-      <Group
-        label={t('notificationPermissionLabel')}
-        description={t(`notificationPermission_${permission}`)}
-      >
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleRequestPermission}
-          disabled={permission === 'granted'}
+      {!isTauri() && (
+        <Group
+          label={t('notificationPermissionLabel')}
+          description={t(`notificationPermission_${permission}`)}
         >
-          {t('notificationPermissionRequest')}
-        </Button>
-      </Group>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRequestPermission}
+            disabled={permission === 'granted'}
+          >
+            {t('notificationPermissionRequest')}
+          </Button>
+        </Group>
+      )}
       <Group label={t('muteAllLabel')} description={t('muteAllDesc')}>
         <Switch checked={values.muted} onCheckedChange={handleMutedChange} />
       </Group>
