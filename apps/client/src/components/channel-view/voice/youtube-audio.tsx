@@ -74,6 +74,7 @@ declare global {
   interface Window {
     YT?: TYtApi;
     onYouTubeIframeAPIReady?: () => void;
+    __draevixYtPlayer?: TYtPlayer | null;
   }
 }
 
@@ -198,8 +199,26 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
       try {
         player.seekTo(target, true);
         lastSeekAtRef.current = Date.now();
-      } catch {
-        // player is tearing down, the next poll retries
+
+        // verify the seek landed: a no-op seek keeps reporting the old time
+        setTimeout(() => {
+          try {
+            const landed =
+              playerRef.current?.getCurrentTime() ?? current;
+
+            logVoice('music: seek-check', {
+              target,
+              landed,
+              drift: Math.abs(target - landed)
+            });
+          } catch {
+            // tearing down
+          }
+        }, 800);
+      } catch (error) {
+        logVoice('music: seek-failed', {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     };
 
@@ -361,6 +380,7 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
         });
 
         playerRef.current = player;
+        window.__draevixYtPlayer = player;
         timer = setInterval(poll, 500);
       })
       .catch(() => {
@@ -379,6 +399,7 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
       }
 
       playerRef.current = null;
+      window.__draevixYtPlayer = null;
       readyRef.current = false;
       durationReportedRef.current = false;
       stateRef.current = -1;
