@@ -44,6 +44,8 @@ type TYtPlayer = {
   unMute: () => void;
   getCurrentTime: () => number;
   getDuration: () => number;
+  getPlaybackQuality: () => string;
+  setPlaybackQuality: (quality: string) => void;
   destroy: () => void;
 };
 
@@ -56,6 +58,10 @@ type TYtApi = {
       events?: {
         onReady?: (event: { target: TYtPlayer }) => void;
         onStateChange?: (event: { data: number; target: TYtPlayer }) => void;
+        onPlaybackQualityChange?: (event: {
+          data: string;
+          target: TYtPlayer;
+        }) => void;
         onError?: () => void;
       };
     }
@@ -119,7 +125,10 @@ const loadYoutubeApi = (): Promise<TYtApi> => {
 };
 
 const DRIFT_THRESHOLD_SEC = 3;
-const SEEK_COOLDOWN_MS = 4000;
+const SEEK_COOLDOWN_MS = 6000;
+// 144p: the party needs audio only, and tiny streams survive throttled lines
+// where 360p+ stalls into constant rebuffering
+const TINY_QUALITY = 'tiny';
 
 const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
   const { handleRef } = props;
@@ -199,26 +208,20 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
       try {
         player.seekTo(target, true);
         lastSeekAtRef.current = Date.now();
+      } catch {
+        // player is tearing down, the next poll retries
+      }
+    };
 
-        // verify the seek landed: a no-op seek keeps reporting the old time
-        setTimeout(() => {
-          try {
-            const landed =
-              playerRef.current?.getCurrentTime() ?? current;
-
-            logVoice('music: seek-check', {
-              target,
-              landed,
-              drift: Math.abs(target - landed)
-            });
-          } catch {
-            // tearing down
-          }
-        }, 800);
-      } catch (error) {
-        logVoice('music: seek-failed', {
-          error: error instanceof Error ? error.message : String(error)
-        });
+    // the player auto-upgrades quality when bandwidth allows: pin it back,
+    // upgrades rebuffer on throttled lines and restart the seeking loop
+    const forceTinyQuality = (player: TYtPlayer) => {
+      try {
+        if (player.getPlaybackQuality() !== TINY_QUALITY) {
+          player.setPlaybackQuality(TINY_QUALITY);
+        }
+      } catch {
+        // tearing down
       }
     };
 
@@ -329,6 +332,7 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
             iv_load_policy: 3,
             rel: 0,
             playsinline: 1,
+            vq: TINY_QUALITY,
             origin: window.location.origin
           },
           events: {
@@ -336,6 +340,7 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
               if (cancelled) return;
 
               readyRef.current = true;
+              forceTinyQuality(target);
 
               target.setVolume(Math.round(snapshot.volume * 100));
 
@@ -352,6 +357,9 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
                   startSeconds: snapshot.positionSec
                 });
               }
+            },
+            onPlaybackQualityChange: ({ target }) => {
+              if (!cancelled) forceTinyQuality(target);
             },
             onStateChange: ({ data }) => {
               if (cancelled || !window.YT) return;
