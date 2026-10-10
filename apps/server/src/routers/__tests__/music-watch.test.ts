@@ -265,6 +265,85 @@ describe('watch music controls', () => {
   });
 });
 
+describe('watch music concurrent mutations', () => {
+  // the resolve step takes a network round trip: delay it so the racing
+  // mutation runs while the first one is still resolving
+  const stubDelayedResolve = () => {
+    stubSoundCloud();
+
+    const immediate = globalThis.fetch;
+
+    globalThis.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      if (String(input).includes('/resolve?')) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      return immediate(input, init);
+    }) as unknown as typeof fetch;
+  };
+
+  test('a queue add racing an advance is not dropped', async () => {
+    stubDelayedResolve();
+
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 2, title: 'Second' }
+      });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 3, title: 'Third' }
+      });
+
+      const advancing = caller.voice.musicNext({ expectTrackId: 417474360 });
+
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 4, title: 'Fourth' }
+      });
+      await advancing;
+
+      const { music } = await caller.voice.getMusicState();
+
+      expect(music?.current?.trackId).toBe(2);
+      expect(music?.queue.map((entry) => entry.trackId)).toEqual([3, 4]);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('two racers with the same expect advance exactly once', async () => {
+    stubDelayedResolve();
+
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 2, title: 'Second' }
+      });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 3, title: 'Third' }
+      });
+
+      await Promise.all([
+        caller.voice.musicNext({ expectTrackId: 417474360 }),
+        caller.voice.musicNext({ expectTrackId: 417474360 })
+      ]);
+
+      const { music } = await caller.voice.getMusicState();
+
+      expect(music?.current?.trackId).toBe(2);
+      expect(music?.queue.map((entry) => entry.trackId)).toEqual([3]);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+});
+
 describe('watch music repeat and shuffle', () => {
   test('should replay the track on repeat-one', async () => {
     const { runtime, caller } = await withVoiceChannel(1);

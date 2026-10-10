@@ -18,56 +18,38 @@ const musicNextRoute = protectedProcedure
   )
   .mutation(async ({ input, ctx }) => {
     const { runtime, channelId } = await getCurrentVoiceRuntime(ctx);
-    const current = runtime.getMusicState();
 
-    invariant(current?.current, {
-      code: 'NOT_FOUND',
-      message: 'No active listening party'
-    });
+    return await runtime.runMusicExclusive(async () => {
+      const current = runtime.getMusicState();
 
-    if (
-      input.expectTrackId !== undefined &&
-      current.current.trackId !== input.expectTrackId
-    ) {
-      return;
-    }
+      invariant(current?.current, {
+        code: 'NOT_FOUND',
+        message: 'No active listening party'
+      });
 
-    try {
-      if (current.repeatMode === 'one') {
-        const playable = await resolvePlayableTrack(current.current);
-
-        const music = {
-          ...current,
-          current: {
-            ...playable,
-            addedByUserId: current.current.addedByUserId
-          },
-          playing: true,
-          positionSec: 0,
-          updatedAt: Date.now(),
-          controllerUserId: ctx.user.id
-        };
-
-        runtime.setMusicState(music);
-
-        publishMusicState(channelId, music);
-
+      if (
+        input.expectTrackId !== undefined &&
+        current.current.trackId !== input.expectTrackId
+      ) {
         return;
       }
 
-      let next = current.queue[0];
-      let rest = current.queue.slice(1);
+      // resolving takes a network round trip: re-check the guard on fresh
+      // state before writing, otherwise this overwrites whoever moved on
+      // meanwhile and resurrects stale tracks or drops queue edits
+      const stillExpected = (): boolean => {
+        if (input.expectTrackId === undefined) return true;
 
-      if (current.shuffle && current.queue.length > 1) {
-        const pick = Math.floor(Math.random() * current.queue.length);
+        return (
+          runtime.getMusicState()?.current?.trackId === input.expectTrackId
+        );
+      };
 
-        next = current.queue[pick];
-        rest = current.queue.filter((_, i) => i !== pick);
-      }
-
-      if (!next) {
-        if (current.repeatMode === 'all') {
+      try {
+        if (current.repeatMode === 'one') {
           const playable = await resolvePlayableTrack(current.current);
+
+          if (!stillExpected()) return;
 
           const music = {
             ...current,
@@ -88,31 +70,69 @@ const musicNextRoute = protectedProcedure
           return;
         }
 
-        runtime.clearMusicState();
+        let next = current.queue[0];
+        let rest = current.queue.slice(1);
 
-        publishMusicState(channelId, undefined);
+        if (current.shuffle && current.queue.length > 1) {
+          const pick = Math.floor(Math.random() * current.queue.length);
 
-        return;
+          next = current.queue[pick];
+          rest = current.queue.filter((_, i) => i !== pick);
+        }
+
+        if (!next) {
+          if (current.repeatMode === 'all') {
+            const playable = await resolvePlayableTrack(current.current);
+
+            if (!stillExpected()) return;
+
+            const music = {
+              ...current,
+              current: {
+                ...playable,
+                addedByUserId: current.current.addedByUserId
+              },
+              playing: true,
+              positionSec: 0,
+              updatedAt: Date.now(),
+              controllerUserId: ctx.user.id
+            };
+
+            runtime.setMusicState(music);
+
+            publishMusicState(channelId, music);
+
+            return;
+          }
+
+          runtime.clearMusicState();
+
+          publishMusicState(channelId, undefined);
+
+          return;
+        }
+
+        const playable = await resolvePlayableTrack(next);
+
+        if (!stillExpected()) return;
+
+        const music = {
+          ...current,
+          current: { ...playable, addedByUserId: next.addedByUserId },
+          queue: rest,
+          playing: true,
+          positionSec: 0,
+          updatedAt: Date.now(),
+          controllerUserId: ctx.user.id
+        };
+
+        runtime.setMusicState(music);
+
+        publishMusicState(channelId, music);
+      } catch (error) {
+        throw throwMusicError(error);
       }
-
-      const playable = await resolvePlayableTrack(next);
-
-      const music = {
-        ...current,
-        current: { ...playable, addedByUserId: next.addedByUserId },
-        queue: rest,
-        playing: true,
-        positionSec: 0,
-        updatedAt: Date.now(),
-        controllerUserId: ctx.user.id
-      };
-
-      runtime.setMusicState(music);
-
-      publishMusicState(channelId, music);
-    } catch (error) {
-      throw throwMusicError(error);
-    }
+    });
   });
 
 export { musicNextRoute };

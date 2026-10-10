@@ -536,6 +536,24 @@ class VoiceRuntime {
     this.musicState = undefined;
   };
 
+  // every listener fires musicNext when their element ends, and queue edits
+  // land at any moment: resolving a track takes a network round trip, so a
+  // naive read-resolve-write interleaves and stale writes resurrect old
+  // tracks or drop queued ones. music mutations holding an await serialize
+  // through this chain instead
+  private musicTail: Promise<void> = Promise.resolve();
+
+  public runMusicExclusive = <T>(fn: () => Promise<T>): Promise<T> => {
+    const run = this.musicTail.then(fn, fn);
+
+    this.musicTail = run.then(
+      () => undefined,
+      () => undefined
+    );
+
+    return run;
+  };
+
   public getRouter = (): Router<AppData> => {
     if (!this.router) {
       throw new Error('Router not initialized yet');

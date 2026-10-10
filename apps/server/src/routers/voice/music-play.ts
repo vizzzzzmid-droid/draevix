@@ -17,27 +17,29 @@ const musicPlayRoute = protectedProcedure
   .mutation(async ({ input, ctx }) => {
     const { runtime, channelId } = await getCurrentVoiceRuntime(ctx);
 
-    try {
-      const current = await resolvePlayableTrack(input.track);
-      const previous = runtime.getMusicState();
+    return await runtime.runMusicExclusive(async () => {
+      try {
+        const current = await resolvePlayableTrack(input.track);
+        const previous = runtime.getMusicState();
 
-      const music = {
-        current: { ...current, addedByUserId: ctx.user.id },
-        queue: previous?.queue ?? [],
-        playing: true,
-        positionSec: 0,
-        updatedAt: Date.now(),
-        controllerUserId: ctx.user.id,
-        repeatMode: previous?.repeatMode ?? ('off' as const),
-        shuffle: previous?.shuffle ?? false
-      };
+        const music = {
+          current: { ...current, addedByUserId: ctx.user.id },
+          queue: previous?.queue ?? [],
+          playing: true,
+          positionSec: 0,
+          updatedAt: Date.now(),
+          controllerUserId: ctx.user.id,
+          repeatMode: previous?.repeatMode ?? ('off' as const),
+          shuffle: previous?.shuffle ?? false
+        };
 
-      runtime.setMusicState(music);
+        runtime.setMusicState(music);
 
-      publishMusicState(channelId, music);
-    } catch (error) {
-      throw throwMusicError(error);
-    }
+        publishMusicState(channelId, music);
+      } catch (error) {
+        throw throwMusicError(error);
+      }
+    });
   });
 
 export { musicPlayRoute };
