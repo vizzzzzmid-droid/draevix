@@ -60,6 +60,8 @@
   "notificationPermission_denied": "Notifications are blocked. Please allow them in your browser settings.",
   "notificationPermission_default": "Notifications permission has not been granted yet.",
   "notificationPermissionRequest": "Request Permission",
+  "notificationPermissionLabel": "System notifications",
+  "notificationPermission_unsupported": "System notifications are not available here.",
   "allMessagesLabel": "All Messages",
   "allMessagesDesc": "Send a notification for every new message.",
   "mentionsOnlyLabel": "Mentions Only",

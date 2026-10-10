@@ -61,6 +61,8 @@
   "notificationPermission_denied": "Уведомления заблокированы. Разрешите их в настройках браузера.",
   "notificationPermission_default": "Разрешение на уведомления ещё не выдано.",
   "notificationPermissionRequest": "Запросить разрешение",
+  "notificationPermissionLabel": "Системные уведомления",
+  "notificationPermission_unsupported": "Системные уведомления здесь недоступны.",
   "allMessagesLabel": "Все сообщения",
   "allMessagesDesc": "Отправлять уведомление о каждом новом сообщении.",
   "mentionsOnlyLabel": "Только упоминания",

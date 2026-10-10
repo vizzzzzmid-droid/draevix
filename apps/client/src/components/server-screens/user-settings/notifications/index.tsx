@@ -21,7 +21,7 @@ import {
 import { useUserById } from '@/features/server/users/hooks';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { Button, Group, Switch } from '@draevix/ui';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type TNotificationsValues = {
@@ -114,11 +114,34 @@ const Notifications = memo(() => {
     [onChange]
   );
 
+  const [permission, setPermission] = useState(() =>
+    'Notification' in window ? Notification.permission : 'unsupported'
+  );
+
+  const handleRequestPermission = useCallback(async () => {
+    if (!('Notification' in window)) return;
+
+    setPermission(await Notification.requestPermission());
+  }, []);
+
   return (
     <SettingsSection
       title={t('notificationsTitle')}
       description={t('notificationsDesc')}
     >
+      <Group
+        label={t('notificationPermissionLabel')}
+        description={t(`notificationPermission_${permission}`)}
+      >
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleRequestPermission}
+          disabled={permission === 'granted'}
+        >
+          {t('notificationPermissionRequest')}
+        </Button>
+      </Group>
       <Group label={t('muteAllLabel')} description={t('muteAllDesc')}>
         <Switch checked={values.muted} onCheckedChange={handleMutedChange} />
       </Group>
