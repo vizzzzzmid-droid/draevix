@@ -271,10 +271,7 @@ export const addMessages = (
           // so a focus loss always means the user looks elsewhere (second
           // monitor, alt-tab). in browsers focus is ignored on purpose, a
           // focused devtools pane must not reroute while the page is visible
-          const windowUnfocused =
-            isTauriApp && typeof document.hasFocus === 'function'
-              ? !document.hasFocus()
-              : false;
+          const windowUnfocused = isTauriApp() && !document.hasFocus();
 
           if (isWindowHidden || windowUnfocused) {
             sendBrowserNotification(targetMessage, channelId, isDmChannel);
