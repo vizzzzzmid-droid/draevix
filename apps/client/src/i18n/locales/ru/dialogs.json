@@ -25,7 +25,7 @@
   "watchAnilibertyEpisodeN": "Серия {{episode}}",
   "watchNoEpisodes": "Серий пока нет",
   "musicPickerTitle": "Слушать вместе",
-  "musicPickerDesc": "Поиск по SoundCloud. У всех в голосовом канале заиграет.",
+  "musicPickerDesc": "Поиск по SoundCloud или Audius. У всех в голосовом канале заиграет.",
   "musicSearchPlaceholder": "Название трека или ссылка на плейлист...",
   "musicFind": "Найти",
   "musicSearching": "Ищем треки...",

@@ -614,6 +614,8 @@ const resolvePlayableTrack = async (
     artworkUrl: track.artworkUrl ?? null,
     durationSec: track.durationSec ?? 0,
     permalinkUrl: track.permalinkUrl,
+    source: 'soundcloud' as const,
+    sourceId: String(track.trackId),
     mp3Url
   };
 };

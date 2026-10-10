@@ -1,8 +1,8 @@
+import type { TMusicSearchResult } from '@draevix/shared';
 import { z } from 'zod';
 import {
   resolvePlaylistTracks,
-  throwSoundCloudError,
-  type TSoundCloudTrack
+  throwSoundCloudError
 } from '../../helpers/soundcloud';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
@@ -13,7 +13,7 @@ const musicPlaylistRoute = protectedProcedure
       url: z.string().trim().min(1).max(500)
     })
   )
-  .query(async ({ input }): Promise<{ tracks: TSoundCloudTrack[] }> => {
+  .query(async ({ input }): Promise<{ tracks: TMusicSearchResult[] }> => {
     invariant(/soundcloud\.com\//i.test(input.url), {
       code: 'NOT_FOUND',
       message: 'Invalid SoundCloud link'
@@ -22,7 +22,19 @@ const musicPlaylistRoute = protectedProcedure
     try {
       const tracks = await resolvePlaylistTracks(input.url);
 
-      return { tracks };
+      return {
+        tracks: tracks.map((track) => ({
+          trackId: track.trackId,
+          title: track.title,
+          author: track.author,
+          artworkUrl: track.artworkUrl,
+          durationSec: track.durationSec,
+          permalinkUrl: track.permalinkUrl,
+          streamable: track.streamable,
+          source: 'soundcloud' as const,
+          sourceId: String(track.trackId)
+        }))
+      };
     } catch (error) {
       throw throwSoundCloudError(error);
     }

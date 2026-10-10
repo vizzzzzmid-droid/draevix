@@ -1,10 +1,7 @@
 import { z } from 'zod';
 import { publishMusicState } from '../../db/publishers';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
-import {
-  resolvePlayableTrack,
-  throwSoundCloudError
-} from '../../helpers/soundcloud';
+import { resolvePlayableTrack, throwMusicError } from '../../helpers/music';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
@@ -15,7 +12,8 @@ import { protectedProcedure } from '../../utils/trpc';
 const musicNextRoute = protectedProcedure
   .input(
     z.object({
-      expectTrackId: z.number().int().positive().optional()
+      // audius ids are negative hashes, so positivity is not required
+      expectTrackId: z.number().int().optional()
     })
   )
   .mutation(async ({ input, ctx }) => {
@@ -113,7 +111,7 @@ const musicNextRoute = protectedProcedure
 
       publishMusicState(channelId, music);
     } catch (error) {
-      throw throwSoundCloudError(error);
+      throw throwMusicError(error);
     }
   });
 
