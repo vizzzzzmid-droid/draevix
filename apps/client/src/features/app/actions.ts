@@ -3,6 +3,7 @@ import { getFileUrl, getUrlFromServer } from '@/helpers/get-file-url';
 import {
   LocalStorageKey,
   setLocalStorageItem,
+  setLocalStorageItemAsJSON,
   setLocalStorageItemBool
 } from '@/helpers/storage';
 import { i18n } from '@/i18n';
@@ -198,6 +199,30 @@ export const setBrowserNotificationsForReplies = async (enabled: boolean) => {
 export const setMessageJumpTarget = (
   payload: TMessageJumpToTarget | undefined
 ) => store.dispatch(appSliceActions.setMessageJumpTarget(payload));
+
+export const setNotificationsMuted = (muted: boolean) => {
+  store.dispatch(appSliceActions.setNotificationsMuted(muted));
+  setLocalStorageItemBool(LocalStorageKey.NOTIFICATIONS_MUTED, muted);
+};
+
+export const muteUserNotifications = (userId: number) => {
+  store.dispatch(appSliceActions.muteUserNotifications(userId));
+  persistMutedNotificationUserIds();
+};
+
+export const unmuteUserNotifications = (userId: number) => {
+  store.dispatch(appSliceActions.unmuteUserNotifications(userId));
+  persistMutedNotificationUserIds();
+};
+
+const persistMutedNotificationUserIds = () => {
+  const state = store.getState();
+
+  setLocalStorageItemAsJSON(
+    LocalStorageKey.MUTED_NOTIFICATION_USER_IDS,
+    state.app.mutedNotificationUserIds
+  );
+};
 
 export const openVoiceChatSidebar = (channelId: number) => {
   store.dispatch(

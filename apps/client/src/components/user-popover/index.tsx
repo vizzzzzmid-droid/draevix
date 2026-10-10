@@ -1,5 +1,11 @@
 import { PluginSlotRenderer } from '@/components/plugin-slot-renderer';
-import { setModViewOpen, setSelectedDmChannelId } from '@/features/app/actions';
+import {
+  muteUserNotifications,
+  setModViewOpen,
+  setSelectedDmChannelId,
+  unmuteUserNotifications
+} from '@/features/app/actions';
+import { useMutedNotificationUserIds } from '@/features/app/hooks';
 import { setDmsOpen } from '@/features/server/actions';
 import { usePublicServerSettings, useUserRoles } from '@/features/server/hooks';
 import { useIsOwnUser, useUserById } from '@/features/server/users/hooks';
@@ -23,7 +29,14 @@ import {
   PopoverTrigger
 } from '@draevix/ui';
 import { format } from 'date-fns';
-import { MessageSquare, ShieldCheck, Trash, UserCog } from 'lucide-react';
+import {
+  MessageSquare,
+  ShieldCheck,
+  Trash,
+  UserCog,
+  Volume2,
+  VolumeX
+} from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -38,6 +51,32 @@ type TUserPopoverProps = {
   userId: number;
   children: React.ReactNode;
 };
+
+const MuteNotificationsButton = memo(({ userId }: { userId: number }) => {
+  const { t } = useTranslation();
+  const mutedUserIds = useMutedNotificationUserIds();
+  const isMuted = mutedUserIds.includes(userId);
+
+  const onToggleMute = useCallback(() => {
+    if (isMuted) {
+      unmuteUserNotifications(userId);
+    } else {
+      muteUserNotifications(userId);
+    }
+  }, [isMuted, userId]);
+
+  return (
+    <IconButton
+      icon={isMuted ? Volume2 : VolumeX}
+      variant="ghost"
+      size="sm"
+      title={isMuted ? t('unmuteNotifications') : t('muteNotifications')}
+      onClick={onToggleMute}
+    />
+  );
+});
+
+MuteNotificationsButton.displayName = 'MuteNotificationsButton';
 
 const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
   const { t } = useTranslation();
@@ -172,6 +211,10 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
                   title={t('directMessage')}
                   onClick={onDirectMessageClick}
                 />
+              )}
+
+              {!isOwnUser && !isDeleted && (
+                <MuteNotificationsButton userId={user.id} />
               )}
 
               {

@@ -1,8 +1,15 @@
+import { MessageNotificationToast } from '@/components/message-notification-toast';
+import {
+  setMessageJumpTarget,
+  setSelectedDmChannelId
+} from '@/features/app/actions';
 import {
   browserNotificationsForDmsSelector,
   browserNotificationsForMentionsSelector,
   browserNotificationsForRepliesSelector,
   browserNotificationsSelector,
+  mutedNotificationUserIdsSelector,
+  notificationsMutedSelector,
   threadSidebarDataSelector
 } from '@/features/app/selectors';
 import { store } from '@/features/store';
@@ -14,7 +21,9 @@ import {
   TYPING_MS,
   type TJoinedMessage
 } from '@draevix/shared';
-import { markChannelAsRead } from '../actions';
+import { toast } from 'sonner';
+import { markChannelAsRead, setDmsOpen } from '../actions';
+import { setSelectedChannelId } from '../channels/actions';
 import {
   channelByIdSelector,
   isChannelTextVisibleByIdSelector
@@ -56,6 +65,67 @@ const sendBrowserNotification = (
   const icon = user?.avatar ? getFileUrl(user.avatar) : undefined;
 
   new Notification(title, { body, icon });
+};
+
+const openChannelAtMessage = (
+  channelId: number,
+  messageId: number,
+  isDm: boolean
+) => {
+  if (isDm) {
+    setDmsOpen(true);
+    setSelectedDmChannelId(channelId);
+  } else {
+    setDmsOpen(false);
+    setSelectedChannelId(channelId);
+  }
+
+  setMessageJumpTarget({
+    channelId,
+    messageId,
+    isDm,
+    highlightTime: 4000
+  });
+};
+
+const showMessageToast = (
+  message: TJoinedMessage,
+  channelId: number,
+  isDm: boolean
+) => {
+  const state = store.getState();
+
+  const user =
+    message.userId != null
+      ? userByIdSelector(state, message.userId)
+      : undefined;
+  const plugin = pluginMetadataByIdSelector(state, message.pluginId);
+  const channel = channelByIdSelector(state, channelId);
+
+  if (!channel) {
+    return;
+  }
+
+  const authorName =
+    (message.pluginId && plugin ? plugin.name : user?.name) ?? 'Unknown user';
+  const channelLabel = isDm ? 'DM' : `#${channel?.name ?? 'unknown'}`;
+
+  toast.custom(
+    (toastId) => (
+      <MessageNotificationToast
+        message={message}
+        authorName={authorName}
+        authorEffect={user?.usernameEffect}
+        authorFont={user?.usernameFont}
+        channelLabel={channelLabel}
+        onNavigate={() => {
+          toast.dismiss(toastId);
+          openChannelAtMessage(channelId, message.id, isDm);
+        }}
+      />
+    ),
+    { duration: 8000 }
+  );
 };
 
 const typingTimeouts: { [key: string]: NodeJS.Timeout } = {};
@@ -145,7 +215,14 @@ export const addMessages = (
 
     const isWindowHidden = document?.hidden;
 
-    if (!isFromOwnUser) {
+    // full mute and per-user mutes silence sounds, toasts and OS
+    // notifications alike, without touching unread badges
+    const isNotificationMuted =
+      notificationsMutedSelector(state) ||
+      (targetMessage.userId != null &&
+        mutedNotificationUserIdsSelector(state).includes(targetMessage.userId));
+
+    if (!isFromOwnUser && !isNotificationMuted) {
       const isThreadReply = !!targetMessage.parentMessageId;
 
       if (isThreadReply) {
@@ -159,7 +236,7 @@ export const addMessages = (
         playSound(SoundType.MESSAGE_RECEIVED);
       }
 
-      // only send browser notifications if the user is not currently viewing this channel
+      // only notify if the user is not currently viewing this channel
       if (!isChannelTextVisible || isWindowHidden) {
         const channel = channelByIdSelector(state, channelId);
         const isDmChannel = !!channel?.isDm;
@@ -167,28 +244,29 @@ export const addMessages = (
           browserNotificationsForDmsSelector(state);
         const hasRepliesNotificationsEnabled =
           browserNotificationsForRepliesSelector(state);
+        const isMentioned = hasMention(
+          targetMessage.content ?? null,
+          ownUserId
+        );
+        const isReplyToOwnMessage =
+          !!targetMessage.replyToMessageId &&
+          targetMessage.replyTo?.userId === ownUserId;
+
+        let shouldNotify = false;
 
         if (isDmChannel && hasDmNotificationsEnabled) {
-          sendBrowserNotification(targetMessage, channelId, true);
+          shouldNotify = true;
         } else if (notificationsForMentionsOnly) {
-          const isMentioned = hasMention(
-            targetMessage.content ?? null,
-            ownUserId
-          );
-
-          if (isMentioned) {
-            sendBrowserNotification(targetMessage, channelId);
-          }
+          shouldNotify = isMentioned;
         } else if (hasBrowserNotificationsEnabled) {
-          sendBrowserNotification(targetMessage, channelId);
+          shouldNotify = true;
         } else if (hasRepliesNotificationsEnabled) {
-          const isReplyToOwnMessage =
-            !!targetMessage.replyToMessageId &&
-            targetMessage.replyTo?.userId === ownUserId;
+          shouldNotify = isReplyToOwnMessage;
+        }
 
-          if (isReplyToOwnMessage) {
-            sendBrowserNotification(targetMessage, channelId);
-          }
+        if (shouldNotify) {
+          showMessageToast(targetMessage, channelId, isDmChannel);
+          sendBrowserNotification(targetMessage, channelId, isDmChannel);
         }
       }
     }

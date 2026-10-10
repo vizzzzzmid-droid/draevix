@@ -28,6 +28,8 @@ export enum LocalStorageKey {
   CHAT_INPUT_HEIGHT_VH = 'draevix-chat-input-height-vh',
   THREAD_INPUT_HEIGHT_VH = 'draevix-thread-input-height-vh',
   BROWSER_NOTIFICATIONS_FOR_REPLIES = 'draevix-browser-notifications-for-replies',
+  NOTIFICATIONS_MUTED = 'draevix-notifications-muted',
+  MUTED_NOTIFICATION_USER_IDS = 'draevix-muted-notification-user-ids',
   LANGUAGE = 'draevix-language',
   SERVER_ADDRESS = 'draevix-server-address',
   PLUGIN_SLOT_DEBUG = 'draevix-plugin-slot-debug',

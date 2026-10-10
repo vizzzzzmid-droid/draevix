@@ -13,6 +13,8 @@ import {
   messageJumpTargetSelector,
   modViewOpenSelector,
   modViewUserIdSelector,
+  mutedNotificationUserIdsSelector,
+  notificationsMutedSelector,
   pluginSlotDebugSelector,
   selectedDmChannelIdSelector,
   threadSidebarDataSelector,
@@ -54,6 +56,12 @@ export const useMessageJumpTarget = () =>
 
 export const useBrowserNotificationsForReplies = () =>
   useSelector(browserNotificationsForRepliesSelector);
+
+export const useNotificationsMuted = () =>
+  useSelector(notificationsMutedSelector);
+
+export const useMutedNotificationUserIds = () =>
+  useSelector(mutedNotificationUserIdsSelector);
 
 export const useVoiceChatSidebar = () =>
   useSelector(voiceChatSidebarDataSelector);

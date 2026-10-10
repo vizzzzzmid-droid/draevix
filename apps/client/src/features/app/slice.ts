@@ -1,4 +1,5 @@
 import {
+  getLocalStorageItemAsJSON,
   getLocalStorageItemAsNumber,
   getLocalStorageItemBool,
   LocalStorageKey
@@ -22,6 +23,8 @@ export interface TAppState {
   browserNotificationsForMentions: boolean;
   browserNotificationsForDms: boolean;
   browserNotificationsForReplies: boolean;
+  notificationsMuted: boolean;
+  mutedNotificationUserIds: number[];
   messageJumpTarget: TMessageJumpToTarget | undefined;
   voiceChatSidebarOpen: boolean;
   voiceChatChannelId: number | undefined;
@@ -46,20 +49,36 @@ const initialState: TAppState = {
   selectedDmChannelId: undefined,
   browserNotifications: getLocalStorageItemBool(
     LocalStorageKey.BROWSER_NOTIFICATIONS,
-    false
+    true
   ),
   browserNotificationsForMentions: getLocalStorageItemBool(
     LocalStorageKey.BROWSER_NOTIFICATIONS_FOR_MENTIONS,
-    false
+    true
   ),
   browserNotificationsForDms: getLocalStorageItemBool(
     LocalStorageKey.BROWSER_NOTIFICATIONS_FOR_DMS,
-    false
+    true
   ),
   browserNotificationsForReplies: getLocalStorageItemBool(
     LocalStorageKey.BROWSER_NOTIFICATIONS_FOR_REPLIES,
+    true
+  ),
+  notificationsMuted: getLocalStorageItemBool(
+    LocalStorageKey.NOTIFICATIONS_MUTED,
     false
   ),
+  mutedNotificationUserIds: (() => {
+    const stored = getLocalStorageItemAsJSON<unknown>(
+      LocalStorageKey.MUTED_NOTIFICATION_USER_IDS
+    );
+
+    if (!Array.isArray(stored)) return [];
+
+    return stored.filter(
+      (userId): userId is number =>
+        typeof userId === 'number' && Number.isInteger(userId)
+    );
+  })(),
   messageJumpTarget: undefined,
   voiceChatSidebarOpen: getLocalStorageItemBool(
     LocalStorageKey.VOICE_CHAT_SIDEBAR_STATE,
@@ -139,6 +158,19 @@ export const appSlice = createSlice({
       action: PayloadAction<boolean>
     ) => {
       state.browserNotificationsForReplies = action.payload;
+    },
+    setNotificationsMuted: (state, action: PayloadAction<boolean>) => {
+      state.notificationsMuted = action.payload;
+    },
+    muteUserNotifications: (state, action: PayloadAction<number>) => {
+      if (!state.mutedNotificationUserIds.includes(action.payload)) {
+        state.mutedNotificationUserIds.push(action.payload);
+      }
+    },
+    unmuteUserNotifications: (state, action: PayloadAction<number>) => {
+      state.mutedNotificationUserIds = state.mutedNotificationUserIds.filter(
+        (userId) => userId !== action.payload
+      );
     },
     setMessageJumpTarget: (
       state,
