@@ -28,7 +28,6 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { HlsVideo } from './hls-video';
-import { YoutubeAudio, type TYoutubeAudioHandle } from './youtube-audio';
 
 type TMusicPanelProps = {
   channelId: number;
@@ -46,7 +45,6 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const ownUserId = useOwnUserId();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hlsVideoRef = useRef<HTMLVideoElement | null>(null);
-  const youtubeHandleRef = useRef<TYoutubeAudioHandle | null>(null);
   const seekingRef = useRef(false);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshedUrlRef = useRef<string | null>(null);
@@ -56,15 +54,10 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const [queueOpen, setQueueOpen] = useState(false);
 
   const currentUrl = music?.current?.mp3Url ?? '';
-  // youtube plays in a hidden embed driven by its own component below, so
-  // the element refs below only ever serve soundcloud
-  const isYoutube = music?.current?.source === 'youtube';
-  const isHls = !isYoutube && isHlsUrl(currentUrl);
+  const isHls = isHlsUrl(currentUrl);
   const playerRef = isHls ? hlsVideoRef : audioRef;
 
   const snapToTarget = useCallback(() => {
-    if (isYoutube) return;
-
     const player = playerRef.current;
 
     if (!player || seekingRef.current || !music) return;
@@ -78,7 +71,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     if (drift > POSITION_SYNC_THRESHOLD_SEC) {
       player.currentTime = target;
     }
-  }, [isYoutube, music, playerRef]);
+  }, [music, playerRef]);
 
   useEffect(() => {
     if (!music?.current) {
@@ -111,10 +104,8 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     };
   }, [music, snapToTarget]);
 
-  // volume is per-listener, never broadcast (youtube volume rides props)
+  // volume is per-listener, never broadcast
   useEffect(() => {
-    if (isYoutube) return;
-
     for (const ref of [audioRef, hlsVideoRef]) {
       const player = ref.current;
 
@@ -127,8 +118,6 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
 
   // same gating as video: only flip the element when it disagrees
   useEffect(() => {
-    if (isYoutube) return;
-
     const player = playerRef.current;
 
     if (!player || !music?.current) return;
@@ -149,10 +138,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   });
 
   const handlePlay = useCallback(async () => {
-    const position =
-      youtubeHandleRef.current?.getCurrentTime() ??
-      playerRef.current?.currentTime ??
-      displayPosition;
+    const position = playerRef.current?.currentTime ?? displayPosition;
 
     const trpc = getTRPCClient();
 
@@ -164,10 +150,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   }, [displayPosition, playerRef, t]);
 
   const handlePause = useCallback(async () => {
-    const position =
-      youtubeHandleRef.current?.getCurrentTime() ??
-      playerRef.current?.currentTime ??
-      displayPosition;
+    const position = playerRef.current?.currentTime ?? displayPosition;
 
     const trpc = getTRPCClient();
 
@@ -181,9 +164,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const handleSeekCommit = useCallback(async () => {
     seekingRef.current = false;
 
-    if (youtubeHandleRef.current) {
-      youtubeHandleRef.current.seekTo(displayPosition);
-    } else if (playerRef.current) {
+    if (playerRef.current) {
       playerRef.current.currentTime = displayPosition;
     }
 
@@ -265,10 +246,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   );
 
   const handleStaleSource = useCallback(async () => {
-    // youtube owns its session inside the embed: nothing to re-resolve here
-    if (isYoutube || !currentUrl || refreshedUrlRef.current === currentUrl) {
-      return;
-    }
+    if (!currentUrl || refreshedUrlRef.current === currentUrl) return;
 
     refreshedUrlRef.current = currentUrl;
 
@@ -281,31 +259,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     } catch (error) {
       toast.error(getTrpcError(error, t('failedMusicTogether')));
     }
-  }, [currentUrl, isYoutube, t]);
-
-  const handleYoutubeTimeUpdate = useCallback((seconds: number) => {
-    if (!seekingRef.current) {
-      setDisplayPosition(seconds);
-    }
-  }, []);
-
-  // a broken embed skips forward like an ended track: the expect guard in
-  // musicNext keeps the race with other listeners harmless
-  const handleYoutubeError = useCallback(async () => {
-    toast.error(t('failedMusicTogether'));
-
-    const trpc = getTRPCClient();
-
-    try {
-      await trpc.voice.musicNext.mutate({
-        expectTrackId: currentTrackId
-      });
-    } catch (error) {
-      toast.error(getTrpcError(error, t('failedMusicTogether')));
-    }
-  }, [currentTrackId, t]);
-
-  const getSeeking = useCallback(() => seekingRef.current, []);
+  }, [currentUrl, t]);
 
   const handleQueueRemove = useCallback(
     async (index: number) => {
@@ -369,36 +323,27 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     }
   }, [music?.repeatMode, t]);
 
-  // identity of the playable source: the stream url for soundcloud, the
-  // video id for youtube embeds (which carry no url at all)
-  const trackKey = music?.current
-    ? music.current.source === 'youtube'
-      ? `youtube:${music.current.sourceId}`
-      : (music.current.mp3Url ?? '')
-    : '';
+  const trackUrl = music?.current?.mp3Url ?? '';
 
   // same opt-in as watch and screen shares: someone else's party shows a
   // join prompt instead of auto-playing. the starter joins implicitly
   const [joinedUrl, setJoinedUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!trackKey) {
+    if (!trackUrl) {
       setJoinedUrl(null);
       return;
     }
 
     if (music?.controllerUserId === ownUserId) {
-      setJoinedUrl(trackKey);
+      setJoinedUrl(trackUrl);
     }
-  }, [trackKey, music?.controllerUserId, ownUserId]);
+  }, [trackUrl, music?.controllerUserId, ownUserId]);
 
   if (!music?.current) return null;
 
   const track = music.current;
-  const joined =
-    joinedUrl !== null &&
-    joinedUrl ===
-      (track.source === 'youtube' ? `youtube:${track.sourceId}` : track.mp3Url);
+  const joined = joinedUrl !== null && joinedUrl === track.mp3Url;
   const seekMax = Math.max(duration, track.durationSec, 0.01);
   const seekRatio = Math.min(1, Math.max(0, displayPosition / seekMax));
 
@@ -444,23 +389,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
       </div>
       {joined ? (
         <>
-          {isYoutube && music.current ? (
-            <YoutubeAudio
-              videoId={music.current.sourceId}
-              playing={music.playing}
-              positionSec={getMusicPositionSec(music)}
-              positionUpdatedAt={music.updatedAt}
-              volume={muted ? 0 : volume}
-              muted={muted}
-              seeking={getSeeking}
-              onTimeUpdate={handleYoutubeTimeUpdate}
-              onDuration={setDuration}
-              onEnded={() => void handleEnded()}
-              onError={() => void handleYoutubeError()}
-              handleRef={youtubeHandleRef}
-            />
-          ) : null}
-          {!isYoutube && isHls ? (
+          {isHls ? (
             <div className="hidden">
               <HlsVideo
                 src={currentUrl}
@@ -472,8 +401,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
                 onRetry={() => void handleStaleSource()}
               />
             </div>
-          ) : null}
-          {!isYoutube && !isHls ? (
+          ) : (
             <audio
               ref={audioRef}
               src={currentUrl}
@@ -484,7 +412,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
               onEnded={() => void handleEnded()}
               onError={() => void handleStaleSource()}
             />
-          ) : null}
+          )}
           <div className="flex items-center gap-2">
             {music.playing ? (
               <Button
@@ -642,7 +570,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
       ) : (
         <button
           type="button"
-          onClick={() => setJoinedUrl(trackKey)}
+          onClick={() => setJoinedUrl(trackUrl)}
           className="flex items-center gap-3 rounded-md border border-primary/40 bg-primary/5 p-3 text-left transition hover:bg-primary/10"
         >
           {track.artworkUrl ? (

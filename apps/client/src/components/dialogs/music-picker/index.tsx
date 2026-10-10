@@ -38,30 +38,19 @@ import { toast } from 'sonner';
 import { UserAvatar } from '../../user-avatar';
 import type { TDialogBaseProps } from '../types';
 
-type TMusicResult =
+type TSoundCloudResult =
   TRouterOutputs['voice']['musicSearch']['results'][number];
 
 type TMusicTab = 'search' | 'queue';
-type TMusicSourceTab = 'soundcloud' | 'youtube';
 
-const SOURCE_LABEL: Record<TMusicSourceTab, string> = {
-  soundcloud: 'SoundCloud',
-  youtube: 'YouTube'
-};
-
-const toQueueInput = (entry: TMusicResult) => ({
+const toQueueInput = (entry: TSoundCloudResult) => ({
   trackId: entry.trackId,
   title: entry.title,
   author: entry.author,
   artworkUrl: entry.artworkUrl,
   durationSec: entry.durationSec,
-  permalinkUrl: entry.permalinkUrl,
-  source: entry.source,
-  sourceId: entry.sourceId
+  permalinkUrl: entry.permalinkUrl
 });
-
-const isYoutubeLink = (input: string): boolean =>
-  /(?:youtube\.com|youtu\.be)\//i.test(input.trim());
 
 const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const { t } = useTranslation(['dialogs', 'common']);
@@ -69,9 +58,8 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   const music = useMusicState(channelId ?? -1);
   const [{ volume, muted }, setMusicVolume] = useMusicVolume();
   const [tab, setTab] = useState<TMusicTab>('search');
-  const [source, setSource] = useState<TMusicSourceTab>('soundcloud');
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<TMusicResult[]>([]);
+  const [results, setResults] = useState<TSoundCloudResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [resolvingPlaylist, setResolvingPlaylist] = useState(false);
   const [busyTrackId, setBusyTrackId] = useState<number | null>(null);
@@ -86,7 +74,6 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
       setQuery('');
       setResults([]);
       setTab('search');
-      setSource('soundcloud');
     }
   }, [isOpen]);
 
@@ -150,13 +137,8 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
     if (!trimmed || searching) return;
 
-    // a playlist link in the search box resolves straight into the queue.
-    // any youtube link (playlist or single video) resolves the same way,
-    // whatever source tab is active
-    if (
-      /soundcloud\.com\/[^/]+\/sets(\/|$|\?)/i.test(trimmed) ||
-      isYoutubeLink(trimmed)
-    ) {
+    // a playlist link in the search box resolves straight into the queue
+    if (/soundcloud\.com\/[^/]+\/sets(\/|$|\?)/i.test(trimmed)) {
       await handlePlaylistAdd(trimmed);
       return;
     }
@@ -168,8 +150,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     try {
       const { results } = await trpc.voice.musicSearch.query({
         query: trimmed,
-        limit: 50,
-        source
+        limit: 50
       });
 
       setResults(results.filter((entry) => entry.streamable));
@@ -179,10 +160,10 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     } finally {
       setSearching(false);
     }
-  }, [query, searching, source, handlePlaylistAdd, t]);
+  }, [query, searching, handlePlaylistAdd, t]);
 
   const handlePlayNow = useCallback(
-    async (entry: TMusicResult) => {
+    async (entry: TSoundCloudResult) => {
       if (busyTrackId !== null) return;
 
       setBusyTrackId(entry.trackId);
@@ -202,7 +183,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
   );
 
   const handleQueueAdd = useCallback(
-    async (entry: TMusicResult) => {
+    async (entry: TSoundCloudResult) => {
       if (busyTrackId !== null) return;
 
       setBusyTrackId(entry.trackId);
@@ -342,19 +323,22 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          {(Object.keys(SOURCE_LABEL) as TMusicSourceTab[]).map((entry) => (
-            <Button
-              key={entry}
-              size="sm"
-              variant={source === entry ? 'default' : 'outline'}
-              onClick={() => {
-                setSource(entry);
-                setResults([]);
-              }}
-            >
-              {SOURCE_LABEL[entry]}
-            </Button>
-          ))}
+          <Button
+            size="sm"
+            variant="default"
+            disabled
+            title={t('musicSourceSoon')}
+          >
+            SoundCloud
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled
+            title={t('musicSourceSoon')}
+          >
+            YouTube
+          </Button>
         </div>
 
         {tab === 'search' && (
@@ -379,11 +363,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
               </Button>
             </div>
             <span className="text-xs text-muted-foreground">
-              {t(
-                source === 'youtube'
-                  ? 'musicPlaylistHintYoutube'
-                  : 'musicPlaylistHint'
-              )}
+              {t('musicPlaylistHint')}
             </span>
             <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
               {searching && (
@@ -461,7 +441,6 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                 author={entry.author}
                 artworkUrl={entry.artworkUrl}
                 addedByUserId={entry.addedByUserId}
-                source={entry.source}
                 onRemove={() => void handleQueueRemove(index)}
               />
             ))}
@@ -489,9 +468,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
                   {current.title}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
-                  {[current.author, SOURCE_LABEL[current.source]]
-                    .filter(Boolean)
-                    .join(' • ')}
+                  {[current.author, 'SoundCloud'].filter(Boolean).join(' • ')}
                 </span>
               </div>
               <Button
@@ -634,7 +611,6 @@ const QueueRow = memo(
     author,
     artworkUrl,
     addedByUserId,
-    source,
     onRemove
   }: {
     index: number;
@@ -642,7 +618,6 @@ const QueueRow = memo(
     author: string;
     artworkUrl: string | null;
     addedByUserId: number | null;
-    source: TMusicSourceTab;
     onRemove: () => void;
   }) => {
     const { t } = useTranslation(['dialogs', 'common']);
@@ -672,7 +647,7 @@ const QueueRow = memo(
             {author ? ` — ${author}` : ''}
           </span>
           <span className="block truncate text-xs text-muted-foreground">
-            {SOURCE_LABEL[source]}
+            SoundCloud
           </span>
         </span>
         {addedBy && <UserAvatar userId={addedBy.id} />}

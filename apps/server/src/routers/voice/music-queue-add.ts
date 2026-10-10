@@ -3,9 +3,9 @@ import { publishMusicState } from '../../db/publishers';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
 import {
   resolvePlayableTrack,
-  throwMusicError,
+  throwSoundCloudError,
   zTrackInput
-} from '../../helpers/music';
+} from '../../helpers/soundcloud';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
@@ -29,8 +29,6 @@ const musicQueueAddRoute = protectedProcedure
         artworkUrl: track.artworkUrl ?? null,
         durationSec: track.durationSec ?? 0,
         permalinkUrl: track.permalinkUrl,
-        source: track.source,
-        sourceId: track.sourceId,
         addedByUserId: ctx.user.id
       }));
 
@@ -80,7 +78,7 @@ const musicQueueAddRoute = protectedProcedure
 
       publishMusicState(channelId, music);
     } catch (error) {
-      throw throwMusicError(error);
+      throw throwSoundCloudError(error);
     }
   });
 
