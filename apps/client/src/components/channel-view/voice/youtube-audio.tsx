@@ -143,6 +143,27 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
       );
     };
 
+    const stateName = (state: number): string => {
+      const states = window.YT?.PlayerState;
+
+      if (!states) return `unknown(${state})`;
+
+      switch (state) {
+        case states.PLAYING:
+          return 'playing';
+        case states.PAUSED:
+          return 'paused';
+        case states.BUFFERING:
+          return 'buffering';
+        case states.ENDED:
+          return 'ended';
+        case states.CUED:
+          return 'cued';
+        default:
+          return `state(${state})`;
+      }
+    };
+
     const snap = (reason: string) => {
       const player = playerRef.current;
 
@@ -159,7 +180,13 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
 
       const drift = Math.abs(target - current);
 
-      logVoice('music: reconcile', { target, current, drift, reason });
+      logVoice('music: reconcile', {
+        target,
+        current,
+        drift,
+        reason,
+        state: stateName(stateRef.current)
+      });
 
       try {
         player.seekTo(target, true);
@@ -271,6 +298,7 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
             autoplay: 0,
             controls: 0,
             disablekb: 1,
+            enablejsapi: 1,
             fs: 0,
             iv_load_policy: 3,
             rel: 0,
