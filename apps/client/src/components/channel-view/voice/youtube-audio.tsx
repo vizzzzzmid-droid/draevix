@@ -111,6 +111,7 @@ const loadYoutubeApi = (): Promise<TYtApi> => {
 };
 
 const DRIFT_THRESHOLD_SEC = 3;
+const SEEK_COOLDOWN_MS = 4000;
 
 const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
   const { handleRef } = props;
@@ -118,6 +119,12 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
   const playerRef = useRef<TYtPlayer | null>(null);
   const readyRef = useRef(false);
   const durationReportedRef = useRef(false);
+  // last known player state, -1 when unknown
+  const stateRef = useRef<number>(-1);
+  // one snap right after playback starts closes the load latency gap;
+  // further snaps only fix real drift, never a stable offset
+  const syncedOnceRef = useRef(false);
+  const lastSeekAtRef = useRef(0);
   const propsRef = useRef(props);
 
   propsRef.current = props;
@@ -136,11 +143,37 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
       );
     };
 
+    const snap = (reason: string) => {
+      const player = playerRef.current;
+
+      if (!player) return;
+
+      const target = serverTarget();
+      let current = 0;
+
+      try {
+        current = player.getCurrentTime() || 0;
+      } catch {
+        return;
+      }
+
+      const drift = Math.abs(target - current);
+
+      logVoice('music: reconcile', { target, current, drift, reason });
+
+      try {
+        player.seekTo(target, true);
+        lastSeekAtRef.current = Date.now();
+      } catch {
+        // player is tearing down, the next poll retries
+      }
+    };
+
     const poll = () => {
       const player = playerRef.current;
       const snapshot = propsRef.current;
 
-      if (!player || !readyRef.current) return;
+      if (!player || !readyRef.current || snapshot.seeking()) return;
 
       let current = 0;
 
@@ -157,25 +190,19 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
         snapshot.onDuration(duration);
       }
 
-      if (!snapshot.seeking()) {
-        snapshot.onTimeUpdate(current);
+      snapshot.onTimeUpdate(current);
 
-        const drift = Math.abs(serverTarget() - current);
+      // a fresh seek needs time to buffer: re-snapping right away restarts
+      // buffering forever, which is exactly the self-seeking loop
+      if (Date.now() - lastSeekAtRef.current < SEEK_COOLDOWN_MS) return;
 
-        if (drift > DRIFT_THRESHOLD_SEC) {
-          logVoice('music: reconcile', {
-            target: serverTarget(),
-            current,
-            drift
-          });
+      // only a playing player can fall behind: seeking a buffering one
+      // just prolongs the stall
+      if (stateRef.current !== window.YT?.PlayerState.PLAYING) return;
 
-          try {
-            player.seekTo(serverTarget(), true);
-          } catch {
-            // player is tearing down, the next poll retries
-          }
-        }
-      }
+      const drift = Math.abs(serverTarget() - current);
+
+      if (drift > DRIFT_THRESHOLD_SEC) snap('drift');
     };
 
     handleRef.current = {
@@ -194,6 +221,8 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
         }
       },
       seekTo: (seconds: number) => {
+        lastSeekAtRef.current = Date.now();
+
         try {
           playerRef.current?.seekTo(seconds, true);
         } catch {
@@ -273,8 +302,21 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
             onStateChange: ({ data }) => {
               if (cancelled || !window.YT) return;
 
+              stateRef.current = data;
+
               if (data === window.YT.PlayerState.ENDED) {
                 propsRef.current.onEnded();
+                return;
+              }
+
+              // the load latency gap never closes on its own: snap once
+              // right when playback actually starts
+              if (
+                data === window.YT.PlayerState.PLAYING &&
+                !syncedOnceRef.current
+              ) {
+                syncedOnceRef.current = true;
+                snap('start');
               }
             },
             onError: () => {
@@ -304,6 +346,8 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
       playerRef.current = null;
       readyRef.current = false;
       durationReportedRef.current = false;
+      stateRef.current = -1;
+      syncedOnceRef.current = false;
       handleRef.current = null;
     };
   }, [handleRef]);
@@ -315,6 +359,7 @@ const YoutubeAudio = memo((props: TYoutubeAudioProps) => {
     if (!readyRef.current || !playerRef.current) return;
 
     durationReportedRef.current = false;
+    syncedOnceRef.current = false;
 
     const snapshot = propsRef.current;
 
