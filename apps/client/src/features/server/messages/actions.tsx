@@ -264,8 +264,14 @@ export const addMessages = (
         }
 
         if (shouldNotify) {
-          showMessageToast(targetMessage, channelId, isDmChannel);
-          sendBrowserNotification(targetMessage, channelId, isDmChannel);
+          // minimized or in background: OS-level notification, the in-app
+          // toast would sit unseen. window open in front: rich in-app toast
+          // with navigation instead of a duplicate system one
+          if (isWindowHidden || !document.hasFocus()) {
+            sendBrowserNotification(targetMessage, channelId, isDmChannel);
+          } else {
+            showMessageToast(targetMessage, channelId, isDmChannel);
+          }
         }
       }
     }
