@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Default permissions for the Draevix desktop window.",
   "windows": ["main"],
-  "permissions": ["core:default", "updater:default", "notifications:default"]
+  "permissions": ["core:default", "updater:default", "notification:default"]
 }
