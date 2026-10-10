@@ -31,13 +31,23 @@ type TUsernameProps = {
   className?: string;
 };
 
+// fire licks upward with small flame tongues, frost is orbited by falling
+// snowflakes: particles are pure css in em units, so they scale with any
+// nickname size. counts are fixed per effect, positions come from nth-child
+const FIRE_PARTICLES = 6;
+const FROST_PARTICLES = 7;
+
+// U+2744 snowflake forced into text presentation by U+FE0E: renders as a
+// glyph, never as an emoji
+const SNOWFLAKE = '❄︎';
+
 // styled nickname: admin-assigned effect plus font. unknown values coming
 // from the server fall back to plain text, never to an arbitrary class
 const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
   const validEffect = asEffect(effect);
   const validFont = asFont(font);
 
-  return (
+  const text = (
     <span
       className={cn(
         validEffect && USERNAME_EFFECT_CLASS[validEffect],
@@ -52,6 +62,32 @@ const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
       {name}
     </span>
   );
+
+  if (validEffect === UsernameEffect.FIRE) {
+    return (
+      <span className="username-fx username-fx-fire">
+        {text}
+        {Array.from({ length: FIRE_PARTICLES }).map((_, index) => (
+          <i key={index} aria-hidden="true" />
+        ))}
+      </span>
+    );
+  }
+
+  if (validEffect === UsernameEffect.FROST) {
+    return (
+      <span className="username-fx username-fx-frost">
+        {text}
+        {Array.from({ length: FROST_PARTICLES }).map((_, index) => (
+          <i key={index} aria-hidden="true">
+            {SNOWFLAKE}
+          </i>
+        ))}
+      </span>
+    );
+  }
+
+  return text;
 });
 
 Username.displayName = 'Username';
