@@ -36,8 +36,10 @@ createRoot(document.getElementById('root')!).render(
     >
       <GlobalErrorBoundary>
         <DebugInfo />
-        <Toaster />
         <Provider store={store}>
+          {/* toasts may render store-connected content (avatars, styled
+              nicknames), so the toaster must live inside the provider */}
+          <Toaster />
           <StoreDebug />
           <HotkeysController />
           <AppUpdater />
