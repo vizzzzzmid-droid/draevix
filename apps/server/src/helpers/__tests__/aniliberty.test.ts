@@ -138,7 +138,11 @@ describe('anilibertyDescribe', () => {
           id: 413,
           name: { main: 'Test' },
           episodes: {
-            '1': { ordinal: 1, name: 'One', hls_720: 'https://cdn.example.com/1/720.m3u8' }
+            '1': {
+              ordinal: 1,
+              name: 'One',
+              hls_720: 'https://cdn.example.com/1/720.m3u8'
+            }
           }
         }),
         { status: 200 }

@@ -214,7 +214,9 @@ const zRelease = z
     episodes_total: z.number().nullable().optional(),
     is_blocked_by_geo: z.boolean().optional(),
     is_blocked_by_copyrights: z.boolean().optional(),
-    episodes: z.union([z.array(z.unknown()), z.record(z.string(), z.unknown())]).optional()
+    episodes: z
+      .union([z.array(z.unknown()), z.record(z.string(), z.unknown())])
+      .optional()
   })
   .passthrough();
 

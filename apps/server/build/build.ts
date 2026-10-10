@@ -65,7 +65,8 @@ const viteProc = Bun.spawn(['bun', 'run', 'build'], {
   // not fit it on small hosts: back the build with swap instead of dying
   env: {
     ...process.env,
-    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=3072`.trim()
+    NODE_OPTIONS:
+      `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=3072`.trim()
   }
 });
 await viteProc.exited;
