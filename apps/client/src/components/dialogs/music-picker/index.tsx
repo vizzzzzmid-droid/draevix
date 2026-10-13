@@ -117,7 +117,10 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
         const { tracks } = await trpc.voice.musicPlaylist.query({
           url: trimmed
         });
-        const playable = tracks.filter((entry) => entry.streamable);
+        // the queue enforces 500 entries, likes can return far more
+        const playable = tracks
+          .filter((entry) => entry.streamable)
+          .slice(0, 500);
 
         if (playable.length === 0) {
           toast.error(t('musicPlaylistEmpty'));
@@ -146,8 +149,9 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
     if (!trimmed || searching) return;
 
-    // a playlist link in the search box resolves straight into the queue
-    if (/soundcloud\.com\/[^/]+\/sets(\/|$|\?)/i.test(trimmed)) {
+    // a playlist or likes link in the search box resolves straight into
+    // the queue
+    if (/soundcloud\.com\/[^/]+\/(sets|likes)(\/|$|\?)/i.test(trimmed)) {
       await handlePlaylistAdd(trimmed);
       return;
     }

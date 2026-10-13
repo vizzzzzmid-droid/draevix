@@ -1,6 +1,8 @@
 import type { TMusicSearchResult } from '@draevix/shared';
 import { z } from 'zod';
 import {
+  looksLikeLikesUrl,
+  resolveLikedTracks,
   resolvePlaylistTracks,
   throwSoundCloudError
 } from '../../helpers/soundcloud';
@@ -20,7 +22,10 @@ const musicPlaylistRoute = protectedProcedure
     });
 
     try {
-      const tracks = await resolvePlaylistTracks(input.url);
+      // a likes url pulls the user's liked tracks, anything else is a set
+      const tracks = looksLikeLikesUrl(input.url)
+        ? await resolveLikedTracks(input.url)
+        : await resolvePlaylistTracks(input.url);
 
       return {
         tracks: tracks.map((track) => ({

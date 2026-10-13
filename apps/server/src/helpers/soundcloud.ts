@@ -12,6 +12,12 @@ const SEARCH_TIMEOUT_MS = 15_000;
 const PAGE_TIMEOUT_MS = 20_000;
 const CLIENT_ID_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
+// likes land in the queue behind the same cap the queue enforces: scan a
+// handful of cursor pages, never a user's entire like history
+const LIKED_PAGE_LIMIT = 200;
+const LIKED_MAX_PAGES = 5;
+const LIKED_MAX_TRACKS = 600;
+
 class SoundCloudError extends Error {
   readonly kind: 'NOT_FOUND' | 'UNAVAILABLE' | 'UPSTREAM' | 'BAD_CLIENT_ID';
 
@@ -560,6 +566,133 @@ const hydrateMinimalTracks = async (
 const looksLikePlaylistUrl = (input: string): boolean =>
   /soundcloud\.com\/[^/]+\/sets(\/|$)/i.test(input.trim());
 
+const looksLikeLikesUrl = (input: string): boolean =>
+  /soundcloud\.com\/[^/]+\/likes(\/|\?|$)/i.test(input.trim());
+
+// a likes url resolves to the owning user, whose liked tracks then come
+// back as a cursor-paged feed. entries are either liked tracks ({track})
+// or liked playlists ({playlist}): only tracks are pulled in, a liked
+// playlist can be pasted as its own link
+const resolveLikedTracks = async (
+  likesUrl: string,
+  fetchImpl: typeof fetch = globalThis.fetch
+): Promise<TSoundCloudTrack[]> => {
+  return await withClientId(async (clientId) => {
+    const resolveResponse = await soundcloudFetch(
+      `${SOUNDCLOUD_API}/resolve?${new URLSearchParams({
+        url: likesUrl.trim(),
+        client_id: clientId
+      })}`,
+      SEARCH_TIMEOUT_MS,
+      fetchImpl
+    );
+
+    if (resolveResponse.status === 404) {
+      throw new SoundCloudError('NOT_FOUND', 'SoundCloud user not found');
+    }
+
+    if (resolveResponse.status === 401 || resolveResponse.status === 403) {
+      throw new SoundCloudError(
+        'BAD_CLIENT_ID',
+        'SoundCloud refused the connection'
+      );
+    }
+
+    if (!resolveResponse.ok) {
+      throw new SoundCloudError('UPSTREAM', 'SoundCloud resolve failed');
+    }
+
+    let resolved: unknown;
+
+    try {
+      resolved = await resolveResponse.json();
+    } catch {
+      throw new SoundCloudError(
+        'UPSTREAM',
+        'SoundCloud returned an invalid response'
+      );
+    }
+
+    const data = resolved as { kind?: unknown; id?: unknown };
+
+    if (data.kind !== 'user' || typeof data.id !== 'number') {
+      throw new SoundCloudError('NOT_FOUND', 'SoundCloud user not found');
+    }
+
+    const rawTracks: unknown[] = [];
+
+    let nextUrl: string | null =
+      `${SOUNDCLOUD_API}/users/${data.id}/likes?${new URLSearchParams({
+        client_id: clientId,
+        limit: String(LIKED_PAGE_LIMIT),
+        linked_partitioning: '1'
+      })}`;
+
+    for (
+      let page = 0;
+      page < LIKED_MAX_PAGES && nextUrl && rawTracks.length < LIKED_MAX_TRACKS;
+      page++
+    ) {
+      const response = await soundcloudFetch(
+        nextUrl,
+        SEARCH_TIMEOUT_MS,
+        fetchImpl
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        throw new SoundCloudError(
+          'BAD_CLIENT_ID',
+          'SoundCloud refused the connection'
+        );
+      }
+
+      if (!response.ok) break;
+
+      let payload: unknown;
+
+      try {
+        payload = await response.json();
+      } catch {
+        break;
+      }
+
+      const body = payload as { collection?: unknown; next_href?: unknown };
+
+      if (!Array.isArray(body.collection) || body.collection.length === 0) {
+        break;
+      }
+
+      for (const entry of body.collection) {
+        const track = (entry as { track?: unknown }).track;
+
+        if (track) rawTracks.push(track);
+      }
+
+      // the cursor arrives without a client id, carry it over by hand
+      const href = body.next_href;
+
+      nextUrl =
+        typeof href === 'string' && href.startsWith('https://')
+          ? `${href}${href.includes('?') ? '&' : '?'}client_id=${clientId}`
+          : null;
+    }
+
+    if (rawTracks.length === 0) return [];
+
+    const hydrated = await hydrateMinimalTracks(rawTracks, clientId, fetchImpl);
+
+    const out: TSoundCloudTrack[] = [];
+
+    for (const raw of hydrated) {
+      const track = toTrack(raw);
+
+      if (track) out.push(track);
+    }
+
+    return out;
+  }, fetchImpl);
+};
+
 // one-byte range probe: signed urls die silently, dead tracks must fail
 // before the party starts instead of hanging every player on error
 const verifyStreamUrl = async (
@@ -640,7 +773,9 @@ export {
   clearSoundCloudClientIdCache,
   discoverClientId,
   extractClientId,
+  looksLikeLikesUrl,
   looksLikePlaylistUrl,
+  resolveLikedTracks,
   resolvePlayableTrack,
   resolvePlaylistTracks,
   resolveStreamUrl,

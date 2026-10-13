@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
-import { advanceMusicLocked } from '../../helpers/music-advance';
 import { throwMusicError } from '../../helpers/music';
+import { advanceMusicLocked } from '../../helpers/music-advance';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 

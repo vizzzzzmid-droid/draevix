@@ -83,6 +83,15 @@ const stubSoundCloud = () => {
         return new Response('{}', { status: 404 });
       }
 
+      // a likes url resolves to the owning user. the url arrives query-
+      // encoded, so match the bare segment rather than a slash-prefixed one
+      if (url.includes('likes')) {
+        return new Response(
+          JSON.stringify({ kind: 'user', id: 77, username: 'TestArtist' }),
+          { status: 200 }
+        );
+      }
+
       return new Response(
         JSON.stringify({
           media: {
@@ -93,6 +102,43 @@ const stubSoundCloud = () => {
               }
             ]
           }
+        }),
+        { status: 200 }
+      );
+    }
+
+    if (url.includes('/users/77/likes')) {
+      return new Response(
+        JSON.stringify({
+          collection: [
+            {
+              kind: 'like',
+              track: {
+                id: 201247503,
+                title: 'Warm',
+                permalink_url: 'https://soundcloud.com/artist/warm',
+                duration: 130713,
+                streamable: true,
+                user: { username: 'TestArtist' }
+              }
+            },
+            {
+              kind: 'like',
+              playlist: { id: 99, title: 'Some liked set' }
+            },
+            {
+              kind: 'like',
+              track: {
+                id: 201247504,
+                title: 'Cold',
+                permalink_url: 'https://soundcloud.com/artist/cold',
+                duration: 200000,
+                streamable: true,
+                user: { username: 'TestArtist' }
+              }
+            }
+          ],
+          next_href: null
         }),
         { status: 200 }
       );
@@ -134,6 +180,25 @@ describe('watch musicSearch', () => {
       trackId: 417474360,
       title: 'Chill Study Beats'
     });
+  });
+});
+
+describe('watch musicPlaylist likes', () => {
+  test('should resolve a likes url into liked tracks, skipping playlists', async () => {
+    const { caller } = await initTest(1);
+    const { tracks } = await caller.voice.musicPlaylist({
+      url: 'https://soundcloud.com/testartist/likes'
+    });
+
+    expect(tracks).toHaveLength(2);
+    expect(tracks[0]).toMatchObject({
+      trackId: 201247503,
+      title: 'Warm',
+      source: 'soundcloud'
+    });
+    expect(tracks[1]).toMatchObject({ trackId: 201247504, title: 'Cold' });
+    // the liked playlist entry is skipped, only tracks come back
+    expect(tracks.some((t) => t.title === 'Some liked set')).toBe(false);
   });
 });
 
