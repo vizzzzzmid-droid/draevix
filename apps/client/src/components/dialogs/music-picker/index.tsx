@@ -311,7 +311,10 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
 
   return (
     <AlertDialog open={isOpen}>
-      <AlertDialogContent className="max-h-[85vh] w-full max-w-2xl overflow-x-clip overflow-y-auto sm:max-w-2xl">
+      {/* the base content is a grid: its auto column sizes to the widest
+          track title and overflows the dialog; a column flex stretches
+          items to the dialog width so truncate can ellipsize instead */}
+      <AlertDialogContent className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-x-clip overflow-y-auto sm:max-w-2xl">
         <AlertDialogHeader>
           <AlertDialogTitle>{t('musicPickerTitle')}</AlertDialogTitle>
           <AlertDialogDescription>

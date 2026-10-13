@@ -78,6 +78,11 @@ const stubSoundCloud = () => {
     }
 
     if (url.includes('/resolve?')) {
+      // a track that died upstream answers 404 on resolve
+      if (url.includes('dead-track')) {
+        return new Response('{}', { status: 404 });
+      }
+
       return new Response(
         JSON.stringify({
           media: {
@@ -225,6 +230,105 @@ describe('watch music queue', () => {
         'Queue entry not found'
       );
     } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should drop a queued track that died upstream and play the next', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: {
+          ...TRACK,
+          trackId: 7,
+          title: 'Dead',
+          permalinkUrl: 'https://soundcloud.com/artist/dead-track'
+        }
+      });
+      await caller.voice.musicQueueAdd({
+        track: {
+          ...TRACK,
+          trackId: 3,
+          title: 'Third',
+          permalinkUrl: 'https://soundcloud.com/artist/third-track'
+        }
+      });
+
+      await caller.voice.musicNext({ expectTrackId: 417474360 });
+
+      const state = await caller.voice.getMusicState();
+
+      expect(state.music?.current?.trackId).toBe(3);
+      expect(state.music?.queue).toHaveLength(0);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should stop the party when every queued track is dead', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: {
+          ...TRACK,
+          trackId: 7,
+          title: 'Dead',
+          permalinkUrl: 'https://soundcloud.com/artist/dead-track'
+        }
+      });
+
+      await caller.voice.musicNext({ expectTrackId: 417474360 });
+
+      const state = await caller.voice.getMusicState();
+
+      expect(state.music).toBeUndefined();
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should skip past a current track that died on refresh', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: {
+          ...TRACK,
+          trackId: 5,
+          title: 'Alive',
+          permalinkUrl: 'https://soundcloud.com/artist/alive-track'
+        }
+      });
+
+      // the current track's upstream link died between play and refresh
+      const stubbed = globalThis.fetch;
+
+      globalThis.fetch = (async (
+        input: string | URL | Request,
+        init?: RequestInit
+      ) => {
+        const url = String(input);
+
+        if (url.includes('/resolve?') && url.includes('chill-study-beats')) {
+          return new Response('{}', { status: 404 });
+        }
+
+        return stubbed(input, init);
+      }) as unknown as typeof fetch;
+
+      await caller.voice.musicRefresh();
+
+      const state = await caller.voice.getMusicState();
+
+      expect(state.music?.current?.trackId).toBe(5);
+      expect(state.music?.queue).toHaveLength(0);
+    } finally {
+      globalThis.fetch = realFetch;
       await runtime.destroy();
     }
   });

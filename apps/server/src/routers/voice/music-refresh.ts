@@ -1,5 +1,6 @@
 import { publishMusicState } from '../../db/publishers';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
+import { advanceMusicLocked, isDeadTrackError } from '../../helpers/music-advance';
 import { resolvePlayableTrack, throwMusicError } from '../../helpers/music';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
@@ -37,6 +38,24 @@ const musicRefreshRoute = protectedProcedure.mutation(async ({ ctx }) => {
 
       publishMusicState(channelId, music);
     } catch (error) {
+      // the current track died upstream: skip it so the party keeps moving
+      // instead of every listener toasting the same failure forever
+      if (isDeadTrackError(error)) {
+        try {
+          await advanceMusicLocked({
+            runtime,
+            channelId,
+            actorUserId: ctx.user.id,
+            expectTrackId: refreshing.trackId,
+            skipCurrent: true
+          });
+        } catch (advanceError) {
+          throw throwMusicError(advanceError);
+        }
+
+        return;
+      }
+
       throw throwMusicError(error);
     }
   });

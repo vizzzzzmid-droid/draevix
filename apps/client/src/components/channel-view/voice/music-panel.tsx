@@ -326,24 +326,24 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const trackUrl = music?.current?.mp3Url ?? '';
 
   // same opt-in as watch and screen shares: someone else's party shows a
-  // join prompt instead of auto-playing. the starter joins implicitly
-  const [joinedUrl, setJoinedUrl] = useState<string | null>(null);
+  // join prompt instead of auto-playing. the starter joins implicitly.
+  // once joined, keep listening across track changes until the party stops
+  const [joined, setJoined] = useState(false);
 
   useEffect(() => {
     if (!trackUrl) {
-      setJoinedUrl(null);
+      setJoined(false);
       return;
     }
 
     if (music?.controllerUserId === ownUserId) {
-      setJoinedUrl(trackUrl);
+      setJoined(true);
     }
   }, [trackUrl, music?.controllerUserId, ownUserId]);
 
   if (!music?.current) return null;
 
   const track = music.current;
-  const joined = joinedUrl !== null && joinedUrl === track.mp3Url;
   const seekMax = Math.max(duration, track.durationSec, 0.01);
   const seekRatio = Math.min(1, Math.max(0, displayPosition / seekMax));
 
@@ -570,7 +570,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
       ) : (
         <button
           type="button"
-          onClick={() => setJoinedUrl(trackUrl)}
+          onClick={() => setJoined(true)}
           className="flex items-center gap-3 rounded-md border border-primary/40 bg-primary/5 p-3 text-left transition hover:bg-primary/10"
         >
           {track.artworkUrl ? (

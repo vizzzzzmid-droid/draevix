@@ -11,11 +11,8 @@ const sendSystemNotification = async (
 ): Promise<boolean> => {
   if (isTauri()) {
     try {
-      const {
-        sendNotification,
-        isPermissionGranted,
-        requestPermission
-      } = await import('@tauri-apps/plugin-notification');
+      const { sendNotification, isPermissionGranted, requestPermission } =
+        await import('@tauri-apps/plugin-notification');
 
       let granted = await isPermissionGranted();
 

@@ -88,7 +88,8 @@ describe('toTrack', () => {
   });
 
   test('should trust playlist entries without a streamable flag', () => {
-    const { streamable, ...abbreviated } = trackJson;
+    const abbreviated: Partial<typeof trackJson> = { ...trackJson };
+    delete abbreviated.streamable;
 
     expect(toTrack({ ...abbreviated, policy: 'MONETIZE' })?.streamable).toBe(
       true
