@@ -1,6 +1,6 @@
 [package]
 name = "draevix-desktop"
-version = "0.0.42"
+version = "0.0.43"
 description = "Draevix desktop client"
 edition = "2021"
 
