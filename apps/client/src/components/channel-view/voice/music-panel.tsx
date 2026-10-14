@@ -116,13 +116,15 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     }
   });
 
-  // same gating as video: only flip the element when it disagrees
+  // same gating as video: only flip the element when it disagrees. an
+  // element that just ended must stay ended: onEnded is dispatching the
+  // advance, replaying here would loop the same track over and over
   useEffect(() => {
     const player = playerRef.current;
 
     if (!player || !music?.current) return;
 
-    if (player.paused && music.playing) {
+    if (player.paused && !player.ended && music.playing) {
       try {
         const result = player.play() as unknown as Promise<void> | undefined;
 
@@ -215,8 +217,19 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   // every listener fires this when their element ends: the server's expect
   // guard makes the race harmless, only the first advance lands
   const currentTrackId = music?.current?.trackId;
+  const endedTrackIdRef = useRef<number | undefined>(undefined);
+
+  // a second `ended` for the same track (duplicate events, stale src replays)
+  // would consume the freshly advanced track before it starts playing
+  useEffect(() => {
+    endedTrackIdRef.current = undefined;
+  }, [currentTrackId]);
 
   const handleEnded = useCallback(async () => {
+    if (endedTrackIdRef.current === currentTrackId) return;
+
+    endedTrackIdRef.current = currentTrackId;
+
     const trpc = getTRPCClient();
 
     try {
