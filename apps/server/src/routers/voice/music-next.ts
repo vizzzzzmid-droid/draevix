@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
 import { throwMusicError } from '../../helpers/music';
 import { advanceMusicLocked } from '../../helpers/music-advance';
+import { logger } from '../../logger';
 import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
@@ -37,6 +38,16 @@ const musicNextRoute = protectedProcedure
           skipCurrent: false
         });
       } catch (error) {
+        // client listeners retry this on a timer: without a log line a
+        // failing advance stalls the whole party invisibly
+        logger.error(
+          'musicNext failed in channel %s (user %s, expect %s): %s',
+          channelId,
+          ctx.user.id,
+          input.expectTrackId,
+          error
+        );
+
         throw throwMusicError(error);
       }
     });

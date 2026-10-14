@@ -97,9 +97,13 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
     return () => clearInterval(timer);
   }, [isPlaying, currentTrackId]);
 
-  const position = music ? getMusicPositionSec(music) : 0;
-  const shownPosition = seeking ? seekValue : position;
-  const durationMax = Math.max(music?.current?.durationSec ?? 0.01, 0.01);
+  // a lost advance leaves the shared clock extrapolating past the end:
+  // the display never shows a position beyond the track's duration
+  const durationMax = Math.max(music?.current?.durationSec ?? 0, 0.01);
+  const position = music
+    ? Math.min(getMusicPositionSec(music), durationMax)
+    : 0;
+  const shownPosition = seeking ? Math.min(seekValue, durationMax) : position;
   const seekRatio = Math.min(100, (shownPosition / durationMax) * 100);
   const current = music?.current;
 
@@ -521,7 +525,7 @@ const MusicPickerDialog = memo(({ isOpen, close }: TDialogBaseProps) => {
               <input
                 type="range"
                 min={0}
-                max={Math.max(current.durationSec, shownPosition, 0.01)}
+                max={Math.max(current.durationSec, 0.01)}
                 step={0.1}
                 value={Math.min(
                   shownPosition,

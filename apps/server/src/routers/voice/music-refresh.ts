@@ -3,6 +3,7 @@ import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime'
 import { advanceMusicLocked, isDeadTrackError } from '../../helpers/music-advance';
 import { resolvePlayableTrack, throwMusicError } from '../../helpers/music';
 import { invariant } from '../../utils/invariant';
+import { logger } from '../../logger';
 import { protectedProcedure } from '../../utils/trpc';
 
 // stream urls are signed and short-lived: a stale player re-resolves the
@@ -55,6 +56,14 @@ const musicRefreshRoute = protectedProcedure.mutation(async ({ ctx }) => {
 
         return;
       }
+
+      logger.error(
+        'musicRefresh failed in channel %s (user %s, track %s): %s',
+        channelId,
+        ctx.user.id,
+        refreshing.trackId,
+        error
+      );
 
       throw throwMusicError(error);
     }

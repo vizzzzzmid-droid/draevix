@@ -35,6 +35,15 @@ type TMusicPanelProps = {
 
 const POSITION_SYNC_THRESHOLD_SEC = 3;
 const SNAP_SETTLE_MS = 700;
+// the shared clock is trusted past the media's end only with a margin: bad
+// duration metadata must never cut off audio that is still playing
+const END_MARGIN_SEC = 3;
+// how long the watchdog waits after a dispatch before retrying a lost or
+// failed advance, so a party never stalls on a finished track
+const ADVANCE_RETRY_MS = 5000;
+// a server replay (repeat-one) resets the clock to the start: an ended
+// element with a near-zero clock is nudged back to life within this window
+const RESTART_WINDOW_SEC = 5;
 
 const isHlsUrl = (url: string): boolean => /\.m3u8(\?|$)/i.test(url);
 
@@ -83,7 +92,12 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
 
     if (seekingRef.current) return;
 
-    setDisplayPosition(getMusicPositionSec(music));
+    // the extrapolated clock can run past the end while a lost advance is
+    // retried: the display never shows a position beyond the known duration
+    const extrapolated = getMusicPositionSec(music);
+    const cap = Math.max(duration, music.current.durationSec ?? 0, 0);
+
+    setDisplayPosition(cap > 0 ? Math.min(extrapolated, cap) : extrapolated);
 
     if (settleTimerRef.current) {
       clearTimeout(settleTimerRef.current);
@@ -102,7 +116,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
         settleTimerRef.current = null;
       }
     };
-  }, [music, snapToTarget]);
+  }, [music, snapToTarget, duration]);
 
   // volume is per-listener, never broadcast
   useEffect(() => {
@@ -215,20 +229,25 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   }, [t]);
 
   // every listener fires this when their element ends: the server's expect
-  // guard makes the race harmless, only the first advance lands
+  // guard makes the race harmless, only the first advance lands. a second
+  // `ended` for the same track must not consume the freshly advanced track,
+  // and a failed advance is retried by the watchdog below instead of
+  // stalling the party on a finished track
   const currentTrackId = music?.current?.trackId;
   const endedTrackIdRef = useRef<number | undefined>(undefined);
+  const endedAtRef = useRef(0);
+  const erroredTrackIdRef = useRef<number | undefined>(undefined);
 
-  // a second `ended` for the same track (duplicate events, stale src replays)
-  // would consume the freshly advanced track before it starts playing
   useEffect(() => {
     endedTrackIdRef.current = undefined;
+    erroredTrackIdRef.current = undefined;
   }, [currentTrackId]);
 
-  const handleEnded = useCallback(async () => {
+  const dispatchAdvance = useCallback(async () => {
     if (endedTrackIdRef.current === currentTrackId) return;
 
     endedTrackIdRef.current = currentTrackId;
+    endedAtRef.current = Date.now();
 
     const trpc = getTRPCClient();
 
@@ -237,9 +256,18 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
         expectTrackId: currentTrackId
       });
     } catch (error) {
-      toast.error(getTrpcError(error, t('failedMusicTogether')));
+      // retries would toast in a loop: surface a track's failure once
+      if (erroredTrackIdRef.current !== currentTrackId) {
+        erroredTrackIdRef.current = currentTrackId;
+
+        toast.error(getTrpcError(error, t('failedMusicTogether')));
+      }
     }
   }, [currentTrackId, t]);
+
+  const handleEnded = useCallback(() => {
+    void dispatchAdvance();
+  }, [dispatchAdvance]);
 
   const handleTimeUpdate = useCallback(
     (event: React.SyntheticEvent<HTMLMediaElement>) => {
@@ -259,6 +287,14 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   );
 
   const handleStaleSource = useCallback(async () => {
+    // some streams die with an error right at media end instead of a clean
+    // `ended`: that is a finish, not a stale url, so advance the party
+    if (playerRef.current?.ended) {
+      void dispatchAdvance();
+
+      return;
+    }
+
     if (!currentUrl || refreshedUrlRef.current === currentUrl) return;
 
     refreshedUrlRef.current = currentUrl;
@@ -272,7 +308,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     } catch (error) {
       toast.error(getTrpcError(error, t('failedMusicTogether')));
     }
-  }, [currentUrl, t]);
+  }, [currentUrl, dispatchAdvance, playerRef, t]);
 
   const handleQueueRemove = useCallback(
     async (index: number) => {
@@ -353,6 +389,59 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
       setJoined(true);
     }
   }, [trackUrl, music?.controllerUserId, ownUserId]);
+
+  // the whole party relies on each element's ended event: if it never fires
+  // (a stream error instead of a clean end) or the advance mutation is
+  // lost, the shared clock runs past the end forever. this ticks while
+  // playing and re-dispatches so the party always moves on, and nudges an
+  // ended element when the server genuinely replayed the same track
+  useEffect(() => {
+    if (!joined || !music?.playing) return;
+
+    const timer = setInterval(() => {
+      const player = playerRef.current;
+
+      if (!player || !music.current) return;
+
+      const target = getMusicPositionSec(music);
+      const knownDuration =
+        Number.isFinite(player.duration) && player.duration > 0
+          ? player.duration
+          : (music.current.durationSec ?? 0);
+      const pastEnd =
+        knownDuration > 0 && target >= knownDuration + END_MARGIN_SEC;
+      const dispatched = endedTrackIdRef.current === music.current.trackId;
+
+      if (pastEnd && (player.ended || player.error !== null || player.paused)) {
+        if (
+          !dispatched ||
+          Date.now() - endedAtRef.current >= ADVANCE_RETRY_MS
+        ) {
+          void dispatchAdvance();
+        }
+
+        return;
+      }
+
+      // repeat-one re-commits the same track with a reset clock: a stable
+      // stream url leaves the element ended, so clear the ended guard and
+      // restart it. a stalled party keeps a far-end clock, so this can
+      // never resurrect the old replay-the-finished-track loop
+      if (player.ended && target < RESTART_WINDOW_SEC) {
+        endedTrackIdRef.current = undefined;
+
+        try {
+          const result = player.play() as unknown as Promise<void> | undefined;
+
+          void result?.catch(() => {});
+        } catch {
+          // autoplay blocked until the user interacts with the page
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [joined, music, dispatchAdvance, playerRef]);
 
   if (!music?.current) return null;
 
