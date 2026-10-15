@@ -109,9 +109,12 @@ fn stop_session_locked(session: &mut Option<Session>) {
     }
 }
 
+// Async on purpose: sync tauri commands run on the main (UI) thread, and
+// start/stop can block for seconds on a slow or wedged audio stack — that
+// froze the whole window. Async commands run on the async runtime instead.
 #[tauri::command]
-pub fn system_audio_start(
-    state: tauri::State<SystemAudioState>,
+pub async fn system_audio_start(
+    state: tauri::State<'_, SystemAudioState>,
 ) -> Result<SystemAudioInfo, String> {
     let mut guard = state.inner.lock().map_err(|_| "audio state poisoned")?;
 
@@ -137,8 +140,8 @@ pub fn system_audio_start(
 }
 
 #[tauri::command]
-pub fn system_audio_poll(
-    state: tauri::State<SystemAudioState>,
+pub async fn system_audio_poll(
+    state: tauri::State<'_, SystemAudioState>,
 ) -> Result<SystemAudioChunk, String> {
     let mut guard = state.inner.lock().map_err(|_| "audio state poisoned")?;
 
@@ -196,8 +199,8 @@ pub fn system_audio_poll(
 }
 
 #[tauri::command]
-pub fn system_audio_info(
-    state: tauri::State<SystemAudioState>,
+pub async fn system_audio_info(
+    state: tauri::State<'_, SystemAudioState>,
 ) -> Result<CaptureInfo, String> {
     let guard = state.inner.lock().map_err(|_| "audio state poisoned")?;
     let session = guard
@@ -220,7 +223,7 @@ pub fn system_audio_info(
 }
 
 #[tauri::command]
-pub fn system_audio_stop(state: tauri::State<SystemAudioState>) -> Result<(), String> {
+pub async fn system_audio_stop(state: tauri::State<'_, SystemAudioState>) -> Result<(), String> {
     let mut guard = state.inner.lock().map_err(|_| "audio state poisoned")?;
 
     stop_session_locked(&mut guard);
