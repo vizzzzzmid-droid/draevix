@@ -747,29 +747,36 @@ mod windows_impl {
     /// PIDs with audio sessions on the default render endpoint that are NOT
     /// in our tree: games, players, browsers — everything the user hears
     /// except our own client (and therefore every call voice it renders).
-    fn foreign_audio_pids() -> Result<Vec<u32>, String> {
+    fn foreign_audio_pids(stage: &Arc<Mutex<String>>) -> Result<Vec<u32>, String> {
         unsafe {
+            set_stage(stage, "sessions:enumerator");
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
                     .map_err(|e| format!("[loopback/sessions] enumerator: {e:?}"))?;
+            set_stage(stage, "sessions:endpoint");
             let device = enumerator
                 .GetDefaultAudioEndpoint(eRender, eConsole)
                 .map_err(|e| format!("[loopback/sessions] endpoint: {e:?}"))?;
             // GetSessionEnumerator lives on IAudioSessionManager2 (the base
             // IAudioSessionManager only has per-session control/volume).
+            set_stage(stage, "sessions:manager");
             let manager: IAudioSessionManager2 = device
                 .Activate(CLSCTX_ALL, None)
                 .map_err(|e| format!("[loopback/sessions] session manager: {e:?}"))?;
+            set_stage(stage, "sessions:list");
             let list = manager
                 .GetSessionEnumerator()
                 .map_err(|e| format!("[loopback/sessions] list: {e:?}"))?;
+            set_stage(stage, "sessions:count");
             let count = list
                 .GetCount()
                 .map_err(|e| format!("[loopback/sessions] count: {e:?}"))?;
 
+            set_stage(stage, "sessions:tree");
             let ours = our_tree_pids();
             let mut pids = HashSet::new();
 
+            set_stage(stage, "sessions:loop");
             for index in 0..count {
                 let session = match list.GetSession(index) {
                     Ok(session) => session,
@@ -1149,7 +1156,8 @@ mod windows_impl {
             cycle += 1;
 
             set_stage(&stage, "sessions");
-            let all = foreign_audio_pids()?;
+            let all = foreign_audio_pids(&stage)?;
+            set_stage(&stage, "proc-snapshot");
             let (parents, names) = process_snapshot();
 
             // INCLUDE captures whole trees: keep only roots, otherwise an app
