@@ -280,6 +280,9 @@ mod windows_impl {
     const WAVE_FORMAT_IEEE_FLOAT: u16 = 3;
     const WAVE_FORMAT_PCM: u16 = 1;
     const WAVE_FORMAT_EXTENSIBLE: u16 = 0xFFFE;
+    // Substring of the per-pid activation timeout error: lets the initial
+    // sync abort with a precise reason instead of burning 5s per pid.
+    const ACTIVATION_TIMEOUT_MARK: &str = "timed out waiting for loopback activation";
     // KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = {00000003-0000-0010-8000-00AA00389B71}
     const SUBTYPE_IEEE_FLOAT: GUID =
         GUID::from_values(3, 0, 0x10, [0x80, 0, 0, 0xAA, 0, 0x38, 0x9B, 0x71]);
@@ -297,12 +300,18 @@ mod windows_impl {
 
         let (tx, rx) = mpsc::channel::<Result<(), String>>();
 
+        // Phase markers for the timeout arm below: when the pump never
+        // reports in, the last phase it entered is the only clue about
+        // where it got stuck (COM endpoint, mix format, pid activation...).
+        let stage = Arc::new(Mutex::new(String::from("spawn")));
+
         let thread_queue = Arc::clone(&queue);
         let thread_lost = Arc::clone(&lost_total);
         let thread_clipped = Arc::clone(&clipped_total);
         let thread_device_changed = Arc::clone(&device_changed);
         let thread_stop = Arc::clone(&stop);
         let thread_info = Arc::clone(&info);
+        let thread_stage = Arc::clone(&stage);
 
         let handle = std::thread::spawn(move || {
             // The thread owns every COM object it creates; nothing crosses threads.
@@ -316,6 +325,7 @@ mod windows_impl {
                     thread_stop,
                     thread_info,
                     ready_tx,
+                    thread_stage,
                 )
             };
 
@@ -353,7 +363,15 @@ mod windows_impl {
                 if handle.is_finished() {
                     let _ = handle.join();
                 }
-                Err("[loopback/start] timed out starting system audio capture".to_string())
+
+                let at = stage
+                    .lock()
+                    .map(|guard| guard.clone())
+                    .unwrap_or_else(|poisoned| poisoned.into_inner().clone());
+
+                Err(format!(
+                    "[loopback/start] timed out starting system audio capture (stage: {at})"
+                ))
             }
         }
     }
@@ -860,10 +878,9 @@ mod windows_impl {
                 Ok(Err(e)) => Err(format!(
                     "[loopback/activate-callback] loopback activation failed: {e:?}"
                 )),
-                Err(_) => Err(
-                    "[loopback/activate-callback] timed out waiting for loopback activation"
-                        .to_string(),
-                ),
+                Err(_) => Err(format!(
+                    "[loopback/activate-callback] {ACTIVATION_TIMEOUT_MARK}"
+                )),
             };
 
             // Balance the async-operation reference obtained above.
@@ -1006,6 +1023,13 @@ mod windows_impl {
         }
     }
 
+    fn set_stage(stage: &Arc<Mutex<String>>, value: &str) {
+        if let Ok(mut guard) = stage.lock() {
+            guard.clear();
+            guard.push_str(value);
+        }
+    }
+
     unsafe fn run_capture_loop(
         queue: Arc<Mutex<VecDeque<f32>>>,
         lost_total: Arc<AtomicU64>,
@@ -1014,7 +1038,9 @@ mod windows_impl {
         stop: Arc<AtomicBool>,
         info: Arc<Mutex<CaptureInfo>>,
         ready: mpsc::Sender<Result<(), String>>,
+        stage: Arc<Mutex<String>>,
     ) -> Result<(), String> {
+        set_stage(&stage, "com-init");
         let com_hr = CoInitializeEx(None, COINIT_MULTITHREADED);
 
         if com_hr.is_err() {
@@ -1046,10 +1072,12 @@ mod windows_impl {
             }
         };
 
+        set_stage(&stage, "endpoint");
         let initial_device = default_endpoint_id()?;
 
         // Device mix format feeds every per-PID loopback Initialize (their
         // own GetMixFormat is E_NOTIMPL — see default_mix_format).
+        set_stage(&stage, "mix-format");
         let format_buf = default_mix_format()?;
 
         let (channels, mix_rate, format_tag, extra_size, is_float_extensible) =
@@ -1090,6 +1118,7 @@ mod windows_impl {
         // --- event-driven capture -------------------------------------------
         // One event shared by all per-PID clients: every wake drains every
         // client, empty ones cost almost nothing.
+        set_stage(&stage, "event");
         let event = CreateEventW(None, false, false, None)
             .map_err(|e| format!("[loopback/event] cannot create capture event: {e:?}"))?;
 
@@ -1119,6 +1148,7 @@ mod windows_impl {
         let mut sync_pids = |captures: &mut Vec<ActiveCapture>| -> Result<(), String> {
             cycle += 1;
 
+            set_stage(&stage, "sessions");
             let all = foreign_audio_pids()?;
             let (parents, names) = process_snapshot();
 
@@ -1149,12 +1179,26 @@ mod windows_impl {
 
                 // An app may die between listing and open; a dead pid is
                 // simply skipped and retried on a later resync if listed.
+                set_stage(&stage, &format!("open-pid {pid}"));
                 match open_pid_capture(pid, event, format_ptr, channels, mix_rate) {
                     Ok(cap) => {
                         captures.push(cap);
                         failed_at.remove(&pid);
                     }
-                    Err(_) => {
+                    Err(error) => {
+                        // The initial sync must not burn 5s of activation
+                        // timeout per pid: when the loopback callback never
+                        // fires, abort right away with the real reason
+                        // instead of blowing the outer start timeout with a
+                        // generic message.
+                        if cycle == 1 && error.contains(ACTIVATION_TIMEOUT_MARK) {
+                            return Err(format!(
+                                "loopback activation not completing on this system \
+                                 (stuck on pid {pid}; {} capture(s) opened before)",
+                                captures.len()
+                            ));
+                        }
+
                         failed_at.insert(pid, cycle);
                     }
                 }
@@ -1191,6 +1235,7 @@ mod windows_impl {
         // caller polls for data. A later failure surfaces through poll().
         // Zero captures is fine (silence) — apps appearing later are picked
         // up by the periodic resync below.
+        set_stage(&stage, "ready");
         let _ = ready.send(Ok(()));
 
         let mut polls_since_device_check = 0u32;
