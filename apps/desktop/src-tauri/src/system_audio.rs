@@ -724,8 +724,17 @@ mod windows_impl {
         tree.insert(own);
 
         // Anything whose ancestor chain reaches our pid is ours.
+        //
+        // Snapshot parent chains are NOT guaranteed to be acyclic: PID reuse
+        // and occasional self-parented entries can close a loop that never
+        // passes through our pid, which used to spin this walk forever and
+        // wedge the whole pump startup (stage sessions:tree). Real trees
+        // are shallow — cap the walk like the untrusted input it is.
+        const MAX_ANCESTRY_HOPS: usize = 64;
+
         for pid in parent_of.keys() {
             let mut current = *pid;
+            let mut hops = 0usize;
 
             while let Some(&parent) = parent_of.get(&current) {
                 if parent == own {
@@ -733,11 +742,15 @@ mod windows_impl {
                     break;
                 }
 
-                if parent == 0 || !parent_of.contains_key(&parent) {
+                if parent == 0
+                    || !parent_of.contains_key(&parent)
+                    || hops >= MAX_ANCESTRY_HOPS
+                {
                     break;
                 }
 
                 current = parent;
+                hops += 1;
             }
         }
 
@@ -901,19 +914,25 @@ mod windows_impl {
     }
 
     /// True when `pid` descends from `ancestor` in the given parent map.
+    /// Bounded exactly like our_tree_pids: a reused-pid cycle in the map
+    /// must never hang the pump's resync.
     fn is_descendant(pid: u32, ancestor: u32, parents: &HashMap<u32, u32>) -> bool {
+        const MAX_ANCESTRY_HOPS: usize = 64;
+
         let mut current = pid;
+        let mut hops = 0usize;
 
         while let Some(&parent) = parents.get(&current) {
             if parent == ancestor {
                 return true;
             }
 
-            if parent == 0 || !parents.contains_key(&parent) {
+            if parent == 0 || !parents.contains_key(&parent) || hops >= MAX_ANCESTRY_HOPS {
                 return false;
             }
 
             current = parent;
+            hops += 1;
         }
 
         false
