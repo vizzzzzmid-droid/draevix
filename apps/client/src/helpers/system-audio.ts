@@ -114,10 +114,49 @@ registerProcessor('draevix-system-audio', DraevixSystemAudioProcessor);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Belt and braces: the native command is bounded on its side (8s activation
+// window, wedged pump detached), but if its promise ever failed to settle the
+// whole share would hang on this await — time it out and let the caller fall
+// back to video-only instead of never starting.
+const START_TIMEOUT_MS = 10_000;
+
+const invokeStart = async (): Promise<TSystemAudioInfo> => {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  const started = invoke<TSystemAudioInfo>('system_audio_start');
+  // when the timeout wins the race this promise is orphaned: keep it handled
+  // so a late rejection never surfaces as an unhandled rejection
+  started.catch(() => undefined);
+
+  try {
+    return await Promise.race([
+      started,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error('system audio start timed out')),
+          START_TIMEOUT_MS
+        );
+      })
+    ]);
+  } catch (error) {
+    // on timeout queue a stop behind the wedged start: it runs the moment
+    // the native side releases the audio-state lock
+    if (
+      error instanceof Error &&
+      error.message === 'system audio start timed out'
+    ) {
+      void invoke('system_audio_stop').catch(() => undefined);
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+};
+
 const startSystemAudioTrack = async (options: {
   onInterrupted: (reason: TSystemAudioInterruptReason) => void;
 }): Promise<TSystemAudioHandle> => {
-  const info = await invoke<TSystemAudioInfo>('system_audio_start');
+  const info = await invokeStart();
 
   if (
     info.sampleRate !== SYSTEM_AUDIO_SAMPLE_RATE ||
@@ -222,7 +261,7 @@ const startSystemAudioTrack = async (options: {
     if (stopped) return;
 
     try {
-      await invoke('system_audio_start');
+      await invokeStart();
     } catch {
       doStop();
       options.onInterrupted('unavailable');

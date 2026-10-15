@@ -103,8 +103,15 @@ fn stop_session_locked(session: &mut Option<Session>) {
         active.stop.store(true, Ordering::SeqCst);
 
         if let Some(handle) = active.handle {
-            // The pump wakes at least every 2 seconds, so this join is short.
-            let _ = handle.join();
+            // The pump wakes at least every 2 seconds in normal flow, but a
+            // wedged audio stack can block it in an unbounded COM call.
+            // Joining an unfinished thread would hang this command (and the
+            // whole screen share) forever: reap what already exited and
+            // detach the rest — it exits on its own the moment it returns
+            // from the blocking call.
+            if handle.is_finished() {
+                let _ = handle.join();
+            }
         }
     }
 }
@@ -339,7 +346,13 @@ mod windows_impl {
             }
             Err(_) => {
                 stop.store(true, Ordering::SeqCst);
-                let _ = handle.join();
+                // The pump may be wedged in an unbounded COM call into a
+                // hung audio stack: joining here would hang this command
+                // forever (on 0.0.44 the whole UI). Detach instead — the
+                // thread exits on its own once it returns from the call.
+                if handle.is_finished() {
+                    let _ = handle.join();
+                }
                 Err("[loopback/start] timed out starting system audio capture".to_string())
             }
         }
