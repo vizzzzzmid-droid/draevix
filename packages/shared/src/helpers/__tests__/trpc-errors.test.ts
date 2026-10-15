@@ -80,4 +80,12 @@ describe('getTrpcError', () => {
   test('should fall back for a value that is not an error', () => {
     expect(getTrpcError('nope', 'fb')).toBe('fb');
   });
+
+  // getDisplayMedia rejections often carry no message, only a name: an
+  // empty toast would render as "nothing happened" on share failures
+  test('should show the error name when the message is empty', () => {
+    expect(getTrpcError(new DOMException('', 'NotAllowedError'), 'fb')).toBe(
+      'NotAllowedError'
+    );
+  });
 });

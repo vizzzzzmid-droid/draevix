@@ -48,7 +48,10 @@ const getTrpcError = (err: unknown, fallback: string): string => {
   }
 
   if (err instanceof Error) {
-    return err.message;
+    // media APIs (getDisplayMedia and friends) often reject with no message,
+    // only a name like NotAllowedError: an empty toast would render as
+    // "nothing happened", so show the name instead
+    return err.message || err.name || fallback;
   }
 
   return fallback;
