@@ -45,12 +45,14 @@ const SNOWFLAKE = '❄︎';
 // four-pointed star (U+2726) in text presentation, used for gold glints
 const SPARKLE = '✦︎';
 
-// Particle effects (fire/frost/gold) need a positioned wrapper around the
-// text. Layout classes from the caller (flex-1, text size/color) belong on
-// that wrapper so flex rows keep working — but the wrapper must stay
-// overflow-visible, because embers and snowflakes intentionally fly outside
-// its box. Text truncation therefore moves to the inner text span, which
-// otherwise inherits everything normally.
+// Particle effects (fire/frost/gold) need three layers:
+// - outer: flex-row layout (grows via the caller's flex-1, pushes row
+//   icons right). Must stay overflow-visible so particles can escape.
+// - particle box: shrink-wrapped to the text width (capped at 100%), the
+//   positioned ancestor for the particles, so `left: X%` always spreads
+//   them over the nickname itself and never over the whole row.
+// - text span: the only element that clips (ellipsis), so truncation never
+//   touches the particles.
 const TRUNCATE_TOKEN = /(^|\s)truncate(\s|$)/;
 
 // styled nickname: admin-assigned effect plus font. unknown values coming
@@ -63,8 +65,15 @@ const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
       ? undefined
       : { fontFamily: USERNAME_FONT_STACKS[validFont] };
   // the caller asked for ellipsis: the inner text span (not the particle
-  // wrapper) is the element that actually clips
+  // box) is the element that actually clips
   const truncate = TRUNCATE_TOKEN.test(className ?? '');
+  // `truncate` on the outer would clip escaping particles via its
+  // overflow-hidden: layout/size/color classes pass through, truncation
+  // is re-applied on the inner text span instead
+  const outerClassName = (className ?? '')
+    .split(/\s+/)
+    .filter((token) => token !== '' && token !== 'truncate')
+    .join(' ');
 
   const text = (
     <span
@@ -79,12 +88,11 @@ const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
   );
 
   const fxWrapper = (fxClass: string, particles: ReactNode) => (
-    <span
-      className={cn('username-fx', fxClass, 'min-w-0', className)}
-      style={{ overflow: 'visible' }}
-    >
-      {text}
-      {particles}
+    <span className={cn('min-w-0', outerClassName)}>
+      <span className={cn('username-fx', fxClass, 'max-w-full')}>
+        {text}
+        {particles}
+      </span>
     </span>
   );
 
