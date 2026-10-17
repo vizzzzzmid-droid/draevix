@@ -521,6 +521,44 @@ describe('/public', () => {
     expect(disposition).toInclude("filename*=UTF-8''");
   });
 
+  test('should serve a file with a non-latin name instead of 500ing', async () => {
+    const temp = await upload(
+      new File(['cyrillic content'], 'привет-фото.png', {
+        type: 'image/png'
+      }),
+      token
+    );
+
+    const { caller } = await initTest();
+
+    const messageId = await caller.messages.send({
+      content: 'Cyrillic file',
+      channelId: 1,
+      files: [temp.id]
+    });
+
+    const dbFile = await getFileByMessageId(messageId);
+
+    expect(dbFile).toBeDefined();
+
+    const response = await fetch(
+      `${testsBaseUrl}/public/${encodeURIComponent(dbFile!.name)}`
+    );
+
+    expect(response.status).toBe(200);
+
+    const disposition = response.headers.get('Content-Disposition');
+
+    expect(disposition).toBeDefined();
+    // quoted filename is latin-1 only: cyrillic becomes '_' so the header
+    // never throws, the full name rides in the RFC 5987 parameter
+    expect(disposition).toInclude('filename="______-____.png"');
+    expect(disposition).toInclude(
+      `filename*=UTF-8''${encodeURIComponent(dbFile!.originalName)}`
+    );
+    expect(await response.text()).toBe('cyrillic content');
+  });
+
   test('should not allow path traversal to read arbitrary files', async () => {
     const response = await fetch(`${testsBaseUrl}/public/../../../etc/passwd`);
 

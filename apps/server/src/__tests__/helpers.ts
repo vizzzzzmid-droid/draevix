@@ -94,7 +94,9 @@ const uploadFile = async (file: File, token: string) =>
       'Content-Type': 'application/octet-stream',
       [UploadHeaders.TYPE]: file.type,
       [UploadHeaders.CONTENT_LENGTH]: file.size.toString(),
-      [UploadHeaders.ORIGINAL_NAME]: file.name,
+      // like the real client: http headers are latin-1 only, so the name
+      // travels percent-encoded and the server decodes it back
+      [UploadHeaders.ORIGINAL_NAME]: encodeURIComponent(file.name.trim()),
       [UploadHeaders.TOKEN]: token
     },
     body: file

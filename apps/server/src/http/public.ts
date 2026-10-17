@@ -95,8 +95,14 @@ const publicRouteHandler = async (
     ? 'inline'
     : 'attachment';
 
-  const safeFileName = dbFile.originalName
-    .replace(/[\r\n]/g, '') // strip CR/LF to prevent header injection
+  // the quoted filename parameter is latin-1 only: a raw cyrillic/CJK name
+  // here makes node/bun throw ERR_INVALID_CHAR and the whole request 500s
+  // (files with such names upload fine but never display or download).
+  // latin names pass through untouched; anything outside printable ascii
+  // becomes '_' — the full original name still rides in the filename*
+  // parameter below, which is what modern clients actually use
+  const asciiFileName = dbFile.originalName
+    .replace(/[^\x20-\x7E]/g, '_')
     .replace(/"/g, '\\"'); // escape double quotes for header safety
 
   const encodedFileName = encodeURIComponent(dbFile.originalName).replace(
@@ -108,7 +114,7 @@ const publicRouteHandler = async (
     cacheControl: buildCacheControl(isSignedUrlProtected, tokenExpiresAt),
     md5: dbFile.md5,
     contentType: dbFile.mimeType,
-    contentDisposition: `${contentDisposition}; filename="${safeFileName}"; filename*=UTF-8''${encodedFileName}`,
+    contentDisposition: `${contentDisposition}; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`,
     notFoundMessage: 'File not found on disk',
     onNotFound: () =>
       logger.error(
