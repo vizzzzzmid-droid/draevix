@@ -93,6 +93,12 @@ const advanceMusicLocked = async ({
     pending = [...pending.slice(pick), ...pending.slice(0, pick)];
   }
 
+  // repeat-all rotates the queue instead of consuming it: the finished
+  // track goes to the back, so the whole cycle repeats instead of just
+  // the last track. the refresh path (skipCurrent) keeps consuming, a
+  // dead current must never circle back into the queue
+  const rotate = !skipCurrent && current.repeatMode === 'all';
+
   // a queued track can die between queueing and playing: drop dead entries
   // and keep advancing until something playable is left
   while (pending.length > 0) {
@@ -103,7 +109,11 @@ const advanceMusicLocked = async ({
     try {
       const playable = await resolvePlayableTrack(next);
 
-      commit(playable, next.addedByUserId, rest);
+      commit(
+        playable,
+        next.addedByUserId,
+        rotate && current.current ? [...rest, current.current] : rest
+      );
 
       return;
     } catch (error) {

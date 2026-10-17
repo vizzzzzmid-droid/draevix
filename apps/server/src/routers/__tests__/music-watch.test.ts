@@ -552,6 +552,50 @@ describe('watch music repeat and shuffle', () => {
     }
   });
 
+  test('should rotate the queue on repeat-all instead of consuming it', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 2, title: 'Second' }
+      });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 3, title: 'Third' }
+      });
+      await caller.voice.musicSetRepeat({ mode: 'all' });
+
+      // finished tracks go to the back: the whole cycle repeats, not just
+      // the last track
+      await caller.voice.musicNext({ expectTrackId: 417474360 });
+
+      let state = (await caller.voice.getMusicState()).music;
+
+      expect(state?.current?.trackId).toBe(2);
+      expect(state?.queue.map((entry) => entry.trackId)).toEqual([
+        3, 417474360
+      ]);
+
+      await caller.voice.musicNext({ expectTrackId: 2 });
+
+      state = (await caller.voice.getMusicState()).music;
+
+      expect(state?.current?.trackId).toBe(3);
+      expect(state?.queue.map((entry) => entry.trackId)).toEqual([
+        417474360, 2
+      ]);
+
+      await caller.voice.musicNext({ expectTrackId: 3 });
+
+      state = (await caller.voice.getMusicState()).music;
+
+      expect(state?.current?.trackId).toBe(417474360);
+      expect(state?.queue.map((entry) => entry.trackId)).toEqual([2, 3]);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
   test('should pick a random queued track on shuffle', async () => {
     const { runtime, caller } = await withVoiceChannel(1);
 
