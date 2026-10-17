@@ -98,6 +98,8 @@
   "musicControlledBy": "Выбрал {{name}}",
   "musicQueue": "Очередь",
   "musicStop": "Остановить",
+  "musicStopParty": "Остановить для всех",
+  "musicLeave": "Закрыть плеер",
   "musicPlay": "Играть",
   "musicPause": "Пауза",
   "musicSeek": "Перемотать",

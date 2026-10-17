@@ -19,6 +19,7 @@ import {
   Repeat1,
   Shuffle,
   SkipForward,
+  Square,
   Trash2,
   Volume2,
   VolumeX,
@@ -218,7 +219,15 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     setMusicVolume(volume, !muted);
   }, [setMusicVolume, volume, muted]);
 
-  const handleStop = useCallback(async () => {
+  // the X only closes the player for this listener: the element unmounts
+  // and goes quiet, the party keeps playing for everyone else. reopening
+  // is the join prompt below
+  const handleLeave = useCallback(() => {
+    setJoined(false);
+  }, []);
+
+  // stopping for everyone stays explicit and controller-only
+  const handleStopParty = useCallback(async () => {
     const trpc = getTRPCClient();
 
     try {
@@ -375,17 +384,22 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const trackUrl = music?.current?.mp3Url ?? '';
 
   // same opt-in as watch and screen shares: someone else's party shows a
-  // join prompt instead of auto-playing. the starter joins implicitly.
-  // once joined, keep listening across track changes until the party stops
+  // join prompt instead of auto-playing. the starter joins implicitly, but
+  // only when the party appears — never on track changes, so someone who
+  // closed the player stays out until they tap join again
   const [joined, setJoined] = useState(false);
+  const prevTrackUrlRef = useRef('');
 
   useEffect(() => {
+    const hadParty = prevTrackUrlRef.current !== '';
+    prevTrackUrlRef.current = trackUrl;
+
     if (!trackUrl) {
       setJoined(false);
       return;
     }
 
-    if (music?.controllerUserId === ownUserId) {
+    if (!hadParty && music?.controllerUserId === ownUserId) {
       setJoined(true);
     }
   }, [trackUrl, music?.controllerUserId, ownUserId]);
@@ -480,11 +494,21 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
         >
           <ListMusic className="h-4 w-4" />
         </Button>
+        {music.controllerUserId === ownUserId && (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => void handleStopParty()}
+            title={t('musicStopParty')}
+          >
+            <Square className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           size="icon"
           variant="ghost"
-          onClick={handleStop}
-          title={t('musicStop')}
+          onClick={handleLeave}
+          title={t('musicLeave')}
         >
           <X className="h-4 w-4" />
         </Button>
@@ -621,7 +645,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
               type="range"
               min={0}
               max={1}
-              step={0.05}
+              step={0.02}
               value={muted ? 0 : volume}
               onChange={handleVolumeChange}
               aria-label={t('watchVolume')}

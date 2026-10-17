@@ -98,6 +98,8 @@
   "musicControlledBy": "Picked by {{name}}",
   "musicQueue": "Queue",
   "musicStop": "Stop listening",
+  "musicStopParty": "Stop for everyone",
+  "musicLeave": "Close player",
   "musicPlay": "Play",
   "musicPause": "Pause",
   "musicSeek": "Seek",
