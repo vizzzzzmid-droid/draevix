@@ -1,4 +1,6 @@
+import { isTauri } from '@/helpers/get-file-url';
 import { Button, Tooltip } from '@draevix/ui';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { DollarSign } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +11,16 @@ const DonateButton = memo(() => {
   const { t } = useTranslation('topbar');
 
   const handleDonate = useCallback(() => {
+    // window.open goes nowhere inside the desktop webview: the opener
+    // plugin hands the url to the os browser instead
+    if (isTauri()) {
+      void openUrl(DONATE_URL).catch(() => {
+        window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
+      });
+
+      return;
+    }
+
     window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
   }, []);
 
