@@ -40,6 +40,7 @@ import {
   Slider,
   Switch
 } from '@draevix/ui';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { filesize } from 'filesize';
 import { Info } from 'lucide-react';
 import {
@@ -211,6 +212,15 @@ const Devices = memo(() => {
     await requestPermission();
     await loadDevices();
   }, [requestPermission, loadDevices]);
+
+  // a remembered block never re-prompts on its own: this retries the real
+  // request (covers unblocking done in the os/browser meanwhile) and, on
+  // desktop, jumps straight to the windows microphone privacy page
+  const openWindowsMicSettings = useCallback(() => {
+    void openUrl('ms-settings:privacy-microphone').catch(() => {
+      toast.error(t('failedOpenMicSettings'));
+    });
+  }, [t]);
 
   const startWebcamTest = useCallback(async () => {
     const didStart = await startVideoTest();
@@ -427,6 +437,38 @@ const Devices = memo(() => {
             <p className="text-sm text-muted-foreground">
               {t('mutedDuringTest')}
             </p>
+          )}
+
+          {permissionState === 'denied' && (
+            <Alert variant="destructive">
+              <Info />
+              <AlertDescription>
+                <p>{t('micAccessDeniedDesc')}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={requestMicrophonePermission}
+                  >
+                    {t('requestMicAgain')}
+                  </Button>
+                  {isTauri() && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={openWindowsMicSettings}
+                    >
+                      {t('openWindowsMicSettings')}
+                    </Button>
+                  )}
+                </div>
+                <p className="mt-2 text-xs opacity-80">
+                  {isTauri()
+                    ? t('micDeniedDesktopHint')
+                    : t('micDeniedBrowserHint')}
+                </p>
+              </AlertDescription>
+            </Alert>
           )}
 
           <MicrophoneTestLevelBar
