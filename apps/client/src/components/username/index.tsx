@@ -4,6 +4,7 @@ import {
   UsernameEffect,
   UsernameFont
 } from '@draevix/shared';
+import type { ReactNode } from 'react';
 import { memo } from 'react';
 
 const USERNAME_EFFECT_CLASS: Record<UsernameEffect, string> = {
@@ -44,56 +45,73 @@ const SNOWFLAKE = '❄︎';
 // four-pointed star (U+2726) in text presentation, used for gold glints
 const SPARKLE = '✦︎';
 
+// Particle effects (fire/frost/gold) need a positioned wrapper around the
+// text. Layout classes from the caller (flex-1, text size/color) belong on
+// that wrapper so flex rows keep working — but the wrapper must stay
+// overflow-visible, because embers and snowflakes intentionally fly outside
+// its box. Text truncation therefore moves to the inner text span, which
+// otherwise inherits everything normally.
+const TRUNCATE_TOKEN = /(^|\s)truncate(\s|$)/;
+
 // styled nickname: admin-assigned effect plus font. unknown values coming
 // from the server fall back to plain text, never to an arbitrary class
 const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
   const validEffect = asEffect(effect);
   const validFont = asFont(font);
+  const fontStyle =
+    validFont === UsernameFont.DEFAULT
+      ? undefined
+      : { fontFamily: USERNAME_FONT_STACKS[validFont] };
+  // the caller asked for ellipsis: the inner text span (not the particle
+  // wrapper) is the element that actually clips
+  const truncate = TRUNCATE_TOKEN.test(className ?? '');
 
   const text = (
     <span
       className={cn(
         validEffect && USERNAME_EFFECT_CLASS[validEffect],
-        className
+        truncate && 'block truncate'
       )}
-      style={
-        validFont === UsernameFont.DEFAULT
-          ? undefined
-          : { fontFamily: USERNAME_FONT_STACKS[validFont] }
-      }
+      style={fontStyle}
     >
       {name}
     </span>
   );
 
+  const fxWrapper = (fxClass: string, particles: ReactNode) => (
+    <span
+      className={cn('username-fx', fxClass, 'min-w-0', className)}
+      style={{ overflow: 'visible' }}
+    >
+      {text}
+      {particles}
+    </span>
+  );
+
   if (validEffect === UsernameEffect.FIRE) {
-    return (
-      <span className="username-fx username-fx-fire">
-        {text}
-        {Array.from({ length: FIRE_PARTICLES }).map((_, index) => (
-          <i key={index} aria-hidden="true" />
-        ))}
-      </span>
+    return fxWrapper(
+      'username-fx-fire',
+      Array.from({ length: FIRE_PARTICLES }).map((_, index) => (
+        <i key={index} aria-hidden="true" />
+      ))
     );
   }
 
   if (validEffect === UsernameEffect.FROST) {
-    return (
-      <span className="username-fx username-fx-frost">
-        {text}
-        {Array.from({ length: FROST_PARTICLES }).map((_, index) => (
-          <i key={index} aria-hidden="true">
-            {SNOWFLAKE}
-          </i>
-        ))}
-      </span>
+    return fxWrapper(
+      'username-fx-frost',
+      Array.from({ length: FROST_PARTICLES }).map((_, index) => (
+        <i key={index} aria-hidden="true">
+          {SNOWFLAKE}
+        </i>
+      ))
     );
   }
 
   if (validEffect === UsernameEffect.GOLD) {
-    return (
-      <span className="username-fx username-fx-gold">
-        {text}
+    return fxWrapper(
+      'username-fx-gold',
+      <>
         <i style={{ left: '8%' }} aria-hidden="true">
           {SPARKLE}
         </i>
@@ -103,11 +121,21 @@ const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
         <i style={{ left: '88%' }} aria-hidden="true">
           {SPARKLE}
         </i>
-      </span>
+      </>
     );
   }
 
-  return text;
+  return (
+    <span
+      className={cn(
+        validEffect && USERNAME_EFFECT_CLASS[validEffect],
+        className
+      )}
+      style={fontStyle}
+    >
+      {name}
+    </span>
+  );
 });
 
 Username.displayName = 'Username';
