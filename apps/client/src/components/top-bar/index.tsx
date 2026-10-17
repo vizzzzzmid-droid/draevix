@@ -9,6 +9,7 @@ import { PanelRight, PanelRightClose } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PluginSlotRenderer } from '../plugin-slot-renderer';
+import { DonateButton } from './donate-button';
 import { ServerSearch } from './server-search';
 import { VoiceButtons } from './voice-buttons';
 
@@ -32,6 +33,7 @@ const TopBar = memo(({ onToggleRightSidebar, isOpen }: TTopBarProps) => {
       </div>
 
       <div className="flex min-w-0 items-center justify-end gap-2">
+        <DonateButton />
         <PluginSlotRenderer slotId={PluginSlot.TOPBAR_RIGHT} />
         {isCurrentVoiceChannelSelected && currentVoiceChannelId && (
           <VoiceButtons currentVoiceChannelId={currentVoiceChannelId} />
