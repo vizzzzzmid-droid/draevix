@@ -53,6 +53,12 @@ const VideoNoteRecorderDialog = memo(
     const previewVideoRef = useRef<HTMLVideoElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const cameraStreamRef = useRef<MediaStream | null>(null);
+    const cameraSettingsRef = useRef({
+      webcamId: devices.webcamId,
+      microphoneId: devices.microphoneId,
+      echoCancellation: devices.echoCancellation,
+      autoGainControl: devices.autoGainControl
+    });
     const recorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const rafIdRef = useRef<number | null>(null);
@@ -163,21 +169,36 @@ const VideoNoteRecorderDialog = memo(
       t
     ]);
 
-    // restart the stream when the user changes the device in settings while the
-    // recorder dialog is already open: otherwise the old camera keeps running
-
-    // restart the stream when the user changes the device in settings while the
-    // recorder dialog is already open: otherwise the old camera keeps running
+    // restart only when capture settings change. cameraReady is deliberately
+    // not a dependency: changing it after a successful request must not
+    // immediately start another request and create a getUserMedia loop
     useEffect(() => {
-      if (!isOpen || !cameraReady) return;
+      const previous = cameraSettingsRef.current;
+      const changed =
+        previous.webcamId !== devices.webcamId ||
+        previous.microphoneId !== devices.microphoneId ||
+        previous.echoCancellation !== devices.echoCancellation ||
+        previous.autoGainControl !== devices.autoGainControl;
 
+      cameraSettingsRef.current = {
+        webcamId: devices.webcamId,
+        microphoneId: devices.microphoneId,
+        echoCancellation: devices.echoCancellation,
+        autoGainControl: devices.autoGainControl
+      };
+
+      if (!isOpen || !changed) return;
+
+      stopCameraStream();
       void startCameraStream();
     }, [
       devices.webcamId,
       devices.microphoneId,
+      devices.echoCancellation,
+      devices.autoGainControl,
       isOpen,
-      cameraReady,
-      startCameraStream
+      startCameraStream,
+      stopCameraStream
     ]);
 
     useEffect(() => {
