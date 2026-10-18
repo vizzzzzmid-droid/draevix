@@ -154,6 +154,17 @@ const VideoNoteRecorderDialog = memo(
       t
     ]);
 
+    // restart the stream when the user changes the device in settings while the
+    // recorder dialog is already open: otherwise the old camera keeps running
+
+    // restart the stream when the user changes the device in settings while the
+    // recorder dialog is already open: otherwise the old camera keeps running
+    useEffect(() => {
+      if (!isOpen || !cameraReady) return;
+
+      void startCameraStream();
+    }, [devices.webcamId, devices.microphoneId, isOpen, cameraReady, startCameraStream]);
+
     useEffect(() => {
       if (!isOpen) return;
 
