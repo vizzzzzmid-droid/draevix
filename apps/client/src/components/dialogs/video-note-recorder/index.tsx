@@ -143,6 +143,9 @@ const VideoNoteRecorderDialog = memo(
           await liveVideoRef.current.play().catch(() => {});
         }
 
+        // the video element's onLoadedMetadata / onCanPlay fire later; the
+        // ready flag is set here so the loading overlay disappears right
+        // when the stream is attached
         setCameraReady(true);
       } catch {
         setCameraError(t('videoNoteCameraError'));
