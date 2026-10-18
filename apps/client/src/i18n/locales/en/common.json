@@ -3,6 +3,7 @@
   "confirm": "Confirm",
   "close": "Close",
   "saveChanges": "Save Changes",
+  "recordVideoNote": "Record video note",
   "bannedBadge": "Banned",
   "deletedBadge": "Deleted",
   "memberSince": "Member since {{date}}",

@@ -166,6 +166,21 @@ export const prepareImageFile = async (
   };
 };
 
+export const requestVideoNote = async (): Promise<File | null> => {
+  return new Promise((resolve) => {
+    openDialog(Dialog.VIDEO_NOTE_RECORDER, {
+      onConfirm: (file: File) => {
+        closeDialogs();
+        resolve(file);
+      },
+      onCancel: () => {
+        closeDialogs();
+        resolve(null);
+      }
+    });
+  });
+};
+
 export const resetDialogs = () => {
   store.dispatch(dialogSliceActions.resetDialogs());
 };

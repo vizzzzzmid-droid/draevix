@@ -6,6 +6,7 @@ import type { TEmojiItem } from '@/components/tiptap-input/helpers';
 import { LocalStorageKey } from '@/helpers/storage';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 
+import { requestVideoNote } from '@/features/dialogs/actions';
 import { useChannelById } from '@/features/server/channels/hooks';
 import {
   useCan,
@@ -13,6 +14,7 @@ import {
   usePublicServerSettings
 } from '@/features/server/hooks';
 import { useFlatPluginCommands } from '@/features/server/plugins/hooks';
+import { uploadFile } from '@/helpers/upload-file';
 import { useUploadFiles } from '@/hooks/use-upload-files';
 import { getTRPCClient } from '@/lib/trpc';
 import type { TReplyTarget } from '@/types';
@@ -26,7 +28,7 @@ import {
 } from '@draevix/shared';
 import { Button, Spinner } from '@draevix/ui';
 import { filesize } from 'filesize';
-import { Paperclip, Reply, Send, Smile, X } from 'lucide-react';
+import { Paperclip, Reply, Send, Smile, Video, X } from 'lucide-react';
 import {
   memo,
   useCallback,
@@ -235,6 +237,28 @@ const MessageCompose = memo(
       [removeFile]
     );
 
+    const handleRecordVideoNote = useCallback(async () => {
+      if (!canUploadFiles || sendingRef.current) return;
+
+      const file = await requestVideoNote();
+
+      if (!file) return;
+
+      setSending(true);
+      sendingRef.current = true;
+
+      try {
+        const tempFile = await uploadFile(file);
+
+        if (!tempFile) return;
+
+        await onSend('', [tempFile]);
+      } finally {
+        sendingRef.current = false;
+        setSending(false);
+      }
+    }, [canUploadFiles, onSend]);
+
     useEffect(() => {
       // focus the input when user clicks on reply
       if (replyTarget) {
@@ -349,6 +373,15 @@ const MessageCompose = memo(
               onClick={openFileDialog}
             >
               <Paperclip className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              disabled={uploading || sending || !canUploadFiles}
+              onClick={() => void handleRecordVideoNote()}
+              title={t('recordVideoNote')}
+            >
+              <Video className="h-4 w-4" />
             </Button>
             <Button
               size="icon"

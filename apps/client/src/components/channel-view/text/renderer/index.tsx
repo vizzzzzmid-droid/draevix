@@ -8,7 +8,12 @@ import { getFileUrl } from '@/helpers/get-file-url';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { getTRPCClient } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
-import { getTrpcError, PluginSlot, type TJoinedMessage } from '@draevix/shared';
+import {
+  getTrpcError,
+  isVideoNoteFileName,
+  PluginSlot,
+  type TJoinedMessage
+} from '@draevix/shared';
 import { Tooltip } from '@draevix/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -96,6 +101,12 @@ const MessageRenderer = memo(
       [t]
     );
 
+    const visibleFiles = useMemo(
+      () =>
+        message.files.filter((file) => !isVideoNoteFileName(file.originalName)),
+      [message.files]
+    );
+
     return (
       <div className="flex flex-col gap-1">
         <div
@@ -151,9 +162,9 @@ const MessageRenderer = memo(
           props={pluginProps}
         />
 
-        {message.files.length > 0 && !disableFiles && (
+        {visibleFiles.length > 0 && !disableFiles && (
           <div className="flex gap-1 flex-wrap">
-            {message.files.map((file) => (
+            {visibleFiles.map((file) => (
               <FileCard
                 key={file.id}
                 name={file.originalName}

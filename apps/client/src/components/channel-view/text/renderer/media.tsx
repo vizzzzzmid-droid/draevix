@@ -3,6 +3,7 @@ import { AudioOverride } from '../overrides/audio';
 import { ImageOverride } from '../overrides/image';
 import { MediaOverride } from '../overrides/media';
 import { VideoOverride } from '../overrides/video';
+import { VideoNoteOverride } from '../overrides/video-note';
 import type { TFoundMedia } from '../renderer/types';
 
 type TMediaProps = {
@@ -10,14 +11,16 @@ type TMediaProps = {
 };
 
 const Media = memo(({ media }: TMediaProps) => {
-  const { imagesAndVideos, audios } = useMemo(() => {
+  const { imagesAndVideos, videoNotes, audios } = useMemo(() => {
     const imagesAndVideos = media.filter(
       (item) => item.type === 'image' || item.type === 'video'
     );
+    const videoNotes = media.filter((item) => item.type === 'video-note');
     const audios = media.filter((item) => item.type === 'audio');
 
     return {
       imagesAndVideos,
+      videoNotes,
       audios
     };
   }, [media]);
@@ -40,6 +43,10 @@ const Media = memo(({ media }: TMediaProps) => {
       {!hasOnlySingleVisualMedia && imagesAndVideos.length > 0 && (
         <MediaOverride media={imagesAndVideos} />
       )}
+
+      {videoNotes.map((note) => (
+        <VideoNoteOverride src={note.url} key={note.key} />
+      ))}
 
       {audios.map((media) => (
         <AudioOverride src={media.url} key={media.key} />

@@ -76,3 +76,12 @@ export const isPreviewable = (file: File) => {
 
   return category === FileCategory.IMAGE || category === FileCategory.VIDEO;
 };
+
+export const VIDEO_NOTE_FILE_PREFIX = 'video-note-';
+
+// recorded square video messages get this prefix so the chat renderer can
+// draw them as an inline square loop instead of a generic file attachment
+export const isVideoNoteFileName = (name: string | null | undefined): boolean =>
+  typeof name === 'string' &&
+  name.toLowerCase().startsWith(VIDEO_NOTE_FILE_PREFIX) &&
+  videoExtensions.includes(`.${name.split('.').pop()?.toLowerCase() ?? ''}`);

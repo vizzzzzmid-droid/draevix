@@ -3,6 +3,7 @@
   "confirm": "Подтвердить",
   "close": "Закрыть",
   "saveChanges": "Сохранить изменения",
+  "recordVideoNote": "Записать видеосообщение",
   "bannedBadge": "Забанен(а)",
   "deletedBadge": "Удален(а)",
   "memberSince": "На сервере с {{date}}",

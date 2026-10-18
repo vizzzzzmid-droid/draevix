@@ -2,7 +2,7 @@ import type { TMessageMetadata } from '@draevix/shared';
 
 export type TFoundMedia = {
   key: string;
-  type: 'image' | 'video' | 'audio';
+  type: 'image' | 'video' | 'video-note' | 'audio';
   url: string;
 };
 

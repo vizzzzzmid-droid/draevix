@@ -16,6 +16,7 @@ import { SearchDialog } from './search';
 import { ServerPasswordDialog } from './server-password';
 import { SoundsDialog } from './sounds';
 import { TextInputDialog } from './text-input';
+import { VideoNoteRecorderDialog } from './video-note-recorder';
 import { VoiceDebugDialog } from './voice-debug';
 import { WatchPartyPickerDialog } from './watch-party-picker';
 import { WelcomeProfileSetupDialog } from './welcome-profile-setup';
@@ -38,7 +39,8 @@ const DialogsMap: any = {
   [Dialog.SCREEN_SHARE_SOURCE]: ScreenShareSourceDialog,
   [Dialog.WATCH_PARTY_PICKER]: WatchPartyPickerDialog,
   [Dialog.MUSIC_PICKER]: MusicPickerDialog,
-  [Dialog.IMAGE_CROP]: ImageCropDialog
+  [Dialog.IMAGE_CROP]: ImageCropDialog,
+  [Dialog.VIDEO_NOTE_RECORDER]: VideoNoteRecorderDialog
 };
 
 const DialogsProvider = memo(() => {

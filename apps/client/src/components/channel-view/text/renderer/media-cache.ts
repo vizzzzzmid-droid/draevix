@@ -2,6 +2,7 @@ import { getFileUrl } from '@/helpers/get-file-url';
 import {
   audioExtensions,
   imageExtensions,
+  isVideoNoteFileName,
   videoExtensions,
   type TJoinedMessage,
   type TMessageMetadata
@@ -51,7 +52,8 @@ const getStableMediaKey = (counts: Map<string, number>, baseKey: string) => {
 const buildMediaSignature = (message: TJoinedMessage) => {
   const fileSignature = message.files
     .map(
-      (file) => `${file.id}:${file.extension}:${file.size}:${file.updatedAt}`
+      (file) =>
+        `${file.id}:${file.originalName}:${file.extension}:${file.size}:${file.updatedAt}`
     )
     .join('|');
 
@@ -90,7 +92,7 @@ const extractMessageMedia = (message: TJoinedMessage): TFoundMedia[] => {
       if (videoExtensions.includes(extension)) {
         return {
           key: getStableMediaKey(mediaKeyCounts, `file:${file.id}`),
-          type: 'video',
+          type: isVideoNoteFileName(file.originalName) ? 'video-note' : 'video',
           url: getFileUrl(file)
         };
       }

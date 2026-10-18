@@ -17,6 +17,7 @@ const INLINE_ALLOW_LIST = [
   'image/webp',
   'image/avif',
   'video/mp4',
+  'video/webm',
   'audio/mpeg'
 ];
 
