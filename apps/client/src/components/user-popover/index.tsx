@@ -19,8 +19,10 @@ import {
   PluginSlot,
   ProfileEffect,
   TestId,
+  USERNAME_FONT_STACKS,
   UserStatus,
-  getTrpcError
+  getTrpcError,
+  parseUsernameFont
 } from '@draevix/shared';
 import {
   IconButton,
@@ -182,7 +184,13 @@ const UserPopover = memo(({ userId, children }: TUserPopoverProps) => {
 
           {user.bio && (
             <div className="mt-3">
-              <p className="text-sm text-foreground leading-relaxed">
+              <p
+                className="text-sm text-foreground leading-relaxed"
+                style={{
+                  fontFamily:
+                    USERNAME_FONT_STACKS[parseUsernameFont(user.bioFont)]
+                }}
+              >
                 {user.bio}
               </p>
             </div>

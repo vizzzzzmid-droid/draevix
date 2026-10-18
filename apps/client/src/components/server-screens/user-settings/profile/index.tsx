@@ -2,25 +2,44 @@ import { ImagePicker } from '@/components/image-picker';
 import { SettingsSection } from '@/components/server-screens/settings-shell/section';
 import { useSettingsForm } from '@/components/server-screens/settings-shell/use-settings-form';
 import { UserAvatar } from '@/components/user-avatar';
+import { USERNAME_FONT_OPTIONS } from '@/components/username-font-options';
+import { useCan } from '@/features/server/hooks';
 import { useOwnPublicUser } from '@/features/server/users/hooks';
+import {
+  ensureBundledFontLoaded,
+  isBundledUsernameFont
+} from '@/helpers/bundled-fonts';
 import { getFileUrl } from '@/helpers/get-file-url';
 import type { TPickedImage } from '@/hooks/use-pick-image';
 import { getTRPCClient } from '@/lib/trpc';
-import { DEFAULT_PROFILE_COLOR } from '@draevix/shared';
+import {
+  DEFAULT_PROFILE_COLOR,
+  Permission,
+  USERNAME_FONT_STACKS,
+  UsernameFont,
+  parseUsernameFont
+} from '@draevix/shared';
 import {
   ColorPicker,
   Group,
   ImageSwatchPicker,
   Input,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea
 } from '@draevix/ui';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type TProfileValues = {
   name: string;
   profileColor: string;
   bio: string;
+  bioFont: UsernameFont;
   // undefined means untouched, null means remove
   avatar?: TPickedImage | null;
   banner?: TPickedImage | null;
@@ -29,35 +48,57 @@ type TProfileValues = {
 const Profile = memo(() => {
   const { t } = useTranslation('settings');
   const ownPublicUser = useOwnPublicUser();
+  const can = useCan();
+  // bio font is admin-only: non-admins never send it, so it keeps its value
+  const canEditBioFont = can(Permission.MANAGE_USERS);
 
-  const onSave = useCallback(async (values: TProfileValues) => {
-    const trpc = getTRPCClient();
+  const onSave = useCallback(
+    async (values: TProfileValues) => {
+      const trpc = getTRPCClient();
 
-    await trpc.users.update.mutate({
-      name: values.name,
-      profileColor: values.profileColor,
-      bio: values.bio
-    });
+      await trpc.users.update.mutate({
+        name: values.name,
+        profileColor: values.profileColor,
+        bio: values.bio,
+        ...(canEditBioFont ? { bioFont: values.bioFont } : {})
+      });
 
-    if (values.avatar !== undefined) {
-      await trpc.users.changeAvatar.mutate({ fileId: values.avatar?.fileId });
-    }
+      if (values.avatar !== undefined) {
+        await trpc.users.changeAvatar.mutate({ fileId: values.avatar?.fileId });
+      }
 
-    if (values.banner !== undefined) {
-      await trpc.users.changeBanner.mutate({ fileId: values.banner?.fileId });
-    }
-  }, []);
+      if (values.banner !== undefined) {
+        await trpc.users.changeBanner.mutate({ fileId: values.banner?.fileId });
+      }
+    },
+    [canEditBioFont]
+  );
 
   const { r, values, onChange } = useSettingsForm<TProfileValues>({
     initialValues: {
       name: ownPublicUser?.name ?? '',
       profileColor: ownPublicUser?.profileColor ?? DEFAULT_PROFILE_COLOR,
-      bio: ownPublicUser?.bio ?? ''
+      bio: ownPublicUser?.bio ?? '',
+      bioFont: parseUsernameFont(ownPublicUser?.bioFont)
     },
     onSave,
     successMessage: t('profileUpdated'),
     errorMessage: t('failedUpdateProfile')
   });
+
+  // the textarea doubles as a live preview: bundled families load on demand
+  useEffect(() => {
+    if (isBundledUsernameFont(values.bioFont)) {
+      ensureBundledFontLoaded(values.bioFont).catch(() => {
+        // the fallback stack in the textarea style covers this
+      });
+    }
+  }, [values.bioFont]);
+
+  const handleBioFontChange = useCallback(
+    (value: string) => onChange('bioFont', value as UsernameFont),
+    [onChange]
+  );
 
   const handleColorChange = useCallback(
     (color: string) => onChange('profileColor', color),
@@ -127,7 +168,40 @@ const Profile = memo(() => {
       </Group>
 
       <Group label={t('bioLabel')}>
-        <Textarea placeholder={t('bioPlaceholder')} {...r('bio')} />
+        {canEditBioFont && (
+          <Select value={values.bioFont} onValueChange={handleBioFontChange}>
+            <SelectTrigger className="w-52">
+              <SelectValue placeholder={t('bioFontPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {USERNAME_FONT_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    style={
+                      option.value === UsernameFont.DEFAULT
+                        ? undefined
+                        : { fontFamily: USERNAME_FONT_STACKS[option.value] }
+                    }
+                  >
+                    {option.label ??
+                      (option.labelKey ? t(option.labelKey) : option.value)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        )}
+        <Textarea
+          placeholder={t('bioPlaceholder')}
+          {...r('bio')}
+          style={
+            values.bioFont === UsernameFont.DEFAULT
+              ? undefined
+              : { fontFamily: USERNAME_FONT_STACKS[values.bioFont] }
+          }
+        />
       </Group>
     </SettingsSection>
   );

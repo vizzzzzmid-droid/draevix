@@ -1,11 +1,16 @@
+import {
+  ensureBundledFontLoaded,
+  isBundledUsernameFont
+} from '@/helpers/bundled-fonts';
 import { cn } from '@/lib/utils';
 import {
   USERNAME_FONT_STACKS,
   UsernameEffect,
-  UsernameFont
+  UsernameFont,
+  parseUsernameFont
 } from '@draevix/shared';
 import type { ReactNode } from 'react';
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 
 const USERNAME_EFFECT_CLASS: Record<UsernameEffect, string> = {
   [UsernameEffect.FIRE]: 'username-effect-fire',
@@ -19,11 +24,6 @@ const asEffect = (effect: string | null | undefined): UsernameEffect | null =>
   effect && (Object.values(UsernameEffect) as string[]).includes(effect)
     ? (effect as UsernameEffect)
     : null;
-
-const asFont = (font: string | null | undefined): UsernameFont =>
-  font && (Object.values(UsernameFont) as string[]).includes(font)
-    ? (font as UsernameFont)
-    : UsernameFont.DEFAULT;
 
 type TUsernameProps = {
   name: string;
@@ -59,7 +59,17 @@ const TRUNCATE_TOKEN = /(^|\s)truncate(\s|$)/;
 // from the server fall back to plain text, never to an arbitrary class
 const Username = memo(({ name, effect, font, className }: TUsernameProps) => {
   const validEffect = asEffect(effect);
-  const validFont = asFont(font);
+  const validFont = parseUsernameFont(font);
+
+  // bundled families ship with the app: kick off their css on first use so
+  // every nickname renders identically everywhere, with the stack as fallback
+  useEffect(() => {
+    if (isBundledUsernameFont(validFont)) {
+      ensureBundledFontLoaded(validFont).catch(() => {
+        // the fallback stack in USERNAME_FONT_STACKS covers this
+      });
+    }
+  }, [validFont]);
   const fontStyle =
     validFont === UsernameFont.DEFAULT
       ? undefined

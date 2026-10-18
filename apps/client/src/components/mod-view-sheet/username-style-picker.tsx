@@ -1,3 +1,4 @@
+import { ensureAllBundledFontsLoaded } from '@/helpers/bundled-fonts';
 import { getTRPCClient } from '@/lib/trpc';
 import {
   USERNAME_FONT_STACKS,
@@ -17,10 +18,11 @@ import {
   SelectValue
 } from '@draevix/ui';
 import { Type } from 'lucide-react';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Username } from '../username';
+import { USERNAME_FONT_OPTIONS } from '../username-font-options';
 import { useModViewContext } from './context';
 
 const NO_EFFECT = 'none';
@@ -34,17 +36,18 @@ const EFFECT_OPTIONS: { value: UsernameEffect; labelKey: string }[] = [
   { value: UsernameEffect.GOLD, labelKey: 'usernameEffectGold' }
 ];
 
-const FONT_OPTIONS: { value: UsernameFont; labelKey: string }[] = [
-  { value: UsernameFont.DEFAULT, labelKey: 'usernameFontDefault' },
-  { value: UsernameFont.MONO, labelKey: 'usernameFontMono' },
-  { value: UsernameFont.SERIF, labelKey: 'usernameFontSerif' },
-  { value: UsernameFont.ROUNDED, labelKey: 'usernameFontRounded' }
-];
-
 const UsernameStylePicker = memo(() => {
   const { t } = useTranslation('settings');
   const { user, refetch } = useModViewContext();
   const [saving, setSaving] = useState(false);
+
+  // the dropdown previews every family in its own font: load them all once
+  // while the admin is picking, the Username preview below covers its own
+  useEffect(() => {
+    ensureAllBundledFontsLoaded().catch(() => {
+      // the fallback stacks in the preview items cover this
+    });
+  }, []);
 
   const save = useCallback(
     async (effect: UsernameEffect | null, font: UsernameFont | null) => {
@@ -136,7 +139,7 @@ const UsernameStylePicker = memo(() => {
               <SelectValue placeholder={t('usernameFontTitle')} />
             </SelectTrigger>
             <SelectContent>
-              {FONT_OPTIONS.map((option) => (
+              {USERNAME_FONT_OPTIONS.map((option) => (
                 <SelectItem
                   key={option.value}
                   value={option.value}
@@ -146,7 +149,8 @@ const UsernameStylePicker = memo(() => {
                       : { fontFamily: USERNAME_FONT_STACKS[option.value] }
                   }
                 >
-                  {t(option.labelKey)}
+                  {option.label ??
+                    (option.labelKey ? t(option.labelKey) : option.value)}
                 </SelectItem>
               ))}
             </SelectContent>

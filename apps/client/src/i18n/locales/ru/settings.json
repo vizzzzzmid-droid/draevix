@@ -26,6 +26,7 @@
   "usernamePlaceholder": "Имя пользователя",
   "bioLabel": "Био",
   "bioPlaceholder": "Расскажите о себе...",
+  "bioFontPlaceholder": "Выберите шрифт описания",
   "profileColorLabel": "Цвет профиля",
   "profileUpdated": "Профиль обновлен",
   "passwordTitle": "Пароль",

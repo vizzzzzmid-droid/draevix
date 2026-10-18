@@ -25,6 +25,7 @@
   "usernamePlaceholder": "Username",
   "bioLabel": "Bio",
   "bioPlaceholder": "Tell us about yourself...",
+  "bioFontPlaceholder": "Select a bio font",
   "profileColorLabel": "Profile color",
   "profileUpdated": "Profile updated",
   "passwordTitle": "Password",
