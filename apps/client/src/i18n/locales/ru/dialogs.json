@@ -146,5 +146,6 @@
   "pluginInstallUseDocker": "Мы настоятельно рекомендуем запускать Draevix в Docker-контейнере для изоляции и снижения рисков.",
   "pluginInstallConfirmBtn": "Установить плагин",
   "pluginInstallConfirmCountdown": "Подождите ({{seconds}}s)",
-  "searchTruncated": "Показаны только самые свежие совпадения. Уточните запрос, чтобы сузить поиск."
+  "searchTruncated": "Показаны только самые свежие совпадения. Уточните запрос, чтобы сузить поиск.",
+  "recordVideoNote": "Записать видеосообщение"
 }

@@ -1,9 +1,12 @@
 import { publishMusicState } from '../../db/publishers';
 import { getCurrentVoiceRuntime } from '../../helpers/get-current-voice-runtime';
-import { advanceMusicLocked, isDeadTrackError } from '../../helpers/music-advance';
 import { resolvePlayableTrack, throwMusicError } from '../../helpers/music';
-import { invariant } from '../../utils/invariant';
+import {
+  advanceMusicLocked,
+  isDeadTrackError
+} from '../../helpers/music-advance';
 import { logger } from '../../logger';
+import { invariant } from '../../utils/invariant';
 import { protectedProcedure } from '../../utils/trpc';
 
 // stream urls are signed and short-lived: a stale player re-resolves the

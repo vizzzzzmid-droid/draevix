@@ -146,5 +146,6 @@
   "pluginInstallUseDocker": "We strongly recommend running Draevix in a Docker container for isolation and reduced risk.",
   "pluginInstallConfirmBtn": "Install Plugin",
   "pluginInstallConfirmCountdown": "Wait ({{seconds}}s)",
-  "searchTruncated": "Showing the most recent matches only. Refine your search to narrow it down."
+  "searchTruncated": "Showing the most recent matches only. Refine your search to narrow it down.",
+  "recordVideoNote": "Record video note"
 }
