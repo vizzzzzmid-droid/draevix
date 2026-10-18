@@ -682,7 +682,8 @@ body {
   }
 }
 
-/* RAINBOW — a wide seamless spectrum sliding across the letters. */
+/* RAINBOW — a seamless spectrum sliding across the letters: the slide covers
+   exactly one tile (200%), so the loop point lands on the identical frame. */
 .username-effect-rainbow {
   background-image: linear-gradient(
     90deg,
@@ -695,7 +696,7 @@ body {
     #d879ff 84%,
     #ff5470 100%
   );
-  background-size: 240% 100%;
+  background-size: 200% 100%;
   animation: username-rainbow-flow 5.5s linear infinite;
   text-shadow: 0 0 0.45em rgb(168 85 247 / 22%);
 }
@@ -705,7 +706,7 @@ body {
     background-position: 0% 50%;
   }
   to {
-    background-position: 240% 50%;
+    background-position: 200% 50%;
   }
 }
 
