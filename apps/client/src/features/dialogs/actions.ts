@@ -1,4 +1,6 @@
 import { Dialog } from '@/components/dialogs/dialogs';
+import { isCroppableGif } from '@/helpers/gif-crop';
+import { croppedFileName } from '@/helpers/image-crop';
 import type { TGenericObject } from '@draevix/shared';
 import { store } from '../store';
 import { dialogInfoSelector } from './selectors';
@@ -135,6 +137,28 @@ export const requestImageCrop = async ({
         resolve(null);
       }
     });
+  });
+};
+
+// runs the file through the crop dialog when asked; gifs too heavy to
+// re-encode keep their animation and bytes as-is. returns null on cancel,
+// otherwise a fresh upload-ready file
+export const prepareImageFile = async (
+  file: File,
+  crop?: { aspect: number; round?: boolean }
+): Promise<File | null> => {
+  if (!crop) return file;
+
+  if (file.type === 'image/gif' && !(await isCroppableGif(file))) {
+    return file;
+  }
+
+  const blob = await requestImageCrop({ file, ...crop });
+
+  if (!blob) return null;
+
+  return new File([blob], croppedFileName(file.name, blob.type), {
+    type: blob.type
   });
 };
 

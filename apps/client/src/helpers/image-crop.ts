@@ -73,7 +73,12 @@ const getCroppedImageBlob = async (
 
 const croppedFileName = (originalName: string, mimeType: string): string => {
   const base = originalName.replace(/\.[^.]*$/, '') || 'image';
-  const extension = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+  const extension =
+    mimeType === 'image/jpeg'
+      ? 'jpg'
+      : mimeType === 'image/gif'
+        ? 'gif'
+        : 'png';
 
   return `${base}-cropped.${extension}`;
 };

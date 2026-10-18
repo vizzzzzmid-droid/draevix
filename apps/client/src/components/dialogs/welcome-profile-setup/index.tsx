@@ -1,9 +1,8 @@
-import { requestImageCrop } from '@/features/dialogs/actions';
+import { prepareImageFile } from '@/features/dialogs/actions';
 import { useServerName } from '@/features/server/hooks';
 import { useOwnPublicUser } from '@/features/server/users/hooks';
 import { getFileUrl } from '@/helpers/get-file-url';
 import { getInitialsFromName } from '@/helpers/get-initials-from-name';
-import { croppedFileName } from '@/helpers/image-crop';
 import { uploadImage } from '@/helpers/upload-file';
 import { useFilePicker } from '@/hooks/use-file-picker';
 import { useForm } from '@/hooks/use-form';
@@ -52,21 +51,12 @@ const WelcomeProfileSetupDialog = memo(
 
         if (!file) return;
 
-        let uploadFile = file;
+        const uploadFile = await prepareImageFile(file, {
+          aspect: 1,
+          round: true
+        });
 
-        if (file.type !== 'image/gif') {
-          const blob = await requestImageCrop({
-            file,
-            aspect: 1,
-            round: true
-          });
-
-          if (!blob) return;
-
-          uploadFile = new File([blob], croppedFileName(file.name, blob.type), {
-            type: blob.type
-          });
-        }
+        if (!uploadFile) return;
 
         const temporaryFile = await uploadImage(uploadFile);
 
@@ -98,17 +88,9 @@ const WelcomeProfileSetupDialog = memo(
 
         if (!file) return;
 
-        let uploadFile = file;
+        const uploadFile = await prepareImageFile(file, { aspect: 3 });
 
-        if (file.type !== 'image/gif') {
-          const blob = await requestImageCrop({ file, aspect: 3 });
-
-          if (!blob) return;
-
-          uploadFile = new File([blob], croppedFileName(file.name, blob.type), {
-            type: blob.type
-          });
-        }
+        if (!uploadFile) return;
 
         const temporaryFile = await uploadImage(uploadFile);
 

@@ -44,6 +44,8 @@
     "embla-carousel-react": "^8.6.0",
     "eslint-plugin-react-you-might-not-need-an-effect": "^0.7.0",
     "filesize": "^11.0.13",
+    "gifenc": "^1.0.3",
+    "gifuct-js": "^2.1.2",
     "hls.js": "^1.7.3",
     "html-react-parser": "^5.2.6",
     "i18next": "^25.8.14",

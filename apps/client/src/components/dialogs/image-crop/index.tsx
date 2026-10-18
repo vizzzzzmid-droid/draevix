@@ -1,3 +1,4 @@
+import { getCroppedGifBlob } from '@/helpers/gif-crop';
 import {
   getCroppedImageBlob,
   loadImageElement,
@@ -126,7 +127,10 @@ const ImageCropDialog = memo(
       setExporting(true);
 
       try {
-        const blob = await getCroppedImageBlob(imageSrc, pixels, file.type);
+        const blob =
+          file.type === 'image/gif'
+            ? await getCroppedGifBlob(file, pixels)
+            : await getCroppedImageBlob(imageSrc, pixels, file.type);
 
         onConfirm(blob);
       } catch {
@@ -134,7 +138,7 @@ const ImageCropDialog = memo(
       } finally {
         setExporting(false);
       }
-    }, [imageSrc, pixels, file.type, onConfirm, exporting, t]);
+    }, [imageSrc, file, pixels, exporting, onConfirm, t]);
 
     return (
       <Dialog open={isOpen}>
@@ -168,6 +172,11 @@ const ImageCropDialog = memo(
               >
                 <canvas ref={previewRef} className="block max-w-42" />
               </div>
+              {file.type === 'image/gif' && (
+                <p className="max-w-42 text-center text-xs text-muted-foreground">
+                  {t('imageCropGifNote')}
+                </p>
+              )}
               <div className="w-42">
                 <div className="mb-1 text-xs text-muted-foreground">
                   {t('imageCropZoom')}

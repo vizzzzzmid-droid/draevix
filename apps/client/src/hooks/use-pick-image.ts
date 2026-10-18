@@ -1,5 +1,4 @@
-import { requestImageCrop } from '@/features/dialogs/actions';
-import { croppedFileName } from '@/helpers/image-crop';
+import { prepareImageFile } from '@/features/dialogs/actions';
 import { uploadImage } from '@/helpers/upload-file';
 import { useFilePicker } from '@/hooks/use-file-picker';
 import { getTrpcError } from '@draevix/shared';
@@ -13,8 +12,7 @@ export type TPickedImage = {
 };
 
 type TUsePickImageOptions = {
-  // when set, the file goes through the crop dialog first (animated gifs
-  // are uploaded untouched so the animation survives)
+  // when set, the file goes through the crop dialog first
   aspect?: number;
   round?: boolean;
 };
@@ -30,21 +28,14 @@ const usePickImage = (options?: TUsePickImageOptions) => {
 
       if (!file) return;
 
-      let uploadFile = file;
+      const uploadFile = options?.aspect
+        ? await prepareImageFile(file, {
+            aspect: options.aspect,
+            round: options.round
+          })
+        : file;
 
-      if (options?.aspect && file.type !== 'image/gif') {
-        const blob = await requestImageCrop({
-          file,
-          aspect: options.aspect,
-          round: options.round
-        });
-
-        if (!blob) return;
-
-        uploadFile = new File([blob], croppedFileName(file.name, blob.type), {
-          type: blob.type
-        });
-      }
+      if (!uploadFile) return;
 
       const temporaryFile = await uploadImage(uploadFile);
 

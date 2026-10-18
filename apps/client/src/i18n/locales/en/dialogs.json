@@ -99,6 +99,7 @@
   "imageCropHint": "Drag to reposition, use the slider or mouse wheel to zoom.",
   "imageCropZoom": "Zoom",
   "imageCropApply": "Apply",
+  "imageCropGifNote": "GIFs are cropped frame by frame — the animation is preserved.",
   "imageCropFailed": "Could not crop the image.",
   "playSound": "Play",
   "noResults": "No results.",
