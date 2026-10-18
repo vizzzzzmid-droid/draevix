@@ -4,7 +4,6 @@ import {
   getMusicPositionSec
 } from '@/features/server/voice/helpers';
 import { useMusicState } from '@/features/server/voice/hooks';
-import { logVoice } from '@/helpers/browser-logger';
 import { getRenderedUsername } from '@/helpers/get-rendered-username';
 import { useMusicVolume } from '@/helpers/music-volume';
 import { getTRPCClient } from '@/lib/trpc';
@@ -28,171 +27,47 @@ import {
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { HlsVideo } from './hls-video';
+import {
+  getMusicPlaybackBridge,
+  useMusicJoined
+} from './music-playback-bridge';
 
 type TMusicPanelProps = {
   channelId: number;
 };
 
-const POSITION_SYNC_THRESHOLD_SEC = 3;
-const SNAP_SETTLE_MS = 700;
-// the shared clock is trusted past the media's end only with a margin: bad
-// duration metadata must never cut off audio that is still playing
-const END_MARGIN_SEC = 3;
-// how long the watchdog waits after a dispatch before retrying a lost or
-// failed advance, so a party never stalls on a finished track
-const ADVANCE_RETRY_MS = 5000;
-// a server replay (repeat-one) resets the clock to the start: an ended
-// element with a near-zero clock is nudged back to life within this window
-const RESTART_WINDOW_SEC = 5;
-
-const isHlsUrl = (url: string): boolean => /\.m3u8(\?|$)/i.test(url);
-
+// The visible remote control for the listening party. Playback itself lives
+// in the persistent MusicAudioHost: this panel only reads the shared music
+// state, polls its clock for the slider, and sends commands through the
+// playback bridge.
 const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
   const { t } = useTranslation();
   const music = useMusicState(channelId);
   const controller = useUserById(music?.controllerUserId ?? -1);
   const ownUserId = useOwnUserId();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hlsVideoRef = useRef<HTMLVideoElement | null>(null);
+  const joined = useMusicJoined();
   const seekingRef = useRef(false);
-  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const refreshedUrlRef = useRef<string | null>(null);
-  const [duration, setDuration] = useState(0);
   const [displayPosition, setDisplayPosition] = useState(0);
   const [{ volume, muted }, setMusicVolume] = useMusicVolume();
   const [queueOpen, setQueueOpen] = useState(false);
 
-  const currentUrl = music?.current?.mp3Url ?? '';
-  const isHls = isHlsUrl(currentUrl);
-  const playerRef = isHls ? hlsVideoRef : audioRef;
-
-  const snapToTarget = useCallback(() => {
-    const player = playerRef.current;
-
-    if (!player || seekingRef.current || !music) return;
-
-    const target = getMusicPositionSec(music);
-    const current = player.currentTime || 0;
-    const drift = Math.abs(target - current);
-
-    logVoice('music: reconcile', { target, current, drift });
-
-    if (drift > POSITION_SYNC_THRESHOLD_SEC) {
-      player.currentTime = target;
-    }
-  }, [music, playerRef]);
-
+  // the shared clock is the source of truth while the element lives in the
+  // host: poll it so the slider keeps moving across track changes
   useEffect(() => {
-    if (!music?.current) {
-      setDisplayPosition(0);
-      setDuration(0);
+    if (!joined || !music?.current) return;
 
-      return;
-    }
+    setDisplayPosition(getMusicPositionSec(music));
 
-    if (seekingRef.current) return;
+    if (!music.playing) return;
 
-    // the extrapolated clock can run past the end while a lost advance is
-    // retried: the display never shows a position beyond the known duration
-    const extrapolated = getMusicPositionSec(music);
-    const cap = Math.max(duration, music.current.durationSec ?? 0, 0);
+    const timer = window.setInterval(() => {
+      if (seekingRef.current) return;
 
-    setDisplayPosition(cap > 0 ? Math.min(extrapolated, cap) : extrapolated);
+      setDisplayPosition(getMusicPositionSec(music));
+    }, 500);
 
-    if (settleTimerRef.current) {
-      clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = null;
-    }
-
-    settleTimerRef.current = setTimeout(() => {
-      settleTimerRef.current = null;
-
-      snapToTarget();
-    }, SNAP_SETTLE_MS);
-
-    return () => {
-      if (settleTimerRef.current) {
-        clearTimeout(settleTimerRef.current);
-        settleTimerRef.current = null;
-      }
-    };
-  }, [music, snapToTarget, duration]);
-
-  // volume is per-listener, never broadcast
-  useEffect(() => {
-    for (const ref of [audioRef, hlsVideoRef]) {
-      const player = ref.current;
-
-      if (!player) continue;
-
-      player.volume = volume;
-      player.muted = muted;
-    }
-  });
-
-  // same gating as video: only flip the element when it disagrees. an
-  // element that just ended must stay ended: onEnded is dispatching the
-  // advance, replaying here would loop the same track over and over
-  useEffect(() => {
-    const player = playerRef.current;
-
-    if (!player || !music?.current) return;
-
-    if (player.paused && !player.ended && music.playing) {
-      try {
-        const result = player.play() as unknown as Promise<void> | undefined;
-
-        void result?.catch(() => {});
-      } catch {
-        // autoplay blocked until the user interacts with the page
-      }
-    }
-
-    if (!player.paused && !music.playing) {
-      player.pause();
-    }
-  });
-
-  const handlePlay = useCallback(async () => {
-    const position = playerRef.current?.currentTime ?? displayPosition;
-
-    const trpc = getTRPCClient();
-
-    try {
-      await trpc.voice.musicResume.mutate({ positionSec: position });
-    } catch (error) {
-      toast.error(getTrpcError(error, t('failedMusicTogether')));
-    }
-  }, [displayPosition, playerRef, t]);
-
-  const handlePause = useCallback(async () => {
-    const position = playerRef.current?.currentTime ?? displayPosition;
-
-    const trpc = getTRPCClient();
-
-    try {
-      await trpc.voice.musicPause.mutate({ positionSec: position });
-    } catch (error) {
-      toast.error(getTrpcError(error, t('failedMusicTogether')));
-    }
-  }, [displayPosition, playerRef, t]);
-
-  const handleSeekCommit = useCallback(async () => {
-    seekingRef.current = false;
-
-    if (playerRef.current) {
-      playerRef.current.currentTime = displayPosition;
-    }
-
-    const trpc = getTRPCClient();
-
-    try {
-      await trpc.voice.musicSeek.mutate({ positionSec: displayPosition });
-    } catch (error) {
-      toast.error(getTrpcError(error, t('failedMusicTogether')));
-    }
-  }, [displayPosition, playerRef, t]);
+    return () => window.clearInterval(timer);
+  }, [joined, music]);
 
   const handleSeekChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,6 +76,12 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     },
     []
   );
+
+  const handleSeekCommit = useCallback(async () => {
+    seekingRef.current = false;
+
+    await getMusicPlaybackBridge()?.seek(displayPosition);
+  }, [displayPosition]);
 
   const handleSeekAbort = useCallback(() => {
     seekingRef.current = false;
@@ -219,11 +100,11 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     setMusicVolume(volume, !muted);
   }, [setMusicVolume, volume, muted]);
 
-  // the X only closes the player for this listener: the element unmounts
-  // and goes quiet, the party keeps playing for everyone else. reopening
-  // is the join prompt below
-  const handleLeave = useCallback(() => {
-    setJoined(false);
+  // the X only closes the player for this listener: the element lives in
+  // the host and goes quiet on leave, the party keeps playing for everyone
+  // else. reopening is the join prompt below
+  const handleLeaveClick = useCallback(() => {
+    getMusicPlaybackBridge()?.leave();
   }, []);
 
   // stopping for everyone stays explicit and controller-only
@@ -237,87 +118,17 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     }
   }, [t]);
 
-  // every listener fires this when their element ends: the server's expect
-  // guard makes the race harmless, only the first advance lands. a second
-  // `ended` for the same track must not consume the freshly advanced track,
-  // and a failed advance is retried by the watchdog below instead of
-  // stalling the party on a finished track
-  const currentTrackId = music?.current?.trackId;
-  const endedTrackIdRef = useRef<number | undefined>(undefined);
-  const endedAtRef = useRef(0);
-  const erroredTrackIdRef = useRef<number | undefined>(undefined);
+  const handleJoinClick = useCallback(() => {
+    getMusicPlaybackBridge()?.join();
+  }, []);
 
-  useEffect(() => {
-    endedTrackIdRef.current = undefined;
-    erroredTrackIdRef.current = undefined;
-  }, [currentTrackId]);
+  const handlePlayClick = useCallback(async () => {
+    await getMusicPlaybackBridge()?.play();
+  }, []);
 
-  const dispatchAdvance = useCallback(async () => {
-    if (endedTrackIdRef.current === currentTrackId) return;
-
-    endedTrackIdRef.current = currentTrackId;
-    endedAtRef.current = Date.now();
-
-    const trpc = getTRPCClient();
-
-    try {
-      await trpc.voice.musicNext.mutate({
-        expectTrackId: currentTrackId
-      });
-    } catch (error) {
-      // retries would toast in a loop: surface a track's failure once
-      if (erroredTrackIdRef.current !== currentTrackId) {
-        erroredTrackIdRef.current = currentTrackId;
-
-        toast.error(getTrpcError(error, t('failedMusicTogether')));
-      }
-    }
-  }, [currentTrackId, t]);
-
-  const handleEnded = useCallback(() => {
-    void dispatchAdvance();
-  }, [dispatchAdvance]);
-
-  const handleTimeUpdate = useCallback(
-    (event: React.SyntheticEvent<HTMLMediaElement>) => {
-      if (!seekingRef.current) {
-        setDisplayPosition(event.currentTarget.currentTime);
-      }
-    },
-    []
-  );
-
-  const handleLoadedMetadata = useCallback(
-    (event: React.SyntheticEvent<HTMLMediaElement>) => {
-      setDuration(event.currentTarget.duration);
-      snapToTarget();
-    },
-    [snapToTarget]
-  );
-
-  const handleStaleSource = useCallback(async () => {
-    // some streams die with an error right at media end instead of a clean
-    // `ended`: that is a finish, not a stale url, so advance the party
-    if (playerRef.current?.ended) {
-      void dispatchAdvance();
-
-      return;
-    }
-
-    if (!currentUrl || refreshedUrlRef.current === currentUrl) return;
-
-    refreshedUrlRef.current = currentUrl;
-
-    logVoice('music: refresh', { currentUrl });
-
-    const trpc = getTRPCClient();
-
-    try {
-      await trpc.voice.musicRefresh.mutate();
-    } catch (error) {
-      toast.error(getTrpcError(error, t('failedMusicTogether')));
-    }
-  }, [currentUrl, dispatchAdvance, playerRef, t]);
+  const handlePauseClick = useCallback(async () => {
+    await getMusicPlaybackBridge()?.pause();
+  }, []);
 
   const handleQueueRemove = useCallback(
     async (index: number) => {
@@ -381,86 +192,10 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     }
   }, [music?.repeatMode, t]);
 
-  const trackUrl = music?.current?.mp3Url ?? '';
-
-  // same opt-in as watch and screen shares: someone else's party shows a
-  // join prompt instead of auto-playing. the starter joins implicitly, but
-  // only when the party appears — never on track changes, so someone who
-  // closed the player stays out until they tap join again
-  const [joined, setJoined] = useState(false);
-  const prevTrackUrlRef = useRef('');
-
-  useEffect(() => {
-    const hadParty = prevTrackUrlRef.current !== '';
-    prevTrackUrlRef.current = trackUrl;
-
-    if (!trackUrl) {
-      setJoined(false);
-      return;
-    }
-
-    if (!hadParty && music?.controllerUserId === ownUserId) {
-      setJoined(true);
-    }
-  }, [trackUrl, music?.controllerUserId, ownUserId]);
-
-  // the whole party relies on each element's ended event: if it never fires
-  // (a stream error instead of a clean end) or the advance mutation is
-  // lost, the shared clock runs past the end forever. this ticks while
-  // playing and re-dispatches so the party always moves on, and nudges an
-  // ended element when the server genuinely replayed the same track
-  useEffect(() => {
-    if (!joined || !music?.playing) return;
-
-    const timer = setInterval(() => {
-      const player = playerRef.current;
-
-      if (!player || !music.current) return;
-
-      const target = getMusicPositionSec(music);
-      const knownDuration =
-        Number.isFinite(player.duration) && player.duration > 0
-          ? player.duration
-          : (music.current.durationSec ?? 0);
-      const pastEnd =
-        knownDuration > 0 && target >= knownDuration + END_MARGIN_SEC;
-      const dispatched = endedTrackIdRef.current === music.current.trackId;
-
-      if (pastEnd && (player.ended || player.error !== null || player.paused)) {
-        if (
-          !dispatched ||
-          Date.now() - endedAtRef.current >= ADVANCE_RETRY_MS
-        ) {
-          void dispatchAdvance();
-        }
-
-        return;
-      }
-
-      // repeat-one re-commits the same track with a reset clock: a stable
-      // stream url leaves the element ended, so clear the ended guard and
-      // restart it. a stalled party keeps a far-end clock, so this can
-      // never resurrect the old replay-the-finished-track loop
-      if (player.ended && target < RESTART_WINDOW_SEC) {
-        endedTrackIdRef.current = undefined;
-
-        try {
-          const result = player.play() as unknown as Promise<void> | undefined;
-
-          void result?.catch(() => {});
-        } catch {
-          // autoplay blocked until the user interacts with the page
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [joined, music, dispatchAdvance, playerRef]);
-
   if (!music?.current) return null;
 
   const track = music.current;
-  const seekMax = Math.max(duration, track.durationSec, 0.01);
+  const seekMax = Math.max(track.durationSec ?? 0, 0.01);
   const seekRatio = Math.min(1, Math.max(0, displayPosition / seekMax));
 
   return (
@@ -507,7 +242,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
         <Button
           size="icon"
           variant="ghost"
-          onClick={handleLeave}
+          onClick={handleLeaveClick}
           title={t('musicLeave')}
         >
           <X className="h-4 w-4" />
@@ -515,36 +250,12 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
       </div>
       {joined ? (
         <>
-          {isHls ? (
-            <div className="hidden">
-              <HlsVideo
-                src={currentUrl}
-                playing={music.playing}
-                videoRef={hlsVideoRef}
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                onStaleSource={() => void handleStaleSource()}
-                onRetry={() => void handleStaleSource()}
-              />
-            </div>
-          ) : (
-            <audio
-              ref={audioRef}
-              src={currentUrl}
-              playsInline
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onPlay={snapToTarget}
-              onEnded={() => void handleEnded()}
-              onError={() => void handleStaleSource()}
-            />
-          )}
           <div className="flex items-center gap-2">
             {music.playing ? (
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={handlePause}
+                onClick={() => void handlePauseClick()}
                 title={t('musicPause')}
               >
                 <Pause className="h-4 w-4" />
@@ -553,7 +264,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={handlePlay}
+                onClick={() => void handlePlayClick()}
                 title={t('musicPlay')}
               >
                 <Play className="h-4 w-4" />
@@ -579,12 +290,12 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
               }}
             />
             <span className="text-xs tabular-nums text-muted-foreground">
-              {formatMediaPosition(Math.max(duration, track.durationSec, 0))}
+              {formatMediaPosition(Math.max(track.durationSec ?? 0, 0))}
             </span>
             <Button
               size="icon"
               variant="ghost"
-              onClick={handleSkipNext}
+              onClick={() => void handleSkipNext()}
               disabled={
                 music.queue.length === 0 &&
                 !(music.repeatMode === 'all' && music.current)
@@ -596,7 +307,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
             <Button
               size="icon"
               variant="ghost"
-              onClick={handleShuffleToggle}
+              onClick={() => void handleShuffleToggle()}
               title={t('musicShuffle')}
               className={
                 music.shuffle
@@ -609,7 +320,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
             <Button
               size="icon"
               variant="ghost"
-              onClick={handleRepeatCycle}
+              onClick={() => void handleRepeatCycle()}
               title={
                 music.repeatMode === 'off'
                   ? t('musicRepeatOff')
@@ -696,7 +407,7 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
       ) : (
         <button
           type="button"
-          onClick={() => setJoined(true)}
+          onClick={handleJoinClick}
           className="flex items-center gap-3 rounded-md border border-primary/40 bg-primary/5 p-3 text-left transition hover:bg-primary/10"
         >
           {track.artworkUrl ? (

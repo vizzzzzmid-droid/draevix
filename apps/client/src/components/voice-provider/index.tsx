@@ -64,6 +64,7 @@ import {
   useRef,
   useState
 } from 'react';
+import { MusicAudioHost } from '../channel-view/voice/music-audio-host';
 import { useDevices } from '../devices-provider/hooks/use-devices';
 import {
   clearVoiceControlsBridge,
@@ -1585,6 +1586,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       <VoiceStatsContext.Provider value={statsContextValue}>
         <VolumeControlProvider>
           <div className="relative">
+            <MusicAudioHost />
             <FloatingPinnedCard
               remoteUserStreams={remoteUserStreams}
               externalStreams={externalStreams}
