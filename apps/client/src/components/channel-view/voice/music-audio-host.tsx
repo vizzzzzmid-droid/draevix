@@ -3,6 +3,7 @@ import { useOwnUserId } from '@/features/server/users/hooks';
 import { getMusicPositionSec } from '@/features/server/voice/helpers';
 import { useMusicState } from '@/features/server/voice/hooks';
 import { logVoice } from '@/helpers/browser-logger';
+import { useMusicVolume } from '@/helpers/music-volume';
 import { getTRPCClient } from '@/lib/trpc';
 import { getTrpcError } from '@draevix/shared';
 import { memo, useCallback, useEffect, useRef } from 'react';
@@ -41,6 +42,7 @@ const MusicAudioHost = memo(() => {
   const music = useMusicState(channelId ?? -1);
   const ownUserId = useOwnUserId();
   const joined = useMusicJoined();
+  const [{ volume, muted }] = useMusicVolume();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hlsVideoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -195,6 +197,18 @@ const MusicAudioHost = memo(() => {
       toast.error(getTrpcError(error, t('failedMusicTogether')));
     }
   }, [currentUrl, dispatchAdvance, playerRef, t]);
+
+  // volume is per-listener, never broadcast
+  useEffect(() => {
+    for (const ref of [audioRef, hlsVideoRef]) {
+      const player = ref.current;
+
+      if (!player) continue;
+
+      player.volume = volume;
+      player.muted = muted;
+    }
+  });
 
   // same gating as video: only flip the element when it disagrees. an
   // element that just ended must stay ended: onEnded is dispatching the
