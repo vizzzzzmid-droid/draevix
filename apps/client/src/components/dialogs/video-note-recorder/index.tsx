@@ -144,8 +144,16 @@ const VideoNoteRecorderDialog = memo(
         }
 
         setCameraReady(true);
-      } catch {
-        setCameraError(t('videoNoteCameraError'));
+      } catch (err) {
+        const error = err as Error;
+        console.error(
+          '[video-note] getUserMedia failed:',
+          error.name,
+          error.message
+        );
+        setCameraError(
+          t('videoNoteCameraError') + (error.name ? ` (${error.name})` : '')
+        );
       }
     }, [
       devices.webcamId,
