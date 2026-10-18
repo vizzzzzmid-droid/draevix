@@ -24,7 +24,7 @@ type TVideoNoteRecorderDialogProps = TDialogBaseProps & {
 type TRecorderPhase = 'ready' | 'recording' | 'preview';
 
 const MAX_DURATION_SEC = 60;
-const RECORD_SIDE_PX = 480;
+const RECORD_SIDE_PX = 1080;
 const RECORD_FPS = 30;
 const DEFAULT_DEVICE_ID = 'default';
 
@@ -123,8 +123,9 @@ const VideoNoteRecorderDialog = memo(
             deviceId: hasSpecificWebcam
               ? { ideal: devices.webcamId }
               : undefined,
-            width: { ideal: 720 },
-            height: { ideal: 720 }
+            width: { ideal: 1080, max: 1080 },
+            height: { ideal: 1080, max: 1080 },
+            frameRate: { ideal: 30, max: 30 }
           },
           audio: {
             deviceId: hasSpecificMic
@@ -163,7 +164,13 @@ const VideoNoteRecorderDialog = memo(
       if (!isOpen || !cameraReady) return;
 
       void startCameraStream();
-    }, [devices.webcamId, devices.microphoneId, isOpen, cameraReady, startCameraStream]);
+    }, [
+      devices.webcamId,
+      devices.microphoneId,
+      isOpen,
+      cameraReady,
+      startCameraStream
+    ]);
 
     useEffect(() => {
       if (!isOpen) return;
