@@ -129,7 +129,6 @@
   "pluginInstallWarningLine3": "Вредоносные плагины могут скомпрометировать",
   "pluginInstallWarningHighlight3": "учетные записи пользователей, украсть данные или повредить ваш сервер",
   "pluginInstallUseDocker": "Мы настоятельно рекомендуем запускать Draevix в Docker-контейнере для изоляции и снижения рисков.",
-  "pluginInstallDocsNote": "Подробнее читайте в документации:",
   "pluginInstallConfirmBtn": "Установить плагин",
   "pluginInstallConfirmCountdown": "Подождите ({{seconds}}s)",
   "searchTruncated": "Показаны только самые свежие совпадения. Уточните запрос, чтобы сузить поиск."

@@ -85,18 +85,6 @@ const PluginInstallConfirmDialog = memo(
             <p className="text-sm text-primary">
               {t('pluginInstallUseDocker')}
             </p>
-
-            <p className="text-sm">
-              {t('pluginInstallDocsNote')}{' '}
-              <a
-                href="https://draevix.com/docs/plugins/security"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-primary transition-colors"
-              >
-                https://draevix.com/docs/plugins/security
-              </a>
-            </p>
           </div>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel onClick={handleCancel}>

@@ -129,7 +129,6 @@
   "pluginInstallWarningLine3": "Malicious plugins can compromise",
   "pluginInstallWarningHighlight3": "user accounts, steal data, or damage your server",
   "pluginInstallUseDocker": "We strongly recommend running Draevix in a Docker container for isolation and reduced risk.",
-  "pluginInstallDocsNote": "For more details, read the docs at:",
   "pluginInstallConfirmBtn": "Install Plugin",
   "pluginInstallConfirmCountdown": "Wait ({{seconds}}s)",
   "searchTruncated": "Showing the most recent matches only. Refine your search to narrow it down."

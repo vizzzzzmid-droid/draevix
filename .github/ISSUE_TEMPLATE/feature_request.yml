@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please check the Roadmap (ROADMAP.md)
+        Please check existing issues
         and what Draevix is not (CONTRIBUTING.md)
         before requesting new features.
         Large features should be discussed before implementation.
