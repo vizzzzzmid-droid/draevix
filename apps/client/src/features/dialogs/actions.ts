@@ -142,24 +142,28 @@ export const requestImageCrop = async ({
 
 // runs the file through the crop dialog when asked; gifs too heavy to
 // re-encode keep their animation and bytes as-is. returns null on cancel,
-// otherwise a fresh upload-ready file
+// otherwise the upload-ready file plus whether a gif bypassed the crop
+// (callers surface that, otherwise the silent fallback looks like a bug)
 export const prepareImageFile = async (
   file: File,
   crop?: { aspect: number; round?: boolean }
-): Promise<File | null> => {
-  if (!crop) return file;
+): Promise<{ file: File; gifSkipped: boolean } | null> => {
+  if (!crop) return { file, gifSkipped: false };
 
   if (file.type === 'image/gif' && !(await isCroppableGif(file))) {
-    return file;
+    return { file, gifSkipped: true };
   }
 
   const blob = await requestImageCrop({ file, ...crop });
 
   if (!blob) return null;
 
-  return new File([blob], croppedFileName(file.name, blob.type), {
-    type: blob.type
-  });
+  return {
+    file: new File([blob], croppedFileName(file.name, blob.type), {
+      type: blob.type
+    }),
+    gifSkipped: false
+  };
 };
 
 export const resetDialogs = () => {

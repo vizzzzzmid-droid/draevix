@@ -51,14 +51,18 @@ const WelcomeProfileSetupDialog = memo(
 
         if (!file) return;
 
-        const uploadFile = await prepareImageFile(file, {
+        const prepared = await prepareImageFile(file, {
           aspect: 1,
           round: true
         });
 
-        if (!uploadFile) return;
+        if (!prepared) return;
 
-        const temporaryFile = await uploadImage(uploadFile);
+        if (prepared.gifSkipped) {
+          toast.info(t('common:gifCropSkipped'));
+        }
+
+        const temporaryFile = await uploadImage(prepared.file);
 
         if (!temporaryFile) {
           return;
@@ -88,11 +92,15 @@ const WelcomeProfileSetupDialog = memo(
 
         if (!file) return;
 
-        const uploadFile = await prepareImageFile(file, { aspect: 3 });
+        const prepared = await prepareImageFile(file, { aspect: 3 });
 
-        if (!uploadFile) return;
+        if (!prepared) return;
 
-        const temporaryFile = await uploadImage(uploadFile);
+        if (prepared.gifSkipped) {
+          toast.info(t('common:gifCropSkipped'));
+        }
+
+        const temporaryFile = await uploadImage(prepared.file);
 
         if (!temporaryFile) {
           return;

@@ -28,14 +28,20 @@ const usePickImage = (options?: TUsePickImageOptions) => {
 
       if (!file) return;
 
-      const uploadFile = options?.aspect
+      const prepared = options?.aspect
         ? await prepareImageFile(file, {
             aspect: options.aspect,
             round: options.round
           })
-        : file;
+        : { file, gifSkipped: false };
 
-      if (!uploadFile) return;
+      if (!prepared) return;
+
+      if (prepared.gifSkipped) {
+        toast.info(t('gifCropSkipped'));
+      }
+
+      const uploadFile = prepared.file;
 
       const temporaryFile = await uploadImage(uploadFile);
 
