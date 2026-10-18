@@ -90,6 +90,8 @@ const Profile = memo(() => {
           currentUrl={getFileUrl(ownPublicUser.avatar)}
           draft={values.avatar}
           onChange={handleAvatarChange}
+          cropAspect={1}
+          cropRound
           fallback={
             <UserAvatar
               userId={ownPublicUser.id}
@@ -106,6 +108,7 @@ const Profile = memo(() => {
           currentUrl={getFileUrl(ownPublicUser.banner)}
           draft={values.banner}
           onChange={handleBannerChange}
+          cropAspect={3}
         />
 
         <Group label={t('profileColorLabel')}>

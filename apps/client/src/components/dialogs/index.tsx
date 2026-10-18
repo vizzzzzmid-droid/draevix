@@ -8,6 +8,7 @@ import { CreateChannelDialog } from './create-channel';
 import { CreateInviteDialog } from './create-invite-dialog';
 import { DeleteUserDialog } from './delete-user';
 import { Dialog } from './dialogs';
+import { ImageCropDialog } from './image-crop';
 import { MusicPickerDialog } from './music-picker';
 import { PluginInstallConfirmDialog } from './plugin-install-confirm';
 import { ScreenShareSourceDialog } from './screen-share-source';
@@ -36,7 +37,8 @@ const DialogsMap: any = {
   [Dialog.VOICE_DEBUG]: VoiceDebugDialog,
   [Dialog.SCREEN_SHARE_SOURCE]: ScreenShareSourceDialog,
   [Dialog.WATCH_PARTY_PICKER]: WatchPartyPickerDialog,
-  [Dialog.MUSIC_PICKER]: MusicPickerDialog
+  [Dialog.MUSIC_PICKER]: MusicPickerDialog,
+  [Dialog.IMAGE_CROP]: ImageCropDialog
 };
 
 const DialogsProvider = memo(() => {

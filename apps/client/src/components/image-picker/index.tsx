@@ -14,6 +14,9 @@ type TImagePickerProps = {
   description?: string;
   className?: string;
   fallback?: ReactNode;
+  // when set, the picked file goes through the crop dialog first
+  cropAspect?: number;
+  cropRound?: boolean;
 };
 
 const ImagePicker = memo(
@@ -24,10 +27,14 @@ const ImagePicker = memo(
     onChange,
     description,
     className,
-    fallback
+    fallback,
+    cropAspect,
+    cropRound
   }: TImagePickerProps) => {
     const { t } = useTranslation('common');
-    const pickImage = usePickImage();
+    const pickImage = usePickImage(
+      cropAspect ? { aspect: cropAspect, round: cropRound } : undefined
+    );
 
     const handlePick = useCallback(async () => {
       const picked = await pickImage();

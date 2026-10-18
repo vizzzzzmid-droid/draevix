@@ -112,6 +112,32 @@ export const requestTextInput = async ({
   });
 };
 
+export const requestImageCrop = async ({
+  file,
+  aspect,
+  round = false
+}: {
+  file: File;
+  aspect: number;
+  round?: boolean;
+}): Promise<Blob | null> => {
+  return new Promise((resolve) => {
+    openDialog(Dialog.IMAGE_CROP, {
+      file,
+      aspect,
+      round,
+      onConfirm: (blob: Blob) => {
+        closeDialogs();
+        resolve(blob);
+      },
+      onCancel: () => {
+        closeDialogs();
+        resolve(null);
+      }
+    });
+  });
+};
+
 export const resetDialogs = () => {
   store.dispatch(dialogSliceActions.resetDialogs());
 };
