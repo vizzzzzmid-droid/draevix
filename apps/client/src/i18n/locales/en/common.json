@@ -97,7 +97,6 @@
   "musicQueued": "Added to the queue",
   "musicControlledBy": "Picked by {{name}}",
   "musicQueue": "Queue",
-  "musicStop": "Stop listening",
   "musicStopParty": "Stop for everyone",
   "musicLeave": "Close player",
   "musicPlay": "Play",

@@ -1,44 +1,66 @@
 <div align="center">
   <h1>Draevix</h1>
   <p><strong>A lightweight, self-hosted real-time communication platform</strong></p>
-  
-  [![Bun](https://img.shields.io/badge/Bun-v1.3.14-green.svg)](https://bun.sh)
-  [![Mediasoup](https://img.shields.io/badge/Mediasoup-v3.19.19-green.svg)](https://mediasoup.org)
 </div>
-
-## What is Draevix?
 
 > [!NOTE]
 > Draevix is in alpha stage. Bugs, incomplete features and breaking changes are to be expected.
 
-Draevix is a self-hosted communication platform that brings the most important Discord-like features to your own infrastructure. Voice, video, and screen sharing without the bloat or surveillance.
-
-## Screenshots
-
-
+Draevix brings the most important Discord-like features to your own infrastructure: voice, video and screen sharing without the bloat or surveillance.
 
 ## Features
 
-- **Voice channels** with video and screen sharing, over a built-in mediasoup SFU
+- **Voice channels** with video and screen sharing, over a built-in mediasoup SFU — including system-audio capture in the desktop app
+- **Listening parties**: shared music queue (SoundCloud, Audius) with repeat, shuffle and synchronized playback
+- **Watch parties** with synchronized video playback
 - **Text channels** grouped into categories, with threads, replies, reactions, pins and search
 - **Direct messages** between members
 - **Roles and permissions**, with per-channel overrides for individual roles and users
 - **Custom emoji**, mentions and channel references
 - **Invites** with usage limits and automatic role assignment
-- **File uploads** with per-user storage quotas and optional signed URLs
+- **File uploads** with per-user storage quotas, image optimization and optional signed URLs
 - **Plugins** that extend both server and client, through the [plugin SDK](packages/plugin-sdk)
+- **Desktop app** (Tauri, Windows and Linux) with auto-update and a community server picker
+- **8 interface languages**, OIDC login, notification settings
 
-## Docs
+## Project structure
 
-For detailed documentation, please visit our [Documentation](https://draevix.com/docs).
+```
+apps/
+  server/    Bun + tRPC + Drizzle (SQLite) backend, mediasoup SFU
+  client/    React 19 + Tailwind CSS web frontend (Vite)
+  desktop/   Tauri v2 wrapper around the web frontend
+packages/
+  shared/    Shared types, tRPC router contracts, static constants
+  ui/        Shared Radix/ShadCN UI primitives
+  plugin-sdk/ SDK for writing server and client plugins
+  e2e/       Playwright end-to-end tests (with an example plugin fixture)
+  scripts/   Repo tooling (e.g. i18n key sync report)
+```
 
-## Getting Started
+## Getting started
 
-Draevix is distributed as a standalone binary that bundles both server and client components. Grab the latest release build for your platform. We ship binaries for Windows, macOS, and Linux.
+Requirements: [Bun](https://bun.sh/) 1.3.14+. For the desktop build you also need the [Rust toolchain](https://rustup.rs/).
 
-#### Docker
+```bash
+git clone https://github.com/vizzzzzmid-droid/draevix.git
+cd draevix
+bun install
+```
 
-Draevix can also be run using Docker. Here's how to run it:
+Start the app:
+
+- With tmux: `./start.sh`
+- Without tmux: run `bun dev` in both `apps/client` and `apps/server`
+
+Then open [http://localhost:4991](http://localhost:4991) in your browser.
+
+> [!WARNING]
+> Upon first launch, Draevix creates a secret token and prints it to the console. It is the credential that grants owner access and the key the server signs every session and file URL with, so anyone who obtains it can take ownership **and** impersonate any account. Keep it out of logs, screenshots and issue reports, store it securely, and do not lose it.
+
+Development data (database, uploads) lives in `apps/server/data`. Delete that folder for a clean reset. To start from a server that looks used rather than empty, stop the dev server and run `bun run seed:mock` in `apps/server` (logs in as `admin` with `password123`).
+
+### Docker
 
 ```bash
 docker run \
@@ -50,27 +72,13 @@ docker run \
   draevix/draevix:latest
 ```
 
-#### Desktop app
+### Desktop app
 
-There is also a native desktop client (Tauri, Windows and Linux) that wraps the
-same web interface and lets you pick which server to connect to. Installers are
-built by the `desktop` GitHub workflow, either manually or from a `desktop-v*`
-tag. To build locally, install the Rust toolchain and run `bun --filter
-@draevix/desktop build` from the repo root.
+Installers for Windows and Linux are built by the `desktop` GitHub workflow from `desktop-v*` tags. To build locally, install the Rust toolchain and run `bun --filter @draevix/desktop build` from the repo root.
 
-> [!WARNING]
-> Upon first launch, Draevix creates a secret token and prints it to the console. It is both the credential that grants owner access and the key your server signs every session and file URL with, so anyone who obtains it can take ownership **and** impersonate any account. Keep it out of logs, screenshots and issue reports, store it securely, and do not lose it.
+### Community servers
 
-Once the server is running, open your web browser and navigate to [http://localhost:4991](http://localhost:4991) to access the Draevix client interface. If you're running the server on a different machine, replace `localhost` with the server's IP address or domain name.
-
-Check out our [Documentation](https://draevix.com/docs) for more detailed setup instructions, configuration options, and troubleshooting tips.
-
-## Community servers
-
-The desktop app shows a server picker fed by [servers.json](servers.json) in
-this repository. Anyone can add a server with a pull request, there is no
-moderation. Entries that fail validation are skipped, and servers that do not
-answer keep their registry name without live details:
+The desktop app shows a server picker fed by [servers.json](servers.json) in this repository. Anyone can add a server with a pull request, there is no moderation. Entries that fail validation are skipped, and servers that do not answer keep their registry name without live details:
 
 ```json
 [
@@ -82,13 +90,27 @@ answer keep their registry name without live details:
 ]
 ```
 
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `bun run format` | Prettier-write everything |
+| `bun run check-types` | TypeScript check across workspaces |
+| `bun run lint` | ESLint across workspaces |
+| `bun run magic` | `format` + `check-types` + `lint` |
+| `bun run test` | All unit tests |
+| `bun run knip` | Dead code / dependency audit (must be clean) |
+| `bun run test:e2e` | Playwright end-to-end suite |
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the development setup in detail.
+
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details, and [Development](DEVELOPMENT.md) for running Draevix locally.
+We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first — PRs target the `development` branch and follow the title convention described there.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
@@ -100,14 +122,4 @@ Built with amazing open-source technologies:
 - [Drizzle ORM](https://orm.drizzle.team)
 - [React](https://react.dev)
 - [Radix UI](https://www.radix-ui.com)
-- [ShadCN UI](https://ui.shadcn.com/)
 - [Tailwind CSS](https://tailwindcss.com)
-
-<div align="center">
-  <p>Made with ❤️ by the Draevix team</p>
-  <p>
-    <button type="button">GitHub</button> •
-    <button type="button">Issues</button> •
-    <button type="button">Discussions</button>
-  </p>
-</div>

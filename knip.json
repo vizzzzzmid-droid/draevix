@@ -7,13 +7,10 @@
     },
     "apps/server": {
       "entry": ["src/**/__tests__/**/*.test.ts", "build/**/*.ts"],
-      "project": ["src/**/*.ts"],
-      "ignore": ["src/db/migrations/**", "data/**", "data-test/**"]
+      "project": ["src/**/*.ts"]
     },
     "apps/client": {
-      "entry": ["src/main.tsx"],
-      "project": ["src/**/*.{ts,tsx}"],
-      "ignore": ["dist/**", "public/**"]
+      "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/shared": {
       "entry": ["src/**/*.ts"],
@@ -22,9 +19,12 @@
     "packages/ui": {
       "entry": ["src/**/*.ts", "src/**/*.tsx"],
       "project": ["src/**/*.ts", "src/**/*.tsx"]
+    },
+    "packages/scripts": {
+      "project": ["src/**/*.ts"]
     }
   },
-  "ignore": ["**/*.d.ts", "**/dist/**", "**/build/**", "**/node_modules/**"],
-  "ignoreDependencies": [],
+  "ignore": ["**/*.d.ts", "packages/e2e/tests/fixtures/**"],
+  "ignoreBinaries": ["tsc", "eslint", "prettier"],
   "ignoreExportsUsedInFile": true
 }
