@@ -252,6 +252,10 @@ filesystem-level failures). When that happens, cover everything around it and le
 comment in the test file naming what isn't covered and why. "Hard to set up" is not a
 reason — extend `seed.ts` or `helpers.ts` instead.
 
+## Releases
+
+Desktop installers ship from `desktop-v*` tags via `.github/workflows/desktop.yml`: bump the version in `apps/desktop/package.json`, `apps/desktop/src-tauri/tauri.conf.json`, `apps/desktop/src-tauri/Cargo.toml` and the root `bun.lock`, commit, tag, push the tag. The frontend is bundled into the binary, so client changes need a desktop bump too; server-only changes ship with a web deploy. Never rewrite published history or move tags.
+
 ## Client conventions
 
 `apps/client/src`:

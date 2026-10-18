@@ -3,10 +3,11 @@ set -e
 
 DATA_DIR="/home/bun/.config/draevix"
 
+mkdir -p "$DATA_DIR"
+
 # if we're already running as non-root (e.g. K8s securityContext, Podman rootless),
-# just ensure the data directory exists and run the binary directly.
+# there is nothing to remap: run the binary directly.
 if [ "$(id -u)" -ne 0 ]; then
-  mkdir -p "$DATA_DIR"
   exec /draevix
 fi
 
@@ -24,7 +25,6 @@ if [ -n "$PUID" ] && [ -n "$PGID" ]; then
 fi
 
 # ensure the data directory exists and is owned by the bun user
-mkdir -p "$DATA_DIR"
 chown -R bun:bun /home/bun/.config
 
 # drop privileges and exec the binary

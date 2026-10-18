@@ -1,3 +1,5 @@
+# the bun version is pinned: keep in sync with setup-bun in
+# .github/workflows/ci.yml and @types/bun in package.json
 FROM oven/bun:1.3.14
 
 ARG TARGETARCH

@@ -11,5 +11,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["packages/**/*", "apps/**/*", "build.ts"]
+  "include": ["packages/**/*", "apps/**/*"]
 }
