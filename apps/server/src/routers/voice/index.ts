@@ -29,6 +29,7 @@ import { getWatchStateRoute } from './get-watch-state';
 import { joinVoiceRoute } from './join';
 import { leaveVoiceRoute } from './leave';
 import { moveUserRoute } from './move';
+import { musicJumpToRoute } from './music-jump-to';
 import { musicNextRoute } from './music-next';
 import { musicPauseRoute } from './music-pause';
 import { musicPlayRoute } from './music-play';
@@ -87,6 +88,7 @@ export const voiceRouter = t.router({
   musicSetRepeat: musicSetRepeatRoute,
   musicSetShuffle: musicSetShuffleRoute,
   musicStop: musicStopRoute,
+  musicJumpTo: musicJumpToRoute,
   musicNext: musicNextRoute,
   musicRefresh: musicRefreshRoute,
   musicQueueAdd: musicQueueAddRoute,

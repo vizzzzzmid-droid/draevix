@@ -19,6 +19,9 @@ type TAdvanceMusicArgs = {
   // the current track itself failed to resolve (refresh path): never try
   // to replay or wrap onto it, go straight for the queue
   skipCurrent: boolean;
+  // jump-to-track advances in strict queue order: shuffling would scatter
+  // the target, so the jump bypasses the random rotation
+  ignoreShuffle?: boolean;
 };
 
 // moves the party past the current track (ended or dead). must be called
@@ -30,7 +33,8 @@ const advanceMusicLocked = async ({
   channelId,
   actorUserId,
   expectTrackId,
-  skipCurrent
+  skipCurrent,
+  ignoreShuffle = false
 }: TAdvanceMusicArgs): Promise<void> => {
   const current = runtime.getMusicState();
 
@@ -87,7 +91,7 @@ const advanceMusicLocked = async ({
 
   let pending = [...current.queue];
 
-  if (current.shuffle && pending.length > 1) {
+  if (current.shuffle && !ignoreShuffle && pending.length > 1) {
     const pick = Math.floor(Math.random() * pending.length);
 
     pending = [...pending.slice(pick), ...pending.slice(0, pick)];

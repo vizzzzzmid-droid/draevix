@@ -640,7 +640,7 @@ const WatchPartyPanel = memo(({ channelId }: TWatchPartyPanelProps) => {
               type="range"
               min={0}
               max={1}
-              step={0.05}
+              step={0.02}
               value={muted ? 0 : volume}
               onChange={handleVolumeChange}
               aria-label={t('watchVolume')}

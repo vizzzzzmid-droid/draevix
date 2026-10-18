@@ -109,6 +109,7 @@
   "musicRepeatOne": "Повтор: один трек",
   "musicQueueEmpty": "Очередь пуста",
   "musicQueueRemove": "Убрать из очереди",
+  "musicQueueJump": "Перейти к этому треку",
   "musicQueueClear": "Очистить очередь",
   "musicJoinTitle": "{{name}} начал(а) прослушивание",
   "musicJoin": "Присоединиться к прослушиванию",

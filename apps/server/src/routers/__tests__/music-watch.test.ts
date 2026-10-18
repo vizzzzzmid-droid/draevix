@@ -621,3 +621,95 @@ describe('watch music repeat and shuffle', () => {
     }
   });
 });
+
+describe('watch music jump to track', () => {
+  test('should jump straight to a queued track, skipping the ones before', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 2, title: 'Second' }
+      });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 3, title: 'Third' }
+      });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 4, title: 'Fourth' }
+      });
+
+      await caller.voice.musicJumpTo({ index: 1 });
+
+      const { music } = await caller.voice.getMusicState();
+
+      expect(music?.current?.trackId).toBe(3);
+      expect(music?.queue.map((entry) => entry.trackId)).toEqual([4]);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should jump past tracks that died upstream without overshooting', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: {
+          ...TRACK,
+          trackId: 7,
+          title: 'Dead',
+          permalinkUrl: 'https://soundcloud.com/artist/dead-track'
+        }
+      });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 3, title: 'Third' }
+      });
+
+      await caller.voice.musicJumpTo({ index: 1 });
+
+      const { music } = await caller.voice.getMusicState();
+
+      expect(music?.current?.trackId).toBe(3);
+      expect(music?.queue).toHaveLength(0);
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should jump under repeat-one without replaying the start', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 2, title: 'Second' }
+      });
+      await caller.voice.musicQueueAdd({
+        track: { ...TRACK, trackId: 3, title: 'Third' }
+      });
+      await caller.voice.musicSetRepeat({ mode: 'one' });
+
+      await caller.voice.musicJumpTo({ index: 1 });
+
+      const { music } = await caller.voice.getMusicState();
+
+      expect(music?.current?.trackId).toBe(3);
+      expect(music?.repeatMode).toBe('one');
+    } finally {
+      await runtime.destroy();
+    }
+  });
+
+  test('should reject a jump past the end of the queue', async () => {
+    const { runtime, caller } = await withVoiceChannel(1);
+
+    try {
+      await caller.voice.musicPlay({ track: TRACK });
+
+      await expect(caller.voice.musicJumpTo({ index: 0 })).rejects.toThrow();
+    } finally {
+      await runtime.destroy();
+    }
+  });
+});

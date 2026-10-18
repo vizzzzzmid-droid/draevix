@@ -109,6 +109,7 @@
   "musicRepeatOne": "Repeat: one track",
   "musicQueueEmpty": "The queue is empty",
   "musicQueueRemove": "Remove from queue",
+  "musicQueueJump": "Jump to this track",
   "musicQueueClear": "Clear queue",
   "musicJoinTitle": "{{name}} started listening",
   "musicJoin": "Join the listening party",

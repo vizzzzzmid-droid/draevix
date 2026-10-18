@@ -143,6 +143,19 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
     [t]
   );
 
+  const handleQueueJump = useCallback(
+    async (index: number) => {
+      const trpc = getTRPCClient();
+
+      try {
+        await trpc.voice.musicJumpTo.mutate({ index });
+      } catch (error) {
+        toast.error(getTrpcError(error, t('failedMusicTogether')));
+      }
+    },
+    [t]
+  );
+
   const handleQueueClear = useCallback(async () => {
     const trpc = getTRPCClient();
 
@@ -382,6 +395,14 @@ const MusicPanel = memo(({ channelId }: TMusicPanelProps) => {
                     {entry.title}
                     {entry.author ? ` — ${entry.author}` : ''}
                   </span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => void handleQueueJump(index)}
+                    title={t('musicQueueJump')}
+                  >
+                    <Play className="h-4 w-4" />
+                  </Button>
                   <Button
                     size="icon"
                     variant="ghost"
