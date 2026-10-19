@@ -7,9 +7,10 @@ import { invariant } from '../utils/invariant';
 
 const fetchMarketplaceVersion = async (
   pluginId: string,
-  version: string
+  version: string,
+  fetcher: typeof fetch = fetch
 ): Promise<TMarketplacePluginVersion> => {
-  const response = await fetch(MARKETPLACE_REGISTRY_URL);
+  const response = await fetcher(MARKETPLACE_REGISTRY_URL);
 
   invariant(response.ok, 'Failed to fetch marketplace registry');
 
