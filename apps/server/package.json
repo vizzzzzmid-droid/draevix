@@ -18,7 +18,7 @@
     "lint:fix": "eslint ./src/**/*.ts --ext ts --report-unused-disable-directives --fix",
     "check-types": "tsc --noEmit",
     "magic": "bun --bun run lint:fix && bun --bun run format && bun --bun run check-types",
-    "test": "bun test",
+    "test": "bun test --path-ignore-patterns=src/routers/__tests__/plugins.test.ts && bun test src/routers/__tests__/plugins.test.ts",
     "test:watch": "bun test --watch"
   },
   "devDependencies": {
