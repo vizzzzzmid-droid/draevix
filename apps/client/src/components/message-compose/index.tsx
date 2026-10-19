@@ -28,7 +28,7 @@ import {
 } from '@draevix/shared';
 import { Button, Spinner } from '@draevix/ui';
 import { filesize } from 'filesize';
-import { Paperclip, Reply, Send, Smile, Video, X } from 'lucide-react';
+import { Paperclip, Reply, Send, Smile, Upload, Video, X } from 'lucide-react';
 import {
   memo,
   useCallback,
@@ -146,6 +146,7 @@ const MessageCompose = memo(
       uploading,
       uploadingSize,
       uploadSpeed,
+      isFileDragOver,
       openFileDialog,
       fileInputProps
     } = useUploadFiles(channelId, containerRef, !canSendMessages);
@@ -286,6 +287,15 @@ const MessageCompose = memo(
         ref={containerRef}
         className="compose-container relative shrink-0 min-h-14 flex flex-col pb-[env(safe-area-inset-bottom)] bg-white/[0.03]"
       >
+        {isFileDragOver && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-primary bg-background/90 text-primary">
+            <Upload className="h-6 w-6" aria-hidden="true" />
+            <span className="text-sm font-medium">
+              {t('dropFilesToAttach')}
+            </span>
+          </div>
+        )}
+
         <UsersTypingIndicator typingUsers={typingUsers} />
 
         <div

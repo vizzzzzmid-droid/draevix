@@ -58,6 +58,7 @@
   "notificationPermissionDenied": "Permesso per le notifiche negato",
   "uploadsDisabled": "I caricamenti di file sono disabilitati su questo server",
   "noUploadPermission": "Non hai il permesso di caricare file",
+  "dropFilesToAttach": "Trascina qui i file per allegarli",
   "serverUpdateInitiated": "Aggiornamento del server avviato",
   "failedSendReply": "Impossibile inviare la risposta",
   "messageTooLong": "Il messaggio è troppo lungo, il massimo è {{max}} caratteri",
