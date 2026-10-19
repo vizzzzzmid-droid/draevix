@@ -23,6 +23,9 @@ type TDisplayItem = {
   file?: TTempFile;
 };
 
+const isFileDrag = (event: DragEvent) =>
+  Array.from(event.dataTransfer?.types ?? []).includes('Files');
+
 const useUploadFiles = (
   channelId: number,
   containerRef: RefObject<HTMLElement | null>,
@@ -44,6 +47,8 @@ const useUploadFiles = (
   const [pendingUploads, setPendingUploads] = useState<TDisplayItem[]>([]);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const previewUrlsRef = useRef<Record<string, string>>({});
+  const [isFileDragOver, setIsFileDragOver] = useState(false);
+  const dragDepthRef = useRef(0);
   const [displayOrder, setDisplayOrder] = useState<string[]>([]);
   const pendingToFileRef = useRef<Record<string, string>>({});
   const settings = usePublicServerSettings();
@@ -166,6 +171,8 @@ const useUploadFiles = (
 
   const processFiles = useCallback(
     async (filesToUpload: File[]) => {
+      if (!filesToUpload.length) return;
+
       const allowed = takeAllowedFiles(filesToUpload);
 
       if (!allowed.length) return;
@@ -309,9 +316,11 @@ const useUploadFiles = (
   useEffect(() => {
     const container = containerRef.current;
 
-    if (!container || !settings?.storageUploadEnabled || disabled) return;
+    if (!container) return;
 
     const handlePaste = async (event: ClipboardEvent) => {
+      if (!settings?.storageUploadEnabled || disabled) return;
+
       const items = event.clipboardData?.items ?? [];
       const hasFiles = Array.from(items).some((item) => item.kind === 'file');
 
@@ -332,47 +341,65 @@ const useUploadFiles = (
       await processFiles(filesToUpload);
     };
 
+    // always swallow file drops so the browser never navigates away with them
     const handleDrop = async (event: DragEvent) => {
+      dragDepthRef.current = 0;
+      setIsFileDragOver(false);
+
+      if (!isFileDrag(event)) return;
+
       event.preventDefault();
+      event.stopPropagation();
 
-      const items = event.dataTransfer?.items ?? [];
-      const dFiles = event.dataTransfer?.files ?? [];
-      const hasFiles =
-        Array.from(items).some((item) => item.kind === 'file') ||
-        dFiles.length > 0;
+      if (!settings?.storageUploadEnabled || disabled) return;
+      if (!checkUploadPermissions()) return;
 
-      if (hasFiles && !checkUploadPermissions()) return;
-
-      const filesToUpload: File[] = [];
-
-      if (items) {
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].kind === 'file') {
-            const file = items[i].getAsFile();
-
-            if (file) filesToUpload.push(file);
-          }
-        }
-      } else {
-        for (let i = 0; i < dFiles.length; i++) {
-          filesToUpload.push(dFiles[i]);
-        }
-      }
+      const filesToUpload = Array.from(event.dataTransfer?.files ?? []);
 
       await processFiles(filesToUpload);
     };
 
-    const handleDragOver = (event: DragEvent) => {
+    const handleDragEnter = (event: DragEvent) => {
+      if (!isFileDrag(event)) return;
+
       event.preventDefault();
+
+      dragDepthRef.current += 1;
+
+      if (settings?.storageUploadEnabled && !disabled) {
+        setIsFileDragOver(true);
+      }
+    };
+
+    const handleDragOver = (event: DragEvent) => {
+      if (!isFileDrag(event)) return;
+
+      event.preventDefault();
+
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'copy';
+      }
+    };
+
+    const handleDragLeave = () => {
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+
+      if (dragDepthRef.current === 0) {
+        setIsFileDragOver(false);
+      }
     };
 
     container.addEventListener('paste', handlePaste);
+    container.addEventListener('dragenter', handleDragEnter);
     container.addEventListener('dragover', handleDragOver);
+    container.addEventListener('dragleave', handleDragLeave);
     container.addEventListener('drop', handleDrop);
 
     return () => {
       container.removeEventListener('paste', handlePaste);
+      container.removeEventListener('dragenter', handleDragEnter);
       container.removeEventListener('dragover', handleDragOver);
+      container.removeEventListener('dragleave', handleDragLeave);
       container.removeEventListener('drop', handleDrop);
     };
   }, [
@@ -453,7 +480,8 @@ const useUploadFiles = (
       uploadingSize,
       uploadSpeed,
       openFileDialog,
-      fileInputProps
+      fileInputProps,
+      isFileDragOver
     }),
     [
       files,
@@ -464,7 +492,8 @@ const useUploadFiles = (
       uploadingSize,
       uploadSpeed,
       openFileDialog,
-      fileInputProps
+      fileInputProps,
+      isFileDragOver
     ]
   );
 };

@@ -147,8 +147,37 @@ const MessageCompose = memo(
       uploadingSize,
       uploadSpeed,
       openFileDialog,
-      fileInputProps
+      fileInputProps,
+      isFileDragOver
     } = useUploadFiles(channelId, containerRef, !canSendMessages);
+
+    useEffect(() => {
+      // let drops anywhere over the visible messages attach them here too;
+      // drops inside the compose box are stopped there and never reach this
+      const el =
+        containerRef.current?.closest('[data-messages-container]') ?? null;
+
+      if (!el) return;
+
+      const isFileDrag = (event: DragEvent) =>
+        Array.from(event.dataTransfer?.types ?? []).includes('Files');
+
+      const handleDragOver = (event: DragEvent) => {
+        if (isFileDrag(event)) event.preventDefault();
+      };
+
+      const handleDrop = (event: DragEvent) => {
+        if (isFileDrag(event)) event.preventDefault();
+      };
+
+      el.addEventListener('dragover', handleDragOver);
+      el.addEventListener('drop', handleDrop);
+
+      return () => {
+        el.removeEventListener('dragover', handleDragOver);
+        el.removeEventListener('drop', handleDrop);
+      };
+    }, [containerRef]);
 
     useFileAwareHeight({
       containerRef,
@@ -292,6 +321,13 @@ const MessageCompose = memo(
           className={`compose-scroll-row flex items-start flex-1 overflow-y-auto cursor-text${uploading ? ' bg-muted' : ''}`}
           onClick={focusInputOnBackdropClick}
         >
+          {isFileDragOver && (
+            <div className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary/60 bg-background/70">
+              <span className="rounded-full bg-primary/15 px-3 py-1 text-sm font-medium text-primary">
+                {t('dropFilesToAttach')}
+              </span>
+            </div>
+          )}
           <div className="flex flex-1 flex-col">
             {replyTarget && (
               <div className="flex items-center justify-between rounded-md border border-border/60 bg-secondary/40 mx-2 mt-3 px-2 py-1 text-xs">
