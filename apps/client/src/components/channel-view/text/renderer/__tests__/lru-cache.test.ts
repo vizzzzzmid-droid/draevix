@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFromCache, writeToCache } from '../lru-cache';
 
-const MAX_CACHE_SIZE = 500;
+const MAX_CACHE_SIZE = 100;
 
 const fill = (cache: Map<string, number>, count: number) => {
   for (let index = 0; index < count; index++) {

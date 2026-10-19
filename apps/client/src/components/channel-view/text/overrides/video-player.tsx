@@ -1,6 +1,5 @@
 import { cn } from '@draevix/ui';
-import { memo } from 'react';
-import ReactPlayer from 'react-player';
+import { memo, useState } from 'react';
 
 type TVideoPlayerProps = {
   url: string;
@@ -8,16 +7,18 @@ type TVideoPlayerProps = {
 };
 
 const VideoPlayer = memo(({ url, className }: TVideoPlayerProps) => {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) return null;
+
   return (
     <div className={cn('aspect-video w-150 max-w-full', className)}>
-      <ReactPlayer
+      <video
         src={url}
         controls
-        width="100%"
-        height="100%"
-        style={{
-          colorScheme: 'dark'
-        }}
+        preload="metadata"
+        onError={() => setFailed(true)}
+        className="h-full w-full"
       />
     </div>
   );

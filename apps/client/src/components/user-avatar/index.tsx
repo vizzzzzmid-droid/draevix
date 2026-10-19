@@ -33,7 +33,12 @@ const UserAvatar = memo(
     const content = (
       <div className="relative size-fit" onClick={onClick}>
         <Avatar className={cn('size-8 bg-muted', className)}>
-          <AvatarImage src={getFileUrl(user.avatar)} key={user.avatarId} />
+          <AvatarImage
+            src={getFileUrl(user.avatar)}
+            key={user.avatarId}
+            loading="lazy"
+            className="aspect-square size-full object-cover"
+          />
           <AvatarFallback className="bg-muted text-xs">
             {getInitialsFromName(getRenderedUsername(user))}
           </AvatarFallback>

@@ -1,4 +1,4 @@
-const MAX_CACHE_SIZE = 500;
+const MAX_CACHE_SIZE = 100;
 
 // least recently used, not insertion order: someone scrolling upwards re-renders
 // the oldest messages first, so FIFO evicted exactly what was about to be needed
