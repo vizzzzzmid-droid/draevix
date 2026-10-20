@@ -101,7 +101,7 @@
     },
     "apps/desktop": {
       "name": "@draevix/desktop",
-      "version": "0.0.75",
+      "version": "0.0.76",
       "devDependencies": {
         "@tauri-apps/cli": "^2.0.0",
       },
