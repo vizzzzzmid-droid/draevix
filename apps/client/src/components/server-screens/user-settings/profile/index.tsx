@@ -193,9 +193,10 @@ const Profile = memo(() => {
             </SelectContent>
           </Select>
         )}
-        <Textarea
-          placeholder={t('bioPlaceholder')}
-          {...r('bio')}
+         <Textarea
+           placeholder={t('bioPlaceholder')}
+           maxLength={160}
+           {...r('bio')}
           style={
             values.bioFont === UsernameFont.DEFAULT
               ? undefined
