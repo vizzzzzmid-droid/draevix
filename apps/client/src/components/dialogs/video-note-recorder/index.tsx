@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@draevix/ui';
-import { Circle, RotateCcw, Send, Square, Video } from 'lucide-react';
+import { RotateCcw, Send, Square, Video } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -492,11 +492,11 @@ const VideoNoteRecorderDialog = memo(
             <div className="flex items-center gap-2">
               {phase === 'ready' && (
                 <Button
+                  variant="secondary"
                   onClick={handleStartRecording}
                   disabled={!cameraReady || !!cameraError}
                   className="gap-1.5"
                 >
-                  <Circle className="size-3.5 fill-current text-red-500" />
                   {t('videoNoteStartRecord')}
                 </Button>
               )}
