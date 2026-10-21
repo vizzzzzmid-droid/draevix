@@ -208,9 +208,9 @@ const SearchDialog = memo(({ isOpen, close }: TSearchDialogProps) => {
                       {t('searchScopeServer')}
                     </TabsTrigger>
                     <TabsTrigger value="dms" className="px-3">
-                    {activeDmChannelId
-                      ? t('searchScopeThisDm')
-                      : t('searchScopeDms')}
+                      {activeDmChannelId
+                        ? t('searchScopeThisDm')
+                        : t('searchScopeDms')}
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
