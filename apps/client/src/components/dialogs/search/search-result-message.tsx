@@ -7,7 +7,7 @@ import { usePluginMetadata } from '@/features/server/plugins/hooks';
 import type { TMessageJumpToTarget } from '@/types';
 import { TestId } from '@draevix/shared';
 import { IconButton, Tooltip } from '@draevix/ui';
-import { ArrowRight, Hash } from 'lucide-react';
+import { ArrowRight, Hash, MessageCircleMore } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TSearchResultMessage } from './types';
@@ -23,6 +23,10 @@ const SearchResultMessageCard = memo(
     const isPluginMessage = !!message.pluginId;
     const plugin = usePluginMetadata(message.pluginId);
     const authorName = useMessageAuthorName(message);
+    const ChannelIcon = message.channelIsDm ? MessageCircleMore : Hash;
+    const channelName = message.channelIsDm
+      ? t('directMessages')
+      : message.channelName;
 
     const handleJump = useCallback(() => {
       onJump({
@@ -55,10 +59,8 @@ const SearchResultMessageCard = memo(
               </RelativeTime>
               <span>•</span>
               <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                <Hash className="h-3 w-3" />
-                <span className="truncate wrap-anywhere">
-                  {message.channelName}
-                </span>
+                <ChannelIcon className="h-3 w-3" />
+                <span className="truncate wrap-anywhere">{channelName}</span>
               </span>
               {!!message.parentMessageId && (
                 <>

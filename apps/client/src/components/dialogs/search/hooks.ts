@@ -1,19 +1,23 @@
 import { getTRPCClient } from '@/lib/trpc';
 import { getTrpcError } from '@draevix/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import type { TSearchResults, TUnifiedSearchResult } from './types';
+import type { TSearchResults, TSearchScope } from './types';
 
 const EMPTY_RESULTS: TSearchResults = {
   messages: [],
   files: [],
+  photos: [],
+  videos: [],
+  audio: [],
+  links: [],
   truncated: false
 };
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
 
-export const useSearch = (isOpen: boolean) => {
+export const useSearch = (isOpen: boolean, scope: TSearchScope) => {
   const { t } = useTranslation('common');
 
   const [query, setQuery] = useState('');
@@ -47,10 +51,22 @@ export const useSearch = (isOpen: boolean) => {
       setLoading(true);
 
       try {
-        const next = await trpc.messages.search.query({ query: trimmed });
+        const next = await trpc.messages.search.query({
+          query: trimmed,
+          scope
+        });
 
         if (!cancelled) {
-          setResults(next);
+          // older servers do not return the attachment buckets yet
+          setResults({
+            messages: next.messages ?? [],
+            files: next.files ?? [],
+            photos: next.photos ?? [],
+            videos: next.videos ?? [],
+            audio: next.audio ?? [],
+            links: next.links ?? [],
+            truncated: next.truncated ?? false
+          });
         }
       } catch (error) {
         toast.error(getTrpcError(error, t('common:failedLoadSearchResults')));
@@ -69,39 +85,15 @@ export const useSearch = (isOpen: boolean) => {
       clearTimeout(timer);
       cancelled = true;
     };
-  }, [query, isOpen, t]);
+  }, [query, scope, isOpen, t]);
 
   const canSearch = query.trim().length >= MIN_QUERY_LENGTH;
-  const totalResults = results.messages.length + results.files.length;
-  const truncated = results.truncated;
-
-  // combine messages and files into a single list
-  const unifiedResults: TUnifiedSearchResult[] = useMemo(
-    () =>
-      [
-        ...results.messages.map((message) => ({
-          type: 'message' as const,
-          createdAt: message.createdAt,
-          key: `message-${message.id}`,
-          item: message
-        })),
-        ...results.files.map((fileResult) => ({
-          type: 'file' as const,
-          createdAt: fileResult.messageCreatedAt,
-          key: `file-${fileResult.file.id}-${fileResult.messageId}`,
-          item: fileResult
-        }))
-      ].sort((a, b) => b.createdAt - a.createdAt),
-    [results]
-  );
 
   return {
     query,
     setQuery,
     loading,
     canSearch,
-    totalResults,
-    truncated,
-    unifiedResults
+    results
   };
 };

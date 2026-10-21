@@ -360,6 +360,131 @@ describe('messages router', () => {
     expect(ownerResult.files.length).toBe(0);
   });
 
+  test('should search DM messages and attachments for participants only', async () => {
+    const { caller: participant } = await initTest(3);
+    const { caller: outsider } = await initTest(2);
+
+    const participantResult = await participant.messages.search({
+      query: 'hello user b',
+      scope: 'dms'
+    });
+
+    expect(participantResult.messages.length).toBe(1);
+    expect(participantResult.messages[0]?.channelIsDm).toBe(true);
+
+    const participantAttachment = await participant.messages.search({
+      query: 'dm-movie',
+      scope: 'dms'
+    });
+
+    expect(participantAttachment.videos.length).toBe(1);
+    expect(participantAttachment.videos[0]?.channelIsDm).toBe(true);
+
+    const outsiderResult = await outsider.messages.search({
+      query: 'hello user b',
+      scope: 'dms'
+    });
+
+    expect(outsiderResult.messages.length).toBe(0);
+    expect(outsiderResult.videos.length).toBe(0);
+  });
+
+  test('should group file matches into photos, videos and audio', async () => {
+    const { caller } = await initTest(1);
+
+    const messageId = await caller.messages.send({
+      channelId: 2,
+      content: 'media-kit attachments',
+      files: []
+    });
+
+    const now = Date.now();
+
+    const attached = [
+      { name: 'photo.png', mimeType: 'image/png', extension: '.png' },
+      { name: 'clip.mp4', mimeType: 'video/mp4', extension: '.mp4' },
+      { name: 'sound.mp3', mimeType: 'audio/mpeg', extension: '.mp3' },
+      { name: 'document.pdf', mimeType: 'application/pdf', extension: '.pdf' }
+    ];
+
+    for (const [index, item] of attached.entries()) {
+      const [file] = await tdb
+        .insert(files)
+        .values({
+          name: `media-${now}-${index}-${item.name}`,
+          originalName: item.name,
+          md5: `media-md5-${now}-${index}`,
+          userId: 1,
+          size: 64,
+          mimeType: item.mimeType,
+          extension: item.extension,
+          createdAt: now
+        })
+        .returning();
+
+      await tdb
+        .insert(messageFiles)
+        .values({ messageId, fileId: file!.id, createdAt: now });
+    }
+
+    const result = await caller.messages.search({ query: 'media-kit' });
+
+    expect(result.photos.map((item) => item.file.originalName)).toEqual([
+      'photo.png'
+    ]);
+    expect(result.videos.map((item) => item.file.originalName)).toEqual([
+      'clip.mp4'
+    ]);
+    expect(result.audio.map((item) => item.file.originalName)).toEqual([
+      'sound.mp3'
+    ]);
+    expect(result.files.length).toBe(4);
+  });
+
+  test('should return links from matches, including an href only match', async () => {
+    const { caller } = await initTest(1);
+
+    await caller.messages.send({
+      channelId: 2,
+      content:
+        '<a href="https://example.com/needle-link">read this</a> and https://example.com/bare-link',
+      files: []
+    });
+
+    const result = await caller.messages.search({ query: 'needle-link' });
+
+    expect(result.links.length).toBe(1);
+    expect(result.links[0]?.links).toContain('https://example.com/needle-link');
+    expect(result.links[0]?.links).toContain('https://example.com/bare-link');
+    expect(result.links[0]?.channelIsDm).toBe(false);
+  });
+
+  test('should return DM links only to participants', async () => {
+    const { caller: participant } = await initTest(3);
+    const { caller: outsider } = await initTest(2);
+
+    await participant.messages.send({
+      channelId: 3,
+      content: '<a href="https://example.com/dm-needle-link">dm link</a>',
+      files: []
+    });
+
+    const participantResult = await participant.messages.search({
+      query: 'dm-needle-link',
+      scope: 'dms'
+    });
+
+    expect(participantResult.links.length).toBe(1);
+    expect(participantResult.links[0]?.channelIsDm).toBe(true);
+
+    const outsiderResult = await outsider.messages.search({
+      query: 'dm-needle-link',
+      scope: 'dms'
+    });
+
+    expect(outsiderResult.links.length).toBe(0);
+  });
+
   test('should only search files attached to messages', async () => {
     const { caller } = await initTest(1);
 
