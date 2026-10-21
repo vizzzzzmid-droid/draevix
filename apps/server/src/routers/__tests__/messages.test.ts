@@ -360,7 +360,7 @@ describe('messages router', () => {
     expect(ownerResult.files.length).toBe(0);
   });
 
-  test('should search DM messages and attachments for participants only', async () => {
+  test('should search DM messages and files for participants only', async () => {
     const { caller: participant } = await initTest(3);
     const { caller: outsider } = await initTest(2);
 
@@ -377,8 +377,11 @@ describe('messages router', () => {
       scope: 'dms'
     });
 
-    expect(participantAttachment.videos.length).toBe(1);
-    expect(participantAttachment.videos[0]?.channelIsDm).toBe(true);
+    expect(participantAttachment.files.length).toBe(1);
+    expect(participantAttachment.files[0]?.channelIsDm).toBe(true);
+    expect(participantAttachment.files[0]?.file.originalName).toBe(
+      'dm-movie.mp4'
+    );
 
     const outsiderResult = await outsider.messages.search({
       query: 'hello user b',
@@ -386,38 +389,110 @@ describe('messages router', () => {
     });
 
     expect(outsiderResult.messages.length).toBe(0);
-    expect(outsiderResult.videos.length).toBe(0);
+    expect(outsiderResult.files.length).toBe(0);
   });
 
-  test('should group file matches into photos, videos and audio', async () => {
+  test('should browse all attachments without a query', async () => {
     const { caller } = await initTest(1);
 
     const messageId = await caller.messages.send({
       channelId: 2,
-      content: 'media-kit attachments',
+      content: 'browse attachments',
       files: []
     });
 
     const now = Date.now();
 
-    const attached = [
-      { name: 'photo.png', mimeType: 'image/png', extension: '.png' },
-      { name: 'clip.mp4', mimeType: 'video/mp4', extension: '.mp4' },
-      { name: 'sound.mp3', mimeType: 'audio/mpeg', extension: '.mp3' },
-      { name: 'document.pdf', mimeType: 'application/pdf', extension: '.pdf' }
-    ];
-
-    for (const [index, item] of attached.entries()) {
+    const insertAttachment = async (
+      name: string,
+      mimeType: string,
+      extension: string
+    ) => {
       const [file] = await tdb
         .insert(files)
         .values({
-          name: `media-${now}-${index}-${item.name}`,
-          originalName: item.name,
-          md5: `media-md5-${now}-${index}`,
+          name: `browse-${now}-${name}`,
+          originalName: name,
+          md5: `browse-md5-${now}-${name}`,
           userId: 1,
           size: 64,
-          mimeType: item.mimeType,
-          extension: item.extension,
+          mimeType,
+          extension,
+          createdAt: now
+        })
+        .returning();
+
+      await tdb
+        .insert(messageFiles)
+        .values({ messageId, fileId: file!.id, createdAt: now });
+    };
+
+    await insertAttachment('browse-photo.png', 'image/png', '.png');
+    await insertAttachment('browse-video.mp4', 'video/mp4', '.mp4');
+    await insertAttachment('browse-audio.mp3', 'audio/mpeg', '.mp3');
+
+    await caller.messages.send({
+      channelId: 2,
+      content: '<a href="https://example.com/browse-link">browse link</a>',
+      files: []
+    });
+
+    const [photos, videos, audio, links] = await Promise.all([
+      caller.messages.browseAttachments({ type: 'photos' }),
+      caller.messages.browseAttachments({ type: 'videos' }),
+      caller.messages.browseAttachments({ type: 'audio' }),
+      caller.messages.browseAttachments({ type: 'links' })
+    ]);
+
+    expect(
+      photos.items.some(
+        (item) =>
+          item.kind === 'file' && item.file.originalName === 'browse-photo.png'
+      )
+    ).toBe(true);
+    expect(
+      videos.items.some(
+        (item) =>
+          item.kind === 'file' && item.file.originalName === 'browse-video.mp4'
+      )
+    ).toBe(true);
+    expect(
+      audio.items.some(
+        (item) =>
+          item.kind === 'file' && item.file.originalName === 'browse-audio.mp3'
+      )
+    ).toBe(true);
+    expect(
+      links.items.some(
+        (item) =>
+          item.kind === 'link' &&
+          item.links.includes('https://example.com/browse-link')
+      )
+    ).toBe(true);
+  });
+
+  test('should filter browsed attachments and page through them', async () => {
+    const { caller } = await initTest(1);
+
+    const messageId = await caller.messages.send({
+      channelId: 2,
+      content: 'paged attachments',
+      files: []
+    });
+
+    const now = Date.now();
+
+    for (let index = 0; index < 3; index++) {
+      const [file] = await tdb
+        .insert(files)
+        .values({
+          name: `paged-${now}-${index}.png`,
+          originalName: `paged-photo-${index}.png`,
+          md5: `paged-md5-${now}-${index}`,
+          userId: 1,
+          size: 64,
+          mimeType: 'image/png',
+          extension: '.png',
           createdAt: now
         })
         .returning();
@@ -427,62 +502,76 @@ describe('messages router', () => {
         .values({ messageId, fileId: file!.id, createdAt: now });
     }
 
-    const result = await caller.messages.search({ query: 'media-kit' });
-
-    expect(result.photos.map((item) => item.file.originalName)).toEqual([
-      'photo.png'
-    ]);
-    expect(result.videos.map((item) => item.file.originalName)).toEqual([
-      'clip.mp4'
-    ]);
-    expect(result.audio.map((item) => item.file.originalName)).toEqual([
-      'sound.mp3'
-    ]);
-    expect(result.files.length).toBe(4);
-  });
-
-  test('should return links from matches, including an href only match', async () => {
-    const { caller } = await initTest(1);
-
-    await caller.messages.send({
-      channelId: 2,
-      content:
-        '<a href="https://example.com/needle-link">read this</a> and https://example.com/bare-link',
-      files: []
+    const filtered = await caller.messages.browseAttachments({
+      type: 'photos',
+      query: 'paged-photo'
     });
 
-    const result = await caller.messages.search({ query: 'needle-link' });
+    expect(filtered.items.length).toBe(3);
 
-    expect(result.links.length).toBe(1);
-    expect(result.links[0]?.links).toContain('https://example.com/needle-link');
-    expect(result.links[0]?.links).toContain('https://example.com/bare-link');
-    expect(result.links[0]?.channelIsDm).toBe(false);
+    const firstPage = await caller.messages.browseAttachments({
+      type: 'photos',
+      limit: 2
+    });
+
+    expect(firstPage.items.length).toBe(2);
+    expect(firstPage.nextCursor).not.toBeNull();
+
+    const secondPage = await caller.messages.browseAttachments({
+      type: 'photos',
+      limit: 2,
+      cursor: firstPage.nextCursor
+    });
+
+    expect(secondPage.items.length).toBe(1);
+    expect(secondPage.nextCursor).toBeNull();
   });
 
-  test('should return DM links only to participants', async () => {
+  test('should browse DM attachments and links for participants only', async () => {
     const { caller: participant } = await initTest(3);
     const { caller: outsider } = await initTest(2);
 
     await participant.messages.send({
       channelId: 3,
-      content: '<a href="https://example.com/dm-needle-link">dm link</a>',
+      content:
+        '<a href="https://example.com/dm-browse-link">dm browse link</a>',
       files: []
     });
 
-    const participantResult = await participant.messages.search({
-      query: 'dm-needle-link',
-      scope: 'dms'
+    const participantVideos = await participant.messages.browseAttachments({
+      scope: 'dms',
+      type: 'videos'
+    });
+    const participantLinks = await participant.messages.browseAttachments({
+      scope: 'dms',
+      type: 'links'
     });
 
-    expect(participantResult.links.length).toBe(1);
-    expect(participantResult.links[0]?.channelIsDm).toBe(true);
+    expect(
+      participantVideos.items.some(
+        (item) =>
+          item.kind === 'file' && item.file.originalName === 'dm-movie.mp4'
+      )
+    ).toBe(true);
+    expect(
+      participantLinks.items.some(
+        (item) =>
+          item.kind === 'link' &&
+          item.links.includes('https://example.com/dm-browse-link')
+      )
+    ).toBe(true);
 
-    const outsiderResult = await outsider.messages.search({
-      query: 'dm-needle-link',
-      scope: 'dms'
+    const outsiderVideos = await outsider.messages.browseAttachments({
+      scope: 'dms',
+      type: 'videos'
+    });
+    const outsiderLinks = await outsider.messages.browseAttachments({
+      scope: 'dms',
+      type: 'links'
     });
 
-    expect(outsiderResult.links.length).toBe(0);
+    expect(outsiderVideos.items.length).toBe(0);
+    expect(outsiderLinks.items.length).toBe(0);
   });
 
   test('should only search files attached to messages', async () => {

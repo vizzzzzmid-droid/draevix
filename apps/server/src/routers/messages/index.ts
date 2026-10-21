@@ -1,4 +1,5 @@
 import { t } from '../../utils/trpc';
+import { browseAttachmentsRoute } from './browse-attachments';
 import { deleteMessageRoute } from './delete-message';
 import { editMessageRoute } from './edit-message';
 import {
@@ -26,6 +27,7 @@ export const messagesRouter = t.router({
   getPinned: getPinnedRoute,
   getOne: getMessageRoute,
   search: searchMessagesRoute,
+  browseAttachments: browseAttachmentsRoute,
   getThread: getThreadMessagesRoute,
   toggleReaction: toggleMessageReactionRoute,
   togglePin: toggleMessagePinRoute,

@@ -30,6 +30,15 @@ export type TSearchResultLink = {
   plainContent: string;
 };
 
+export type TAttachmentCursor = {
+  createdAt: number;
+  id: number;
+};
+
+export type TAttachmentItem =
+  | ({ kind: 'file' } & TSearchResultFile)
+  | ({ kind: 'link' } & TSearchResultLink);
+
 export type TUnifiedSearchResult =
   | {
       type: 'message';
@@ -53,9 +62,5 @@ export type TUnifiedSearchResult =
 export type TSearchResults = {
   messages: TSearchResultMessage[];
   files: TSearchResultFile[];
-  photos: TSearchResultFile[];
-  videos: TSearchResultFile[];
-  audio: TSearchResultFile[];
-  links: TSearchResultLink[];
   truncated: boolean;
 };

@@ -8,16 +8,16 @@ import type { TSearchResults, TSearchScope } from './types';
 const EMPTY_RESULTS: TSearchResults = {
   messages: [],
   files: [],
-  photos: [],
-  videos: [],
-  audio: [],
-  links: [],
   truncated: false
 };
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
 
-export const useSearch = (isOpen: boolean, scope: TSearchScope) => {
+export const useSearch = (
+  isOpen: boolean,
+  scope: TSearchScope,
+  enabled: boolean
+) => {
   const { t } = useTranslation('common');
 
   const [query, setQuery] = useState('');
@@ -36,7 +36,7 @@ export const useSearch = (isOpen: boolean, scope: TSearchScope) => {
   useEffect(() => {
     const trimmed = query.trim();
 
-    if (!isOpen || trimmed.length < MIN_QUERY_LENGTH) {
+    if (!isOpen || !enabled || trimmed.length < MIN_QUERY_LENGTH) {
       setResults(EMPTY_RESULTS);
       setLoading(false);
 
@@ -57,14 +57,9 @@ export const useSearch = (isOpen: boolean, scope: TSearchScope) => {
         });
 
         if (!cancelled) {
-          // older servers do not return the attachment buckets yet
           setResults({
             messages: next.messages ?? [],
             files: next.files ?? [],
-            photos: next.photos ?? [],
-            videos: next.videos ?? [],
-            audio: next.audio ?? [],
-            links: next.links ?? [],
             truncated: next.truncated ?? false
           });
         }
@@ -85,7 +80,7 @@ export const useSearch = (isOpen: boolean, scope: TSearchScope) => {
       clearTimeout(timer);
       cancelled = true;
     };
-  }, [query, scope, isOpen, t]);
+  }, [query, scope, enabled, isOpen, t]);
 
   const canSearch = query.trim().length >= MIN_QUERY_LENGTH;
 
