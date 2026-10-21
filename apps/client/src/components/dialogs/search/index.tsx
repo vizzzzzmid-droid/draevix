@@ -55,6 +55,7 @@ const SearchDialog = memo(({ isOpen, close }: TSearchDialogProps) => {
   );
   const [tab, setTab] = useState<TSearchTab>('messages');
   const isMessagesTab = tab === 'messages';
+  const isFileTab = tab === 'photos' || tab === 'videos' || tab === 'audio';
 
   const { query, setQuery, loading, canSearch, results } = useSearch(
     isOpen,
@@ -262,7 +263,11 @@ const SearchDialog = memo(({ isOpen, close }: TSearchDialogProps) => {
                   </PaginatedList.Empty>
 
                   <PaginatedList.List<TUnifiedSearchResult>
-                    className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1"
+                    className={
+                      isFileTab
+                        ? 'grid min-h-0 flex-1 content-start grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6'
+                        : 'min-h-0 flex-1 space-y-2 overflow-y-auto pr-1'
+                    }
                     getItemKey={(entry) => entry.key}
                   >
                     {renderEntry}

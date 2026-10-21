@@ -1,10 +1,13 @@
-import { RelativeTime } from '@/components/relative-time';
 import { getFileUrl } from '@/helpers/get-file-url';
 import type { TMessageJumpToTarget } from '@/types';
 import { FileCategory, getFileCategory } from '@draevix/shared';
-import { Button } from '@draevix/ui';
-import { filesize } from 'filesize';
-import { FileText, Hash, MessageCircleMore, Music, Play } from 'lucide-react';
+import {
+  ArrowRight,
+  FileText,
+  MessageCircleMore,
+  Music,
+  Play
+} from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TSearchResultFile } from './types';
@@ -14,7 +17,7 @@ type TSearchResultFileCardProps = {
   onJump: (target: TMessageJumpToTarget) => void;
 };
 
-const FileThumbnail = memo(({ result }: { result: TSearchResultFile }) => {
+const FilePreview = memo(({ result }: { result: TSearchResultFile }) => {
   const url = getFileUrl(result.file);
   const extension = result.file.extension.startsWith('.')
     ? result.file.extension.toLowerCase()
@@ -27,14 +30,14 @@ const FileThumbnail = memo(({ result }: { result: TSearchResultFile }) => {
         src={url}
         alt=""
         loading="lazy"
-        className="h-14 w-14 shrink-0 rounded-md object-cover"
+        className="h-full w-full object-cover"
       />
     );
   }
 
   if (category === FileCategory.VIDEO) {
     return (
-      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-black/80">
+      <>
         <video
           src={`${url}#t=0.1`}
           preload="metadata"
@@ -42,24 +45,26 @@ const FileThumbnail = memo(({ result }: { result: TSearchResultFile }) => {
           playsInline
           className="h-full w-full object-cover"
         />
-        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
-          <Play className="h-4 w-4 fill-current text-white" />
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="flex size-9 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+            <Play className="h-4 w-4 fill-current" />
+          </span>
         </span>
-      </div>
+      </>
     );
   }
 
   if (category === FileCategory.AUDIO) {
     return (
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-muted">
-        <Music className="h-5 w-5 text-muted-foreground" />
+      <div className="flex h-full w-full items-center justify-center bg-muted">
+        <Music className="h-8 w-8 text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-muted">
-      <FileText className="h-5 w-5 text-muted-foreground" />
+    <div className="flex h-full w-full items-center justify-center bg-muted">
+      <FileText className="h-8 w-8 text-muted-foreground" />
     </div>
   );
 });
@@ -76,52 +81,45 @@ const SearchResultFileCard = memo(
       });
     }, [onJump, result.channelId, result.messageId, result.channelIsDm]);
 
-    const ChannelIcon = result.channelIsDm ? MessageCircleMore : Hash;
-    const channelName = result.channelIsDm
-      ? t('directMessages')
-      : result.channelName;
+    const extension =
+      result.file.extension.replace(/^\./, '').toUpperCase() || 'FILE';
 
     return (
-      <div className="overflow-hidden rounded-lg border border-border bg-card px-3 py-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <FileThumbnail result={result} />
+      <div className="group relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-card">
+        <a
+          href={getFileUrl(result.file)}
+          target="_blank"
+          rel="noreferrer"
+          title={result.file.originalName}
+          className="absolute inset-0 block"
+        >
+          <FilePreview result={result} />
+        </a>
 
-          <div className="min-w-0 flex-1">
-            <a
-              href={getFileUrl(result.file)}
-              target="_blank"
-              rel="noreferrer"
-              className="block truncate text-sm font-medium text-foreground hover:underline"
-            >
-              {result.file.originalName}
-            </a>
-
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                <ChannelIcon className="h-3 w-3" />
-                <span className="truncate wrap-anywhere">{channelName}</span>
-              </span>
-              <RelativeTime date={new Date(result.messageCreatedAt)}>
-                {(relativeTime) => <span>{relativeTime}</span>}
-              </RelativeTime>
-              <span>{filesize(result.file.size)}</span>
-            </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end gap-2 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-2 pt-8">
+          <div className="min-w-0 flex-1 text-[11px] leading-tight text-white">
+            <div className="truncate">{result.file.originalName}</div>
+            {result.channelIsDm && (
+              <div className="mt-0.5 flex min-w-0 items-center gap-1 text-white/70">
+                <MessageCircleMore className="h-3 w-3 shrink-0" />
+                <span className="truncate">{t('directMessages')}</span>
+              </div>
+            )}
           </div>
 
-          <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-            {result.file.extension.replace(/^\./, '').toUpperCase()}
+          <span className="shrink-0 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+            {extension}
           </span>
         </div>
 
-        <Button
+        <button
           type="button"
-          variant="secondary"
-          size="sm"
-          className="mt-2"
           onClick={handleJump}
+          title={t('jumpToMessage')}
+          className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-md bg-black/55 text-white opacity-100 backdrop-blur-sm transition hover:bg-black/75 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
         >
-          {t('jumpToMessage')}
-        </Button>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </button>
       </div>
     );
   }
