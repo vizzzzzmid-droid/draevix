@@ -40,7 +40,8 @@ const searchMessagesRoute = rateLimitedProcedure(protectedProcedure, {
         .toLowerCase()
         .min(SEARCH_QUERY_MIN_LENGTH)
         .max(SEARCH_QUERY_MAX_LENGTH),
-      scope: z.enum(['server', 'dms']).default('server')
+      scope: z.enum(['server', 'dms']).default('server'),
+      channelId: z.number().int().positive().optional()
     })
   )
   .query(async ({ ctx, input }) => {
@@ -54,7 +55,8 @@ const searchMessagesRoute = rateLimitedProcedure(protectedProcedure, {
     const accessibleChannelIds = await getSearchChannelIds(
       ctx.userId,
       input.scope,
-      settings.directMessagesEnabled
+      settings.directMessagesEnabled,
+      input.channelId
     );
 
     if (accessibleChannelIds.length === 0) {

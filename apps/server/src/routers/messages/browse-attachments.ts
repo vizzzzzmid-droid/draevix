@@ -36,6 +36,7 @@ const browseAttachmentsRoute = rateLimitedProcedure(protectedProcedure, {
   .input(
     z.object({
       scope: z.enum(['server', 'dms']).default('server'),
+      channelId: z.number().int().positive().optional(),
       type: z.enum(['photos', 'videos', 'audio', 'links']),
       query: z.string().trim().toLowerCase().max(MAX_FILTER_LENGTH).optional(),
       cursor: z
@@ -58,7 +59,8 @@ const browseAttachmentsRoute = rateLimitedProcedure(protectedProcedure, {
     const accessibleChannelIds = await getSearchChannelIds(
       ctx.userId,
       input.scope,
-      settings.directMessagesEnabled
+      settings.directMessagesEnabled,
+      input.channelId
     );
 
     if (accessibleChannelIds.length === 0) {

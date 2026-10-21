@@ -16,7 +16,8 @@ const DEBOUNCE_MS = 300;
 export const useSearch = (
   isOpen: boolean,
   scope: TSearchScope,
-  enabled: boolean
+  enabled: boolean,
+  channelId?: number
 ) => {
   const { t } = useTranslation('common');
 
@@ -53,7 +54,8 @@ export const useSearch = (
       try {
         const next = await trpc.messages.search.query({
           query: trimmed,
-          scope
+          scope,
+          channelId
         });
 
         if (!cancelled) {
@@ -80,7 +82,7 @@ export const useSearch = (
       clearTimeout(timer);
       cancelled = true;
     };
-  }, [query, scope, enabled, isOpen, t]);
+  }, [query, scope, channelId, enabled, isOpen, t]);
 
   const canSearch = query.trim().length >= MIN_QUERY_LENGTH;
 

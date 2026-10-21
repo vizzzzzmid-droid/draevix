@@ -392,6 +392,53 @@ describe('messages router', () => {
     expect(outsiderResult.files.length).toBe(0);
   });
 
+  test('should restrict DM search and attachments to the selected conversation', async () => {
+    const { caller: participant } = await initTest(3);
+    const { caller: outsider } = await initTest(2);
+
+    const scopedMessages = await participant.messages.search({
+      query: 'hello user b',
+      scope: 'dms',
+      channelId: 3
+    });
+
+    expect(scopedMessages.messages.length).toBe(1);
+    expect(scopedMessages.messages[0]?.channelId).toBe(3);
+
+    const scopedVideos = await participant.messages.browseAttachments({
+      scope: 'dms',
+      channelId: 3,
+      type: 'videos'
+    });
+
+    expect(
+      scopedVideos.items.some(
+        (item) =>
+          item.kind === 'file' && item.file.originalName === 'dm-movie.mp4'
+      )
+    ).toBe(true);
+
+    const wrongChannel = await participant.messages.search({
+      query: 'hello user b',
+      scope: 'dms',
+      channelId: 1
+    });
+    const wrongChannelVideos = await participant.messages.browseAttachments({
+      scope: 'dms',
+      channelId: 1,
+      type: 'videos'
+    });
+    const outsiderScoped = await outsider.messages.search({
+      query: 'hello user b',
+      scope: 'dms',
+      channelId: 3
+    });
+
+    expect(wrongChannel.messages.length).toBe(0);
+    expect(wrongChannelVideos.items.length).toBe(0);
+    expect(outsiderScoped.messages.length).toBe(0);
+  });
+
   test('should browse all attachments without a query', async () => {
     const { caller } = await initTest(1);
 

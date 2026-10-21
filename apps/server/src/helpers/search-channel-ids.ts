@@ -6,17 +6,23 @@ type TSearchScope = 'server' | 'dms';
 const getSearchChannelIds = async (
   userId: number,
   scope: TSearchScope,
-  directMessagesEnabled: boolean
+  directMessagesEnabled: boolean,
+  channelId?: number
 ): Promise<number[]> => {
-  if (scope === 'dms') {
-    return directMessagesEnabled
-      ? getDirectMessageChannelIdsForUser(userId)
-      : [];
+  const channelIds =
+    scope === 'dms'
+      ? directMessagesEnabled
+        ? await getDirectMessageChannelIdsForUser(userId)
+        : []
+      : (await getChannelsForUser(userId))
+          .filter((channel) => !channel.isDm)
+          .map((channel) => channel.id);
+
+  if (channelId === undefined) {
+    return channelIds;
   }
 
-  return (await getChannelsForUser(userId))
-    .filter((channel) => !channel.isDm)
-    .map((channel) => channel.id);
+  return channelIds.includes(channelId) ? [channelId] : [];
 };
 
 export { getSearchChannelIds };

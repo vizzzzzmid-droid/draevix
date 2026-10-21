@@ -18,7 +18,8 @@ export const useAttachments = (
   isOpen: boolean,
   scope: TSearchScope,
   tab: TSearchTab,
-  query: string
+  query: string,
+  channelId?: number
 ) => {
   const { t } = useTranslation('common');
   const requestRef = useRef(0);
@@ -53,6 +54,7 @@ export const useAttachments = (
         const trpc = getTRPCClient();
         const page = await trpc.messages.browseAttachments.query({
           scope,
+          channelId,
           type: tab,
           query: trimmed.length >= MIN_FILTER_LENGTH ? trimmed : undefined,
           cursor: null,
@@ -86,7 +88,7 @@ export const useAttachments = (
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isOpen, scope, tab, query, t]);
+  }, [isOpen, scope, channelId, tab, query, t]);
 
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore || tab === 'messages') {
@@ -102,6 +104,7 @@ export const useAttachments = (
       const trpc = getTRPCClient();
       const page = await trpc.messages.browseAttachments.query({
         scope,
+        channelId,
         type: tab,
         query: trimmed.length >= MIN_FILTER_LENGTH ? trimmed : undefined,
         cursor,
@@ -119,7 +122,7 @@ export const useAttachments = (
         setLoadingMore(false);
       }
     }
-  }, [cursor, loadingMore, scope, tab, query, t]);
+  }, [cursor, loadingMore, scope, channelId, tab, query, t]);
 
   return {
     items,

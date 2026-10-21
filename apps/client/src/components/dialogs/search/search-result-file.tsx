@@ -15,6 +15,7 @@ import type { TSearchResultFile } from './types';
 type TSearchResultFileCardProps = {
   result: TSearchResultFile;
   onJump: (target: TMessageJumpToTarget) => void;
+  onPreview: (result: TSearchResultFile) => void;
 };
 
 const FilePreview = memo(({ result }: { result: TSearchResultFile }) => {
@@ -70,7 +71,7 @@ const FilePreview = memo(({ result }: { result: TSearchResultFile }) => {
 });
 
 const SearchResultFileCard = memo(
-  ({ result, onJump }: TSearchResultFileCardProps) => {
+  ({ result, onJump, onPreview }: TSearchResultFileCardProps) => {
     const { t } = useTranslation('dialogs');
 
     const handleJump = useCallback(() => {
@@ -81,20 +82,23 @@ const SearchResultFileCard = memo(
       });
     }, [onJump, result.channelId, result.messageId, result.channelIsDm]);
 
+    const handlePreview = useCallback(() => {
+      onPreview(result);
+    }, [onPreview, result]);
+
     const extension =
       result.file.extension.replace(/^\./, '').toUpperCase() || 'FILE';
 
     return (
       <div className="group relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-card">
-        <a
-          href={getFileUrl(result.file)}
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
+          onClick={handlePreview}
           title={result.file.originalName}
-          className="absolute inset-0 block"
+          className="absolute inset-0 block text-left"
         >
           <FilePreview result={result} />
-        </a>
+        </button>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end gap-2 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-2 pt-8">
           <div className="min-w-0 flex-1 text-[11px] leading-tight text-white">
