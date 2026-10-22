@@ -362,6 +362,9 @@ const Devices = memo(() => {
                   <SelectItem value={NoiseSuppression.DTLN}>
                     DTLN ({t('experimental')})
                   </SelectItem>
+                  <SelectItem value={NoiseSuppression.DEEPFILTERNET}>
+                    DeepFilterNet ({t('experimental')})
+                  </SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>

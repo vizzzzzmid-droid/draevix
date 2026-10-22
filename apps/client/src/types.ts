@@ -51,7 +51,8 @@ export enum NoiseSuppression {
   NONE = 'none',
   STANDARD = 'standard',
   RNNOISE = 'rnnoise',
-  DTLN = 'dtln'
+  DTLN = 'dtln',
+  DEEPFILTERNET = 'deepfilternet'
 }
 
 export type TDeviceSettings = {

@@ -1,3 +1,4 @@
+import { createDeepFilterNetChain } from '@/helpers/audio-worklet/deepfilternet-worklet';
 import { createDtlnChain } from '@/helpers/audio-worklet/dtln-worklet';
 import { createRnnoiseChain } from '@/helpers/audio-worklet/rnnoise-worklet';
 import { NoiseSuppression } from '@/types';
@@ -16,6 +17,8 @@ const createNsChain = async (
       return createDtlnChain(stream);
     case NoiseSuppression.RNNOISE:
       return createRnnoiseChain(stream);
+    case NoiseSuppression.DEEPFILTERNET:
+      return createDeepFilterNetChain(stream);
     default:
       throw new Error(`no ns chain for ${noiseSuppression}`);
   }

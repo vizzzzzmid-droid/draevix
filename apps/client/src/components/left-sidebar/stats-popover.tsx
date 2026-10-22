@@ -36,7 +36,8 @@ const NOISE_SUPPRESSION_LABEL_KEYS: Record<NoiseSuppression, string> = {
   [NoiseSuppression.NONE]: 'settings:noiseSuppressionNone',
   [NoiseSuppression.STANDARD]: 'settings:noiseSuppressionStandardName',
   [NoiseSuppression.RNNOISE]: 'settings:noiseSuppressionRnnoiseName',
-  [NoiseSuppression.DTLN]: 'settings:noiseSuppressionDtlnName'
+  [NoiseSuppression.DTLN]: 'settings:noiseSuppressionDtlnName',
+  [NoiseSuppression.DEEPFILTERNET]: 'settings:noiseSuppressionDeepfilternetName'
 };
 
 const getCodecLabel = (codec: string) => {

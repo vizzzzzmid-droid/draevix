@@ -270,7 +270,8 @@ const useMicrophoneTest = ({
 
         if (
           noiseSuppression === NoiseSuppression.DTLN ||
-          noiseSuppression === NoiseSuppression.RNNOISE
+          noiseSuppression === NoiseSuppression.RNNOISE ||
+          noiseSuppression === NoiseSuppression.DEEPFILTERNET
         ) {
           try {
             const chain = await createNsChain(noiseSuppression, stream);

@@ -67,7 +67,7 @@ const SupressionHelp = memo(() => {
               </td>
               <td className="px-2 py-2">{t('noiseSuppressionRnnoiseNotes')}</td>
             </tr>
-            <tr className="align-top">
+            <tr className="border-b border-background/10 align-top">
               <td className="px-2 py-2 font-medium">
                 {t('noiseSuppressionDtlnName')}
               </td>
@@ -79,6 +79,23 @@ const SupressionHelp = memo(() => {
                 {t('noiseSuppressionDtlnVoiceQuality')}
               </td>
               <td className="px-2 py-2">{t('noiseSuppressionDtlnNotes')}</td>
+            </tr>
+            <tr className="align-top">
+              <td className="px-2 py-2 font-medium">
+                {t('noiseSuppressionDeepfilternetName')}
+              </td>
+              <td className="px-2 py-2">
+                {t('noiseSuppressionDeepfilternetMemoryUsage')}
+              </td>
+              <td className="px-2 py-2">
+                {t('noiseSuppressionDeepfilternetCpuUsage')}
+              </td>
+              <td className="px-2 py-2">
+                {t('noiseSuppressionDeepfilternetVoiceQuality')}
+              </td>
+              <td className="px-2 py-2">
+                {t('noiseSuppressionDeepfilternetNotes')}
+              </td>
             </tr>
           </tbody>
         </table>

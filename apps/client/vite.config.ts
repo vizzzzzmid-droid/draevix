@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src')
       }
     },
+    optimizeDeps: {
+      exclude: ['@lofcz/deepfilternet-web']
+    },
     define: {
       VITE_APP_VERSION: JSON.stringify(pkg.version)
     },

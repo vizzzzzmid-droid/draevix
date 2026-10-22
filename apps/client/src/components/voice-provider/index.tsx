@@ -572,10 +572,13 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
 
       const useNsChain =
         devices.noiseSuppression === NoiseSuppression.DTLN ||
-        devices.noiseSuppression === NoiseSuppression.RNNOISE;
+        devices.noiseSuppression === NoiseSuppression.RNNOISE ||
+        devices.noiseSuppression === NoiseSuppression.DEEPFILTERNET;
       const useStandardNs =
         devices.noiseSuppression === NoiseSuppression.STANDARD;
       const useDtln = devices.noiseSuppression === NoiseSuppression.DTLN;
+      const useDeepFilterNet =
+        devices.noiseSuppression === NoiseSuppression.DEEPFILTERNET;
 
       const hasSpecificMic =
         !!devices.microphoneId && devices.microphoneId !== 'default';
@@ -588,7 +591,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
           autoGainControl: devices.autoGainControl,
           echoCancellation: devices.echoCancellation,
           noiseSuppression: useStandardNs,
-          sampleRate: useDtln ? 16000 : undefined,
+          sampleRate: useDtln ? 16000 : useDeepFilterNet ? 48000 : undefined,
           channelCount: 1
         },
         video: false
