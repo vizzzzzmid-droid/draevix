@@ -147,6 +147,7 @@ export type TVoiceProvider = {
   ) => Promise<void>;
   pendingScreenShares: Record<number, true>;
   watchScreenShare: (userId: number) => Promise<void>;
+  unwatchScreenShare: (userId: number) => void;
 } & Pick<
   ReturnType<typeof useLocalStreams>,
   | 'localAudioStream'
@@ -197,7 +198,8 @@ const VoiceProviderContext = createContext<TVoiceProvider>({
   remoteUserStreams: {},
   externalStreams: {},
   pendingScreenShares: {},
-  watchScreenShare: () => Promise.resolve()
+  watchScreenShare: () => Promise.resolve(),
+  unwatchScreenShare: () => {}
 });
 
 type TVoiceProviderProps = {
@@ -443,6 +445,7 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
     createConsumerTransport,
     consume,
     consumeExistingProducers,
+    stopScreenShareConsumers,
     cleanupTransports,
     getConsumerCodec
   } = useTransports({
@@ -474,8 +477,12 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       // the server refuses kinds with no live producer, so asking for both
       // up front is safe even when audio shows up later
       for (const kind of [StreamKind.SCREEN, StreamKind.SCREEN_AUDIO]) {
+        if (!watchingScreensRef.current.has(userId)) break;
+
         try {
-          await consume(userId, kind, rtpCapabilities);
+          await consume(userId, kind, rtpCapabilities, () =>
+            watchingScreensRef.current.has(userId)
+          );
         } catch (error) {
           logVoiceError('screen: watch consume failed', error, {
             userId,
@@ -485,6 +492,15 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       }
     },
     [consume]
+  );
+
+  const unwatchScreenShare = useCallback(
+    (userId: number) => {
+      watchingScreensRef.current.delete(userId);
+      stopScreenShareConsumers(userId);
+      addPendingScreenShare(userId);
+    },
+    [addPendingScreenShare, stopScreenShareConsumers]
   );
 
   const {
@@ -1548,7 +1564,8 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       remoteUserStreams,
       externalStreams,
       pendingScreenShares,
-      watchScreenShare
+      watchScreenShare,
+      unwatchScreenShare
     }),
     [
       loading,
@@ -1575,7 +1592,8 @@ const VoiceProvider = memo(({ children }: TVoiceProviderProps) => {
       remoteUserStreams,
       externalStreams,
       pendingScreenShares,
-      watchScreenShare
+      watchScreenShare,
+      unwatchScreenShare
     ]
   );
 

@@ -130,6 +130,30 @@ describe('VoiceRuntime producer and consumer maps', () => {
       second as unknown as Consumer
     );
   });
+
+  test('should only close the consumer matching the expected id', () => {
+    const runtime = createRuntime();
+    const consumer = createConsumerStub();
+
+    runtime.addConsumer(
+      1,
+      2,
+      StreamKind.SCREEN,
+      consumer as unknown as Consumer
+    );
+
+    runtime.closeConsumer(1, 2, StreamKind.SCREEN, 'another-consumer');
+
+    expect(consumer.closed).toBe(false);
+    expect(runtime.getConsumer(1, 2, StreamKind.SCREEN)).toBe(
+      consumer as unknown as Consumer
+    );
+
+    runtime.closeConsumer(1, 2, StreamKind.SCREEN, consumer.id);
+
+    expect(consumer.closed).toBe(true);
+    expect(runtime.getConsumer(1, 2, StreamKind.SCREEN)).toBeUndefined();
+  });
 });
 
 describe('VoiceRuntime external streams', () => {

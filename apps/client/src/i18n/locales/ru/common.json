@@ -139,6 +139,7 @@
   "watchJoin": "Присоединиться к просмотру",
   "watchScreenSharingBy": "{{name}} показывает экран",
   "watchScreenShare": "Смотреть демонстрацию",
+  "stopWatchingScreenShare": "Выйти из демонстрации",
   "watchStreamFailed": "Не удалось загрузить поток",
   "watchRetry": "Повторить",
   "watchStreamLoading": "Загрузка потока...",

@@ -139,6 +139,7 @@
   "watchJoin": "Join the watch party",
   "watchScreenSharingBy": "{{name}} is sharing their screen",
   "watchScreenShare": "Watch screen share",
+  "stopWatchingScreenShare": "Stop watching screen share",
   "watchStreamFailed": "The stream failed to load",
   "watchRetry": "Retry",
   "watchStreamLoading": "Loading the stream...",

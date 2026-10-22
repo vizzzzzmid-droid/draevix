@@ -4,6 +4,7 @@ import { anilibertyFranchiseRoute } from './aniliberty-franchise';
 import { anilibertyRefreshRoute } from './aniliberty-refresh';
 import { anilibertySearchRoute } from './aniliberty-search';
 import { anilibertySelectRoute } from './aniliberty-select';
+import { closeConsumerRoute } from './close-consumer';
 import { closeProducerRoute } from './close-producer';
 import { connectConsumerTransportRoute } from './connect-consumer-transport';
 import { connectProducerTransportRoute } from './connect-producer-transport';
@@ -63,6 +64,7 @@ export const voiceRouter = t.router({
   createConsumerTransport: createConsumerTransportRoute,
   connectConsumerTransport: connectConsumerTransportRoute,
   closeProducer: closeProducerRoute,
+  closeConsumer: closeConsumerRoute,
   produce: produceRoute,
   consume: consumeRoute,
   setConsumerQuality: setConsumerQualityRoute,

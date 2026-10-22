@@ -479,6 +479,22 @@ class VoiceRuntime {
     return this.consumers[userId]?.[this.getConsumerKey(remoteId, kind)];
   };
 
+  public closeConsumer = (
+    userId: number,
+    remoteId: number,
+    kind: StreamKind,
+    consumerId?: string
+  ) => {
+    const streamKey = this.getConsumerKey(remoteId, kind);
+    const consumer = this.consumers[userId]?.[streamKey];
+
+    if (!consumer) return;
+    if (consumerId && consumer.id !== consumerId) return;
+
+    consumer.close();
+    delete this.consumers[userId]?.[streamKey];
+  };
+
   public getConsumerById = (userId: number, consumerId: string) => {
     const userConsumers = this.consumers[userId];
 

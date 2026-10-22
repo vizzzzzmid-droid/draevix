@@ -7,8 +7,9 @@ import { useStreamQualityData } from '@/hooks/use-stream-quality-data';
 import { cn } from '@/lib/utils';
 import { StreamKind } from '@draevix/shared';
 import { IconButton } from '@draevix/ui';
-import { Monitor, ZoomIn, ZoomOut } from 'lucide-react';
+import { Monitor, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CardTheme } from './card-theme';
 import { FullscreenButton } from './fullscreen-button';
 import {
@@ -52,6 +53,7 @@ const ScreenShareCard = memo(
     showPinControls = true,
     isAnyCardPinned = false
   }: TScreenShareCardProps) => {
+    const { t } = useTranslation();
     const user = useUserById(userId);
     const ownUserId = useOwnUserId();
     const { getUserScreenVolumeKey } = useVolumeControl();
@@ -69,7 +71,7 @@ const ScreenShareCard = memo(
       hasScreenShareAudioStream
     } = useVoiceRefs(userId);
 
-    const { getConsumerCodec } = useVoice();
+    const { getConsumerCodec, unwatchScreenShare } = useVoice();
     const transportStats = useVoiceStats();
 
     const videoStats = useVideoStats(screenShareRef, hasScreenShareStream);
@@ -140,6 +142,12 @@ const ScreenShareCard = memo(
       }
     }, [isPinned, onPin, onUnpin, cardId, userId, resetZoom]);
 
+    const handleStopWatching = useCallback(() => {
+      if (isPinned) onUnpin();
+
+      unwatchScreenShare(userId);
+    }, [isPinned, onUnpin, unwatchScreenShare, userId]);
+
     if (!user || !hasScreenShareStream) return null;
 
     return (
@@ -184,6 +192,22 @@ const ScreenShareCard = memo(
           autoPlay
           playsInline
         />
+
+        {!isOwnUser && (
+          <div className={cn('absolute top-0 left-0 z-10', density.inset)}>
+            <IconButton
+              icon={X}
+              variant="ghost"
+              onClick={handleStopWatching}
+              title={t('stopWatchingScreenShare')}
+              size={density.icon}
+              className={cn(
+                cardControlClass(),
+                'bg-black/70 text-white hover:bg-black/90'
+              )}
+            />
+          </div>
+        )}
 
         <div
           className={cn(

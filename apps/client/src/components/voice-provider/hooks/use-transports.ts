@@ -269,7 +269,8 @@ const useTransports = ({
     async (
       remoteId: number,
       kind: StreamKind,
-      rtpCapabilities: RtpCapabilities
+      rtpCapabilities: RtpCapabilities,
+      shouldApply?: () => boolean
     ) => {
       if (!consumerTransport.current) {
         logVoiceWarn('consumer: skipped, no consumer transport', {
@@ -340,6 +341,30 @@ const useTransports = ({
           kind: getMediasoupKind(consumerKind),
           rtpParameters: consumerRtpParameters
         });
+
+        if (shouldApply && !shouldApply()) {
+          logVoice('consumer: discarded, watch stopped', { remoteId, kind });
+
+          if (kind === StreamKind.SCREEN || kind === StreamKind.SCREEN_AUDIO) {
+            void trpc.voice.closeConsumer
+              .mutate({ remoteId, kind, consumerId: newConsumer.id })
+              .catch((error) =>
+                logVoiceWarn('consumer: failed to close consumer', {
+                  remoteId,
+                  kind,
+                  error
+                })
+              );
+          }
+
+          newConsumer.close();
+
+          if (!Object.keys(consumers.current[remoteId] ?? {}).length) {
+            delete consumers.current[remoteId];
+          }
+
+          return;
+        }
 
         logVoice('consumer: created', {
           remoteId,
@@ -515,6 +540,55 @@ const useTransports = ({
     []
   );
 
+  const stopScreenShareConsumers = useCallback(
+    (remoteId: number) => {
+      const userConsumers = consumers.current[remoteId];
+
+      if (!userConsumers) return;
+
+      const trpc = getTRPCClient();
+      const screenKinds: Array<StreamKind.SCREEN | StreamKind.SCREEN_AUDIO> = [
+        StreamKind.SCREEN,
+        StreamKind.SCREEN_AUDIO
+      ];
+
+      screenKinds.forEach((kind) => {
+        const consumer = userConsumers[kind];
+
+        if (consumer) {
+          void trpc.voice.closeConsumer
+            .mutate({ remoteId, kind, consumerId: consumer.id })
+            .catch((error) =>
+              logVoiceWarn('consumer: failed to close consumer', {
+                remoteId,
+                kind,
+                error
+              })
+            );
+
+          if (!consumer.closed) {
+            consumer.close();
+          }
+        }
+
+        delete userConsumers[kind];
+        consumerCodecs.current.delete(`${remoteId}-${kind}`);
+        removeRemoteUserStream(remoteId, kind);
+        setRemoteConsumerType(remoteId, kind, undefined);
+        setRemoteStreamQualityLayers(remoteId, kind, []);
+      });
+
+      if (!Object.keys(userConsumers).length) {
+        delete consumers.current[remoteId];
+      }
+    },
+    [
+      removeRemoteUserStream,
+      setRemoteConsumerType,
+      setRemoteStreamQualityLayers
+    ]
+  );
+
   const cleanupTransports = useCallback(() => {
     logVoice('session: cleaning up transports');
 
@@ -556,6 +630,7 @@ const useTransports = ({
     createConsumerTransport,
     consume,
     consumeExistingProducers,
+    stopScreenShareConsumers,
     cleanupTransports,
     getConsumerCodec
   };
