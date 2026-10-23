@@ -3,6 +3,8 @@
   "openVoiceChat": "Open Voice Chat",
   "closeMembersSidebar": "Close Members Sidebar",
   "openMembersSidebar": "Open Members Sidebar",
+  "closeChannelsSidebar": "Close Channels Sidebar",
+  "openChannelsSidebar": "Open Channels Sidebar",
   "searchContent": "Search for content...",
   "voiceOptions": "Voice Options",
   "hideNonVideoParticipants": "Hide non-video participants",

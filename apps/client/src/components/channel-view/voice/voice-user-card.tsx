@@ -140,7 +140,7 @@ const VoiceUserCard = memo(
           className={cn(
             'absolute top-0 right-0 z-10 justify-end',
             density.inset,
-            'hidden group-hover/voice-user-card:flex',
+            'hidden group-hover/voice-user-card:flex max-lg:flex',
             'has-[[data-state=open]]:flex'
           )}
         >
@@ -189,7 +189,7 @@ const VoiceUserCard = memo(
                 !voiceUser.state.soundMuted &&
                 !voiceUser.state.webcamEnabled &&
                 !voiceUser.state.sharingScreen &&
-                'hidden group-hover/voice-stage:inline-flex'
+                'hidden group-hover/voice-stage:inline-flex max-lg:inline-flex'
             )}
           >
             {voiceUser.state.micMuted && !voiceUser.state.soundMuted && (
@@ -212,7 +212,7 @@ const VoiceUserCard = memo(
             )}
             <p
               className={cn(
-                'hidden group-hover/voice-stage:block truncate leading-none',
+                'hidden group-hover/voice-stage:block truncate leading-none max-lg:block',
                 density.label
               )}
             >

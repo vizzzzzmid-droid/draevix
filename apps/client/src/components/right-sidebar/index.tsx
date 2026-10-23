@@ -9,6 +9,8 @@ import {
   PluginSlot,
   TestId
 } from '@draevix/shared';
+import { Button } from '@draevix/ui';
+import { X } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserPopover } from '../user-popover';
@@ -55,10 +57,11 @@ const User = memo(({ userId, name, banned }: TUserProps) => {
 type TRightSidebarProps = {
   className?: string;
   isOpen?: boolean;
+  onClose?: () => void;
 };
 
 const RightSidebar = memo(
-  ({ className, isOpen = true }: TRightSidebarProps) => {
+  ({ className, isOpen = true, onClose }: TRightSidebarProps) => {
     const { t } = useTranslation('sidebar');
     const users = useUsers();
 
@@ -85,10 +88,21 @@ const RightSidebar = memo(
         isOpen={isOpen}
         className={cn('h-full', className)}
       >
-        <div className="flex h-12 items-center border-b border-border px-4">
+        <div className="flex h-12 items-center justify-between border-b border-border px-4">
           <h3 className="text-sm font-semibold text-foreground">
             {t('membersHeader', { count: usersCount })}
           </h3>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 lg:hidden"
+              onClick={onClose}
+              aria-label={t('common:close')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           <div className="space-y-1">

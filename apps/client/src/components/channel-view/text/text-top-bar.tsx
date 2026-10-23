@@ -60,7 +60,7 @@ const TextTopbar = memo(
             {getIcon()}
             <span className="font-bold truncate max-w-40">{info.name}</span>
             {info.topic && (
-              <span className="text-xs text-muted-foreground truncate">
+              <span className="hidden text-xs text-muted-foreground truncate sm:block">
                 {info.topic}
               </span>
             )}

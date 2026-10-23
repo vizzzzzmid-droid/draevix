@@ -3,6 +3,8 @@
   "openVoiceChat": "Открыть голосовой чат",
   "closeMembersSidebar": "Закрыть боковую панель участников",
   "openMembersSidebar": "Открыть боковую панель участников",
+  "closeChannelsSidebar": "Закрыть список каналов",
+  "openChannelsSidebar": "Открыть список каналов",
   "searchContent": "Поиск по содержимому...",
   "voiceOptions": "Опции голосового управления",
   "hideNonVideoParticipants": "Скрыть участников без видео",

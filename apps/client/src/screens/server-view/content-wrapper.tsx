@@ -10,8 +10,7 @@ import {
   useServerName
 } from '@/features/server/hooks';
 import { ChannelType, PluginSlot } from '@draevix/shared';
-import { Alert, AlertDescription } from '@draevix/ui';
-import { AlertTriangle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -82,16 +81,17 @@ const ContentWrapper = memo(
           <div className="flex-col gap-2 h-full w-full hidden lg:flex overflow-auto">
             <PluginSlotRenderer slotId={PluginSlot.HOME_SCREEN} />
           </div>
-          <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center md:hidden">
+          <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center lg:hidden">
+            <img
+              src="/logo.webp"
+              alt="Draevix"
+              className="block max-h-24 max-w-full rounded-[5px]"
+            />
             <div className="flex flex-col gap-2">
               <h2 className="text-2xl font-semibold text-foreground">
                 {t('welcomeToServer', { name: serverName })}
               </h2>
             </div>
-            <Alert variant="destructive" className="max-w-md">
-              <AlertTriangle />
-              <AlertDescription>{t('mobileNotOptimized')}</AlertDescription>
-            </Alert>
             <div className="flex flex-col gap-3 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <span className="text-lg">

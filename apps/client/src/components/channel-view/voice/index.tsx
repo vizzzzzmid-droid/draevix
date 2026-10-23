@@ -1,3 +1,4 @@
+import { useChannelById } from '@/features/server/channels/hooks';
 import { useVoiceUsersByChannelId } from '@/features/server/hooks';
 import { useOwnUserId } from '@/features/server/users/hooks';
 import {
@@ -7,6 +8,7 @@ import {
   useVoiceChannelExternalStreamsList
 } from '@/features/server/voice/hooks';
 import { StreamKind } from '@draevix/shared';
+import { Volume2 } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { ControlsBar } from './controls-bar';
 import { ExternalStreamCard } from './external-stream-card';
@@ -23,6 +25,7 @@ type TChannelProps = {
 };
 
 const VoiceChannel = memo(({ channelId }: TChannelProps) => {
+  const channel = useChannelById(channelId);
   const voiceUsers = useVoiceUsersByChannelId(channelId);
   const externalStreams = useVoiceChannelExternalStreamsList(channelId);
   const { pinnedCard, pinCard, unpinCard, isPinned } = usePinCardController();
@@ -138,14 +141,22 @@ const VoiceChannel = memo(({ channelId }: TChannelProps) => {
 
   if (voiceUsers.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground text-lg mb-2">
-            No one in the voice channel
-          </p>
-          <p className="text-muted-foreground text-sm">
-            Join the voice channel to start a meeting
-          </p>
+      <div className="flex size-full flex-col bg-background">
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-4 lg:hidden">
+          <Volume2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate text-sm font-semibold text-foreground">
+            {channel?.name}
+          </span>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <p className="text-muted-foreground text-lg mb-2">
+              No one in the voice channel
+            </p>
+            <p className="text-muted-foreground text-sm">
+              Join the voice channel to start a meeting
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -153,7 +164,15 @@ const VoiceChannel = memo(({ channelId }: TChannelProps) => {
 
   return (
     <div className="flex flex-col size-full relative bg-background overflow-hidden group/voice-stage">
-      <VoiceGrid pinnedCardId={pinnedCard?.id}>{cards}</VoiceGrid>
+      <div className="absolute inset-x-0 top-0 z-20 flex h-12 items-center gap-2 border-b border-border bg-card px-4 lg:hidden">
+        <Volume2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="truncate text-sm font-semibold text-foreground">
+          {channel?.name}
+        </span>
+      </div>
+      <VoiceGrid className="max-lg:pt-12" pinnedCardId={pinnedCard?.id}>
+        {cards}
+      </VoiceGrid>
       <WatchPartyPanel channelId={channelId} />
       <MusicPanel channelId={channelId} />
       <ControlsBar channelId={channelId} />

@@ -131,7 +131,7 @@ const PreviewFile = memo(({ item, onRemove }: TPreviewFileProps) => {
         <Button
           size="icon"
           variant="secondary"
-          className="absolute top-1 right-1 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute top-1 right-1 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 max-lg:opacity-100"
           onClick={onRemoveClick}
         >
           <Trash className="h-3 w-3" />

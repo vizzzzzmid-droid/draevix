@@ -56,7 +56,7 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
 
   const barClass = alwaysShowControls
     ? 'relative -mt-3'
-    : 'absolute bottom-0 left-0 right-0 transition-all duration-300 ease-in-out invisible opacity-0 translate-y-4 group-hover/voice-stage:visible group-hover/voice-stage:opacity-100 group-hover/voice-stage:translate-y-0';
+    : 'absolute bottom-0 left-0 right-0 transition-all duration-300 ease-in-out invisible opacity-0 translate-y-4 group-hover/voice-stage:visible group-hover/voice-stage:opacity-100 group-hover/voice-stage:translate-y-0 max-lg:visible max-lg:opacity-100 max-lg:translate-y-0';
 
   const handleLeaveVoice = useCallback(() => {
     leaveVoice();
@@ -92,14 +92,14 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
   return (
     <div
       className={cn(
-        'flex justify-center items-center pointer-events-none gap-2 p-3',
+        'flex justify-center items-center pointer-events-none gap-1 p-2 sm:gap-2 sm:p-3',
         barClass
       )}
     >
       <div
         className={cn(
-          'flex items-center pointer-events-auto p-1.5',
-          'gap-2 rounded border shadow-xl',
+          'flex items-center pointer-events-auto p-1 sm:p-1.5',
+          'gap-1 rounded border shadow-xl sm:gap-2',
           'bg-card border-border/50 backdrop-blur-md'
         )}
       >
@@ -124,7 +124,7 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
           onClick={toggleSound}
         />
 
-        <div className="h-8 border-r-2 border-border" />
+        <div className="h-7 border-r-2 border-border sm:h-8" />
 
         <ControlToggleButton
           enabled={ownVoiceState.webcamEnabled}
@@ -173,7 +173,7 @@ const ControlsBar = memo(({ channelId }: TControlsBarProps) => {
       <Tooltip content="Disconnect">
         <Button
           className={cn(
-            'inline-flex h-auto self-stretch min-w-11 items-center justify-center rounded px-3 border border-border',
+            'inline-flex h-auto self-stretch min-w-10 items-center justify-center rounded border border-border px-2 sm:min-w-11 sm:px-3',
             'pointer-events-auto text-white shadow-xl transition-all',
             'bg-[#ec4245] hover:bg-[#da373c]'
           )}
